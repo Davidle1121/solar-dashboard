@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home Energy Dashboard</title>
+<script>
+  const DRIVE_API_KEY   = 'AIzaSyA_dH35fk8RoqGcm-vDmIc8nUr1G1EQcAA';
+  const DRIVE_FOLDER_ID = '1WGUPKuuMKYkvUDVpJl6elwfgUU-vV2t7';
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2430;
+    --border: #21262d;
+    --grid: rgba(255,255,255,0.04);
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #f0a500;
+    --accent2: #3fb950;
+    --accent3: #58a6ff;
+    --danger: #f85149;
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .header-left h1 {
+    font-family: var(--font-display);
+    font-size: clamp(22px, 4vw, 36px);
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .header-left h1 span { color: var(--accent); font-style: italic; }
+  .header-meta {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── UPLOAD ZONE ── */
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 12px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--surface);
+    margin-bottom: 28px;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(240,165,0,0.04); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-label { color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .upload-label strong { color: var(--accent); }
+  .file-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; justify-content: center; }
+  .chip {
+    background: rgba(63,185,80,0.12);
+    border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--accent2);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .chip .remove { cursor: pointer; opacity: 0.6; }
+  .chip .remove:hover { opacity: 1; }
+
+  /* ── STAT CARDS ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    animation: fadeUp 0.4s ease both;
+  }
+  .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+  .stat-value { font-family: var(--font-display); font-size: clamp(20px, 3vw, 28px); font-weight: 700; line-height: 1; }
+  .stat-unit { font-size: 12px; color: var(--muted); margin-left: 3px; font-family: var(--font-mono); font-weight: 400; }
+  .stat-sub { font-size: 10px; color: var(--muted); margin-top: 5px; }
+  .stat-card.grid-color .stat-value { color: var(--accent3); }
+  .stat-card.solar-color .stat-value { color: var(--accent); }
+  .stat-card.days-color .stat-value { color: var(--accent2); }
+  .stat-card.peak-color .stat-value { color: var(--danger); }
+
+  /* ── SECTION TABS ── */
+  .section-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 8px 14px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  /* ── CHART PANELS ── */
+  .chart-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    animation: fadeUp 0.4s ease both;
+  }
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chart-title {
+    font-family: var(--font-display);
+    font-size: clamp(14px, 2vw, 18px);
+    font-weight: 300;
+    color: var(--text);
+  }
+  .chart-note { font-size: 10px; color: var(--muted); }
+  .chart-wrap { position: relative; }
+  .chart-wrap canvas { max-height: 280px; }
+
+  /* ── LEGEND ── */
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── DAY SELECTOR ── */
+  .day-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .day-nav button {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .day-nav button:hover { background: var(--border); }
+  .day-nav select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+  .empty p { font-size: 12px; line-height: 1.8; }
+
+  /* ── DATA TABLE ── */
+  .data-table-wrap { overflow-x: auto; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th {
+    background: var(--surface2);
+    color: var(--muted);
+    text-align: left;
+    padding: 7px 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .val-high { color: var(--danger); }
+  .val-mid { color: var(--accent); }
+  .val-low { color: var(--accent2); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 12px;
+    color: var(--text);
+    transition: transform 0.3s ease;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+  .toast.success { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── DRIVE SYNC BUTTON ── */
+  .drive-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .drive-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .drive-btn:hover { border-color: var(--accent2); background: rgba(63,185,80,0.05); }
+  .drive-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .drive-btn .drive-icon { font-size: 15px; }
+  .drive-status {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .drive-status.syncing { color: var(--accent); }
+  .drive-status.ok { color: var(--accent2); }
+  .drive-status.err { color: var(--danger); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .chart-wrap canvas { max-height: 220px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <h1>Home <span>Energy</span> Dashboard</h1>
+      <div class="header-meta" id="header-meta">No data loaded — upload your SMT files below</div>
+    </div>
+  </header>
+
+  <!-- DRIVE SYNC BAR -->
+  <div class="drive-bar">
+    <button class="drive-btn" id="drive-btn" onclick="syncFromDrive()">
+      <span class="drive-icon">☁️</span> Sync from Google Drive
+    </button>
+    <span class="drive-status" id="drive-status">Fetches all SMT files from your Drive folder automatically</span>
+  </div>
+
+  <!-- UPLOAD ZONE -->
+  <div class="upload-zone" id="upload-zone">
+    <input type="file" id="file-input" accept=".xlsx,.csv,.xml" multiple>
+    <div class="upload-icon">⚡</div>
+    <div class="upload-label">
+      <strong>Tap to upload SMT files</strong><br>
+      Accepts: XLSX, CSV, or XML (Green Button) — multiple files OK<br>
+      <span style="font-size:10px;opacity:0.6">Files are read locally in your browser. Nothing is uploaded anywhere.</span>
+    </div>
+    <div class="file-chips" id="file-chips"></div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stats-row" id="stats-row" style="display:none">
+    <div class="stat-card grid-color">
+      <div class="stat-label">Total Grid Usage</div>
+      <div class="stat-value" id="stat-total">—<span class="stat-unit">kWh</span></div>
+      <div class="stat-sub" id="stat-days-span">across — days</div>
+    </div>
+    <div class="stat-card days-color">
+      <div class="stat-label">Days of Data</div>
+      <div class="stat-value" id="stat-days">—</div>
+      <div class="stat-sub" id="stat-date-range">—</div>
+    </div>
+    <div class="stat-card solar-color">
+      <div class="stat-label">Daily Average</div>
+      <div class="stat-value" id="stat-avg">—<span class="stat-unit">kWh</span></div>
+      <div class="stat-sub">from grid per day</div>
+    </div>
+    <div class="stat-card peak-color">
+      <div class="stat-label">Peak 15-min Draw</div>
+      <div class="stat-value" id="stat-peak">—<span class="stat-unit">kWh</span></div>
+      <div class="stat-sub" id="stat-peak-time">—</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="section-tabs" id="section-tabs" style="display:none">
+    <button class="tab-btn active" onclick="showTab('daily')">Daily View</button>
+    <button class="tab-btn" onclick="showTab('hourly')">Hourly Profile</button>
+    <button class="tab-btn" onclick="showTab('weekly')">Weekly</button>
+    <button class="tab-btn" onclick="showTab('table')">Data Table</button>
+  </div>
+
+  <!-- DAILY TAB -->
+  <div id="tab-daily">
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Daily Grid Consumption</div>
+        <div class="chart-note">kWh per day from CenterPoint</div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Grid consumption (kWh)</div>
+      </div>
+    </div>
+
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">15-Minute Detail — <span id="detail-date-label" style="color:var(--accent)">Select day above</span></div>
+        <div class="day-nav">
+          <button onclick="shiftDay(-1)">← Prev</button>
+          <select id="day-select" onchange="selectDay(this.value)"></select>
+          <button onclick="shiftDay(1)">Next →</button>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-detail"></canvas></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Grid draw per 15-min interval (kWh)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>Spike (&gt;0.5 kWh / 15 min ≈ 2 kW)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOURLY PROFILE TAB -->
+  <div id="tab-hourly" style="display:none">
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Average Hourly Load Profile</div>
+        <div class="chart-note">Average kWh per hour across all loaded days</div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-hourly"></canvas></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Avg hourly draw (kWh)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.2)"></div>Range (min–max)</div>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Day vs Night Split</div>
+        <div class="chart-note">6am–10pm = Day / 10pm–6am = Night</div>
+      </div>
+      <div class="chart-wrap" style="max-width:300px;margin:0 auto"><canvas id="chart-daynight"></canvas></div>
+    </div>
+  </div>
+
+  <!-- WEEKLY TAB -->
+  <div id="tab-weekly" style="display:none">
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Weekly Consumption Totals</div>
+        <div class="chart-note">kWh per week (Sun–Sat)</div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-weekly"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Day-of-Week Pattern</div>
+        <div class="chart-note">Average kWh by day of week across all data</div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-dow"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TABLE TAB -->
+  <div id="tab-table" style="display:none">
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Daily Summary Table</div>
+        <div class="chart-note">Tap column headers to sort</div>
+      </div>
+      <div class="data-table-wrap">
+        <table id="summary-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Day</th>
+              <th>Grid kWh</th>
+              <th>Peak 15-min</th>
+              <th>Peak Time</th>
+              <th>Intervals</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div class="empty" id="empty-state">
+    <div class="empty-icon">📂</div>
+    <p>Upload your Smart Meter Texas files above to get started.<br>
+    Supports XLSX, CSV (when available), and XML (Green Button) formats.<br><br>
+    <span style="opacity:0.5">Files stay in your browser — nothing is sent anywhere.</span></p>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATA STORE ──────────────────────────────────────────────────────────────
+// readings: Map<dateStr YYYY-MM-DD, [{time: "HH:MM", kwh: number}]>
+let readings = new Map();
+let loadedFiles = [];
+let currentDayIndex = 0;
+let charts = {};
+
+// ── FILE HANDLING ────────────────────────────────────────────────────────────
+const fileInput = document.getElementById('file-input');
+const uploadZone = document.getElementById('upload-zone');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag');
+  handleFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', e => handleFiles([...e.target.files]));
+
+async function handleFiles(files) {
+  for (const file of files) {
+    if (loadedFiles.find(f => f.name === file.name)) continue;
+    try {
+      const data = await parseFile(file);
+      if (data.size === 0) { showToast('No data found in ' + file.name, 'error'); continue; }
+      // Merge into readings
+      for (const [date, intervals] of data.entries()) {
+        if (!readings.has(date)) readings.set(date, []);
+        // Avoid duplicate intervals from same file re-upload
+        const existing = new Set(readings.get(date).map(r => r.time));
+        for (const r of intervals) {
+          if (!existing.has(r.time)) readings.get(date).push(r);
+        }
+      }
+      loadedFiles.push(file);
+      showToast(`Loaded ${file.name}`, 'success');
+    } catch(err) {
+      showToast('Error reading ' + file.name + ': ' + err.message, 'error');
+      console.error(err);
+    }
+  }
+  if (readings.size > 0) renderAll();
+  renderChips();
+}
+
+// ── PARSERS ──────────────────────────────────────────────────────────────────
+
+async function parseFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'xml') return parseXML(await file.text());
+  if (ext === 'xlsx') return parseXLSX(file);
+  if (ext === 'csv') return parseCSV(await file.text(), file.name);
+  throw new Error('Unsupported file type: ' + ext);
+}
+
+// XML: Green Button ESPI format
+function parseXML(text) {
+  const result = new Map();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'application/xml');
+  const ns = 'http://naesb.org/espi';
+
+  const blocks = doc.getElementsByTagNameNS(ns, 'IntervalBlock');
+  for (const block of blocks) {
+    const blockStartEl = block.querySelector('interval > start');
+    if (!blockStartEl) continue;
+    const blockStartEpoch = parseInt(blockStartEl.textContent);
+    // Date from block start (UTC midnight)
+    const blockDate = new Date(blockStartEpoch * 1000);
+    const dateStr = toLocalDateStr(blockDate);
+
+    const intervalReadings = block.getElementsByTagNameNS(ns, 'IntervalReading');
+    const seenTimes = new Set();
+    for (const ir of intervalReadings) {
+      const startEl = ir.querySelector('timePeriod > start');
+      const valEl = ir.querySelector('value');
+      if (!startEl || !valEl) continue;
+      const epoch = parseInt(startEl.textContent);
+      const wh = parseInt(valEl.textContent);
+      const dt = new Date(epoch * 1000);
+      // Use local time string as dedup key
+      const timeKey = epoch.toString();
+      if (seenTimes.has(timeKey)) continue;
+      seenTimes.add(timeKey);
+      const readingDate = toLocalDateStr(dt);
+      const timeStr = toLocalTimeStr(dt);
+      if (!result.has(readingDate)) result.set(readingDate, []);
+      result.get(readingDate).push({ time: timeStr, epoch, kwh: wh / 1000 });
+    }
+  }
+  // Sort each day's readings by epoch
+  for (const [, arr] of result) arr.sort((a,b) => a.epoch - b.epoch);
+  return result;
+}
+
+// XLSX: SMT format — one day per file, time-only columns, date from filename
+async function parseXLSX(file) {
+  // We'll use a pure-JS XLSX reader (SheetJS via CDN loaded below)
+  // Fall back to a manual approach since we need to load SheetJS
+  return new Promise((resolve, reject) => {
+    if (typeof XLSX === 'undefined') {
+      reject(new Error('XLSX parser not loaded yet — try again in a moment'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        resolve(parseXLSXRows(rows, file.name));
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('File read error'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function parseXLSXRows(rows, filename) {
+  // Extract date from filename: YYYYMMDD_YYYYMMDD_SMT.xlsx → first date
+  const dateMatch = filename.match(/(\d{8})/);
+  let dateStr = null;
+  if (dateMatch) {
+    const d = dateMatch[1];
+    dateStr = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+  }
+
+  const result = new Map();
+  const header = rows[0] ? rows[0].map(h => String(h||'').toLowerCase()) : [];
+  // Find column indices
+  const timeStartIdx = header.findIndex(h => h.includes('start'));
+  const consumptionIdx = header.findIndex(h => h.includes('consumption'));
+  if (timeStartIdx < 0 || consumptionIdx < 0) {
+    throw new Error('Could not find Start Time or Consumption columns');
+  }
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < consumptionIdx + 1) continue;
+    const timeRaw = String(row[timeStartIdx] || '').trim();
+    const kwh = parseFloat(row[consumptionIdx]);
+    if (isNaN(kwh)) continue;
+
+    // Parse time like "12:00 am", " 12:15 am"
+    const tMatch = timeRaw.match(/(\d+):(\d+)\s*(am|pm)/i);
+    if (!tMatch) continue;
+    let h = parseInt(tMatch[1]);
+    const m = parseInt(tMatch[2]);
+    const ampm = tMatch[3].toLowerCase();
+    if (ampm === 'pm' && h !== 12) h += 12;
+    if (ampm === 'am' && h === 12) h = 0;
+    const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+    // Use today's date if we couldn't extract from filename
+    const useDateStr = dateStr || new Date().toISOString().slice(0,10);
+    if (!result.has(useDateStr)) result.set(useDateStr, []);
+    result.get(useDateStr).push({ time: timeStr, kwh });
+  }
+  return result;
+}
+
+// CSV: expected to mirror XLSX structure when emailed
+function parseCSV(text, filename) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return new Map();
+  const header = lines[0].split(',').map(h => h.replace(/"/g,'').trim().toLowerCase());
+  const rows = [header];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(',').map(c => c.replace(/"/g,'').trim());
+    rows.push(cells);
+  }
+  return parseXLSXRows(rows, filename);
+}
+
+// ── DATE / TIME HELPERS ──────────────────────────────────────────────────────
+function toLocalDateStr(dt) {
+  // Central Time: UTC-6 (CDT) or UTC-5 (CST). SMT data is Central.
+  // For display, offset by -5 or -6 hours. Use a simple heuristic.
+  const offset = isDST(dt) ? -5 : -6;
+  const local = new Date(dt.getTime() + offset * 3600000);
+  return local.toISOString().slice(0, 10);
+}
+
+function toLocalTimeStr(dt) {
+  const offset = isDST(dt) ? -5 : -6;
+  const local = new Date(dt.getTime() + offset * 3600000);
+  return local.toISOString().slice(11, 16);
+}
+
+function isDST(dt) {
+  // US DST: 2nd Sunday March → 1st Sunday November
+  const year = dt.getUTCFullYear();
+  const dstStart = getNthSundayUTC(year, 2, 2); // March (month=2), 2nd Sunday
+  const dstEnd = getNthSundayUTC(year, 10, 1);  // November (month=10), 1st Sunday
+  return dt >= dstStart && dt < dstEnd;
+}
+
+function getNthSundayUTC(year, month, n) {
+  let d = new Date(Date.UTC(year, month, 1));
+  let sundays = 0;
+  while (true) {
+    if (d.getUTCDay() === 0) sundays++;
+    if (sundays === n) return d;
+    d = new Date(d.getTime() + 86400000);
+  }
+}
+
+function fmtDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m-1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function dayOfWeek(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m-1, d).toLocaleDateString('en-US', { weekday: 'long' });
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+function renderAll() {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('stats-row').style.display = 'grid';
+  document.getElementById('section-tabs').style.display = 'flex';
+  ['tab-daily','tab-hourly','tab-weekly','tab-table'].forEach(id => {
+    document.getElementById(id).style.display = id === 'tab-daily' ? 'block' : 'none';
+  });
+
+  const sortedDays = [...readings.keys()].sort();
+  currentDayIndex = sortedDays.length - 1;
+
+  renderStats(sortedDays);
+  renderDailyChart(sortedDays);
+  renderDetailChart(sortedDays, currentDayIndex);
+  renderDaySelect(sortedDays);
+  renderHourlyProfile(sortedDays);
+  renderDayNight(sortedDays);
+  renderWeekly(sortedDays);
+  renderDOW(sortedDays);
+  renderTable(sortedDays);
+  updateHeaderMeta(sortedDays);
+}
+
+function renderStats(days) {
+  let totalKwh = 0, peakKwh = 0, peakTime = '', peakDate = '';
+  for (const day of days) {
+    const intervals = readings.get(day);
+    const dayTotal = intervals.reduce((s,r) => s + r.kwh, 0);
+    totalKwh += dayTotal;
+    for (const r of intervals) {
+      if (r.kwh > peakKwh) {
+        peakKwh = r.kwh;
+        peakTime = r.time;
+        peakDate = day;
+      }
+    }
+  }
+  const avg = totalKwh / days.length;
+  document.getElementById('stat-total').innerHTML = totalKwh.toFixed(1) + '<span class="stat-unit">kWh</span>';
+  document.getElementById('stat-days').textContent = days.length;
+  document.getElementById('stat-avg').innerHTML = avg.toFixed(1) + '<span class="stat-unit">kWh</span>';
+  document.getElementById('stat-peak').innerHTML = peakKwh.toFixed(3) + '<span class="stat-unit">kWh</span>';
+  document.getElementById('stat-days-span').textContent = `total across ${days.length} day${days.length!==1?'s':''}`;
+  document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])} – ${fmtDate(days[days.length-1])}` : fmtDate(days[0]);
+  document.getElementById('stat-peak-time').textContent = `${peakDate} at ${peakTime}`;
+}
+
+function updateHeaderMeta(days) {
+  const total = [...readings.values()].flat().reduce((s,r) => s+r.kwh, 0);
+  document.getElementById('header-meta').textContent =
+    `${days.length} day${days.length!==1?'s':''} loaded  ·  ${total.toFixed(1)} kWh total  ·  SMT data`;
+}
+
+// Daily bar chart
+function renderDailyChart(days) {
+  const labels = days.map(d => fmtDate(d));
+  const data = days.map(d => readings.get(d).reduce((s,r) => s+r.kwh, 0));
+
+  destroyChart('chart-daily');
+  const ctx = document.getElementById('chart-daily').getContext('2d');
+  charts['chart-daily'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Grid kWh',
+        data,
+        backgroundColor: 'rgba(88,166,255,0.7)',
+        borderColor: 'rgba(88,166,255,1)',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: chartOptions({ yLabel: 'kWh', onClick: (_, elements) => {
+      if (elements.length > 0) {
+        currentDayIndex = elements[0].index;
+        renderDetailChart(days, currentDayIndex);
+        renderDaySelect(days);
+      }
+    }})
+  });
+}
+
+// 15-min detail chart for selected day
+function renderDetailChart(days, idx) {
+  const day = days[idx];
+  const intervals = readings.get(day) || [];
+  document.getElementById('detail-date-label').textContent = fmtDate(day);
+
+  const labels = intervals.map(r => r.time);
+  const data = intervals.map(r => r.kwh);
+  const colors = data.map(v => v >= 0.5 ? 'rgba(248,81,73,0.85)' : 'rgba(88,166,255,0.7)');
+  const borderColors = data.map(v => v >= 0.5 ? 'rgba(248,81,73,1)' : 'rgba(88,166,255,1)');
+
+  // Update day-select
+  const sel = document.getElementById('day-select');
+  if (sel) sel.value = day;
+
+  destroyChart('chart-detail');
+  const ctx = document.getElementById('chart-detail').getContext('2d');
+  charts['chart-detail'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Grid draw (kWh)',
+        data,
+        backgroundColor: colors,
+        borderColor: borderColors,
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: {
+      ...chartOptions({ yLabel: 'kWh' }),
+      plugins: {
+        ...chartOptions({}).plugins,
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y*4).toFixed(2)} kWh/hr)`
+          }
+        }
+      }
+    }
+  });
+}
+
+// Hourly profile
+function renderHourlyProfile(days) {
+  const hourTotals = Array(24).fill(0).map(() => []);
+  for (const day of days) {
+    for (const r of readings.get(day)) {
+      const h = parseInt(r.time.split(':')[0]);
+      hourTotals[h].push(r.kwh);
+    }
+  }
+  const labels = Array.from({length:24}, (_,h) => {
+    const ampm = h < 12 ? 'am' : 'pm';
+    const hr = h === 0 ? 12 : h > 12 ? h-12 : h;
+    return `${hr}${ampm}`;
+  });
+  const avgs = hourTotals.map(arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0);
+  const mins = hourTotals.map(arr => arr.length ? Math.min(...arr) : 0);
+  const maxs = hourTotals.map(arr => arr.length ? Math.max(...arr) : 0);
+
+  destroyChart('chart-hourly');
+  const ctx = document.getElementById('chart-hourly').getContext('2d');
+  charts['chart-hourly'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Avg kWh/hr',
+          data: avgs.map(v => +(v*4).toFixed(3)),
+          backgroundColor: 'rgba(88,166,255,0.7)',
+          borderColor: 'rgba(88,166,255,1)',
+          borderWidth: 1,
+          borderRadius: 3,
+          order: 2
+        },
+        {
+          label: 'Max kWh/hr',
+          data: maxs.map(v => +(v*4).toFixed(3)),
+          type: 'line',
+          borderColor: 'rgba(248,81,73,0.5)',
+          backgroundColor: 'transparent',
+          pointRadius: 2,
+          borderWidth: 1.5,
+          order: 1
+        }
+      ]
+    },
+    options: chartOptions({ yLabel: 'kWh/hr' })
+  });
+}
+
+// Day/Night donut
+function renderDayNight(days) {
+  let dayKwh = 0, nightKwh = 0;
+  for (const day of days) {
+    for (const r of readings.get(day)) {
+      const h = parseInt(r.time.split(':')[0]);
+      if (h >= 6 && h < 22) dayKwh += r.kwh;
+      else nightKwh += r.kwh;
+    }
+  }
+  destroyChart('chart-daynight');
+  const ctx = document.getElementById('chart-daynight').getContext('2d');
+  charts['chart-daynight'] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: [`Day (6am–10pm): ${dayKwh.toFixed(1)} kWh`, `Night (10pm–6am): ${nightKwh.toFixed(1)} kWh`],
+      datasets: [{
+        data: [dayKwh, nightKwh],
+        backgroundColor: ['rgba(240,165,0,0.75)', 'rgba(88,166,255,0.75)'],
+        borderColor: ['rgba(240,165,0,1)', 'rgba(88,166,255,1)'],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#7d8590', font: { family: 'DM Mono', size: 11 }, boxWidth: 12 } }
+      },
+      cutout: '60%'
+    }
+  });
+}
+
+// Weekly chart
+function renderWeekly(days) {
+  const weeks = {};
+  for (const day of days) {
+    const [y, m, d] = day.split('-').map(Number);
+    const dt = new Date(y, m-1, d);
+    const dow = dt.getDay(); // 0=Sun
+    const weekStart = new Date(dt); weekStart.setDate(d - dow);
+    const wk = weekStart.toISOString().slice(0,10);
+    if (!weeks[wk]) weeks[wk] = 0;
+    weeks[wk] += readings.get(day).reduce((s,r) => s+r.kwh, 0);
+  }
+  const wkKeys = Object.keys(weeks).sort();
+  const labels = wkKeys.map(d => 'Wk of ' + fmtDate(d));
+  const data = wkKeys.map(k => +weeks[k].toFixed(2));
+
+  destroyChart('chart-weekly');
+  const ctx = document.getElementById('chart-weekly').getContext('2d');
+  charts['chart-weekly'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Weekly kWh',
+        data,
+        backgroundColor: 'rgba(63,185,80,0.65)',
+        borderColor: 'rgba(63,185,80,1)',
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: chartOptions({ yLabel: 'kWh' })
+  });
+}
+
+// Day-of-week averages
+function renderDOW(days) {
+  const dowBuckets = Array(7).fill(null).map(() => []);
+  for (const day of days) {
+    const [y, m, d] = day.split('-').map(Number);
+    const dow = new Date(y, m-1, d).getDay();
+    const total = readings.get(day).reduce((s,r) => s+r.kwh, 0);
+    dowBuckets[dow].push(total);
+  }
+  const dowLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const avgs = dowBuckets.map(arr => arr.length ? +(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2) : null);
+
+  destroyChart('chart-dow');
+  const ctx = document.getElementById('chart-dow').getContext('2d');
+  charts['chart-dow'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: dowLabels,
+      datasets: [{
+        label: 'Avg kWh',
+        data: avgs,
+        backgroundColor: avgs.map((v,i) => i===0||i===6 ? 'rgba(240,165,0,0.65)' : 'rgba(88,166,255,0.55)'),
+        borderColor: avgs.map((v,i) => i===0||i===6 ? 'rgba(240,165,0,1)' : 'rgba(88,166,255,0.8)'),
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: chartOptions({ yLabel: 'Avg kWh' })
+  });
+}
+
+// Summary table
+function renderTable(days) {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  for (const day of [...days].reverse()) {
+    const intervals = readings.get(day);
+    const total = intervals.reduce((s,r) => s+r.kwh, 0);
+    const peak = Math.max(...intervals.map(r => r.kwh));
+    const peakInterval = intervals.find(r => r.kwh === peak);
+    const cls = total > 30 ? 'val-high' : total > 20 ? 'val-mid' : 'val-low';
+    tbody.innerHTML += `<tr>
+      <td>${day}</td>
+      <td style="color:var(--muted)">${dayOfWeek(day)}</td>
+      <td class="${cls}">${total.toFixed(2)}</td>
+      <td class="val-high">${peak.toFixed(3)}</td>
+      <td style="color:var(--muted)">${peakInterval ? peakInterval.time : '—'}</td>
+      <td style="color:var(--muted)">${intervals.length}</td>
+    </tr>`;
+  }
+}
+
+// ── DAY NAVIGATION ───────────────────────────────────────────────────────────
+function renderDaySelect(days) {
+  const sel = document.getElementById('day-select');
+  sel.innerHTML = '';
+  days.forEach((d, i) => {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = fmtDate(d);
+    if (i === currentDayIndex) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function selectDay(dateStr) {
+  const days = [...readings.keys()].sort();
+  currentDayIndex = days.indexOf(dateStr);
+  renderDetailChart(days, currentDayIndex);
+}
+
+function shiftDay(dir) {
+  const days = [...readings.keys()].sort();
+  currentDayIndex = Math.max(0, Math.min(days.length-1, currentDayIndex + dir));
+  renderDetailChart(days, currentDayIndex);
+  document.getElementById('day-select').value = days[currentDayIndex];
+}
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────────────────
+function showTab(name) {
+  ['daily','hourly','weekly','table'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ── CHIPS ─────────────────────────────────────────────────────────────────────
+function renderChips() {
+  const container = document.getElementById('file-chips');
+  container.innerHTML = '';
+  loadedFiles.forEach((f, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `📄 ${f.name} <span class="remove" onclick="removeFile(${i})">✕</span>`;
+    container.appendChild(chip);
+  });
+}
+
+function removeFile(idx) {
+  const removed = loadedFiles.splice(idx, 1)[0];
+  // Rebuild readings from remaining files
+  readings.clear();
+  const remaining = [...loadedFiles];
+  loadedFiles = [];
+  if (remaining.length === 0) {
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('stats-row').style.display = 'none';
+    document.getElementById('section-tabs').style.display = 'none';
+    ['tab-daily','tab-hourly','tab-weekly','tab-table'].forEach(id =>
+      document.getElementById(id).style.display = 'none'
+    );
+    document.getElementById('header-meta').textContent = 'No data loaded — upload your SMT files below';
+    renderChips();
+    return;
+  }
+  handleFiles(remaining);
+  showToast(`Removed ${removed.name}`, 'success');
+}
+
+// ── CHART HELPERS ────────────────────────────────────────────────────────────
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+function chartOptions({ yLabel = '', onClick = null } = {}) {
+  return {
+    responsive: true,
+    maintainAspectRatio: true,
+    animation: { duration: 400 },
+    onClick,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1c2430',
+        borderColor: '#21262d',
+        borderWidth: 1,
+        titleColor: '#e6edf3',
+        bodyColor: '#7d8590',
+        titleFont: { family: 'DM Mono', size: 11 },
+        bodyFont: { family: 'DM Mono', size: 11 },
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 }, maxRotation: 45 }
+      },
+      y: {
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } },
+        title: { display: !!yLabel, text: yLabel, color: '#7d8590', font: { family: 'DM Mono', size: 10 } },
+        beginAtZero: true
+      }
+    }
+  };
+}
+
+// ── GOOGLE DRIVE SYNC ────────────────────────────────────────────────────────
+async function syncFromDrive() {
+  const btn = document.getElementById('drive-btn');
+  const status = document.getElementById('drive-status');
+  btn.disabled = true;
+  status.className = 'drive-status syncing';
+  status.textContent = 'Connecting to Drive…';
+
+  try {
+    // List all files in folder matching SMT naming patterns
+    const listUrl = `https://www.googleapis.com/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,modifiedTime)&key=${DRIVE_API_KEY}&orderBy=name`;
+    const listRes = await fetch(listUrl);
+    if (!listRes.ok) throw new Error(`Drive API error: ${listRes.status} ${listRes.statusText}`);
+    const listData = await listRes.json();
+
+    if (!listData.files || listData.files.length === 0) {
+      status.className = 'drive-status err';
+      status.textContent = 'No files found in Drive folder';
+      btn.disabled = false;
+      return;
+    }
+
+    // Filter to SMT files only (xlsx, csv, xml)
+    const smtFiles = listData.files.filter(f => {
+      const name = f.name.toLowerCase();
+      return (name.includes('smt') || name.match(/^\d{8}/)) &&
+             (name.endsWith('.xlsx') || name.endsWith('.csv') || name.endsWith('.xml'));
+    });
+
+    if (smtFiles.length === 0) {
+      status.className = 'drive-status err';
+      status.textContent = `Found ${listData.files.length} file(s) in folder but none matched SMT format`;
+      btn.disabled = false;
+      return;
+    }
+
+    status.textContent = `Found ${smtFiles.length} file(s) — downloading…`;
+
+    // Download each file not already loaded
+    let loaded = 0, skipped = 0;
+    for (const driveFile of smtFiles) {
+      if (loadedFiles.find(f => f.name === driveFile.name)) { skipped++; continue; }
+
+      status.textContent = `Downloading ${driveFile.name}…`;
+
+      // Use export for Google Sheets, direct download for binary files
+      let downloadUrl;
+      if (driveFile.mimeType === 'application/vnd.google-apps.spreadsheet') {
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${driveFile.id}/export?mimeType=text/csv&key=${DRIVE_API_KEY}`;
+      } else {
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${driveFile.id}?alt=media&key=${DRIVE_API_KEY}`;
+      }
+
+      const fileRes = await fetch(downloadUrl);
+      if (!fileRes.ok) {
+        showToast(`Could not download ${driveFile.name}`, 'error');
+        continue;
+      }
+
+      const blob = await fileRes.blob();
+      // Determine mime type for File constructor
+      const ext = driveFile.name.split('.').pop().toLowerCase();
+      const mimeMap = { xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv', xml: 'application/xml' };
+      const file = new File([blob], driveFile.name, { type: mimeMap[ext] || 'application/octet-stream' });
+
+      try {
+        const data = await parseFile(file);
+        if (data.size === 0) { showToast('No data in ' + file.name, 'error'); continue; }
+        for (const [date, intervals] of data.entries()) {
+          if (!readings.has(date)) readings.set(date, []);
+          const existing = new Set(readings.get(date).map(r => r.time));
+          for (const r of intervals) {
+            if (!existing.has(r.time)) readings.get(date).push(r);
+          }
+        }
+        loadedFiles.push(file);
+        loaded++;
+      } catch(err) {
+        showToast('Parse error: ' + file.name, 'error');
+      }
+    }
+
+    renderChips();
+    if (readings.size > 0) renderAll();
+
+    const msg = skipped > 0
+      ? `✓ ${loaded} new file(s) loaded, ${skipped} already present`
+      : `✓ ${loaded} file(s) loaded from Drive`;
+    status.className = 'drive-status ok';
+    status.textContent = msg;
+    if (loaded > 0) showToast(msg, 'success');
+
+  } catch(err) {
+    status.className = 'drive-status err';
+    status.textContent = 'Error: ' + err.message;
+    showToast('Drive sync failed: ' + err.message, 'error');
+    console.error(err);
+  }
+
+  btn.disabled = false;
+}
+
+// ── TOAST ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+
+<!-- SheetJS for XLSX parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</body>
+</html>
