@@ -646,17 +646,66 @@ function parseXLSXRows(rows, filename) {
   return result;
 }
 
-// CSV: expected to mirror XLSX structure when emailed
+// CSV: Real SMT email format
+// Columns: ESIID, USAGE_DATE, REVISION_DATE, USAGE_START_TIME, USAGE_END_TIME, USAGE_KWH, ESTIMATED_ACTUAL, CONSUMPTION_SURPLUSGENERATION
 function parseCSV(text, filename) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return new Map();
-  const header = lines[0].split(',').map(h => h.replace(/"/g,'').trim().toLowerCase());
-  const rows = [header];
-  for (let i = 1; i < lines.length; i++) {
-    const cells = lines[i].split(',').map(c => c.replace(/"/g,'').trim());
-    rows.push(cells);
+
+  const header = lines[0].split(',').map(h => h.replace(/['"]/g,'').trim().toLowerCase());
+
+  const dateIdx  = header.findIndex(h => h === 'usage_date');
+  const startIdx = header.findIndex(h => h === 'usage_start_time');
+  const kwhIdx   = header.findIndex(h => h === 'usage_kwh');
+  const typeIdx  = header.findIndex(h => h === 'consumption_surplusgeneration');
+
+  const safeDateIdx  = dateIdx  >= 0 ? dateIdx  : header.findIndex(h => h.includes('date'));
+  const safeStartIdx = startIdx >= 0 ? startIdx : header.findIndex(h => h.includes('start'));
+  const safeKwhIdx   = kwhIdx   >= 0 ? kwhIdx   : header.findIndex(h => h.includes('kwh'));
+
+  if (safeStartIdx < 0 || safeKwhIdx < 0) {
+    throw new Error('CSV columns not recognised. Found: ' + header.join(', '));
   }
-  return parseXLSXRows(rows, filename);
+
+  const result = new Map();
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) continue;
+
+    // Strip leading apostrophe Excel artifact and parse cells
+    const cells = line.replace(/^'/, '').split(',').map(c => c.replace(/['"]/g,'').trim());
+
+    // Only process Consumption rows, skip SurplusGeneration
+    if (typeIdx >= 0 && cells[typeIdx] && cells[typeIdx].toLowerCase() !== 'consumption') continue;
+
+    const kwh = parseFloat(cells[safeKwhIdx]);
+    if (isNaN(kwh)) continue;
+
+    // Time already 24-hr HH:MM e.g. "00:15"
+    const timeRaw = cells[safeStartIdx] || '';
+    const tMatch = timeRaw.match(/^(\d{1,2}):(\d{2})/);
+    if (!tMatch) continue;
+    const timeStr = String(parseInt(tMatch[1])).padStart(2,'0') + ':' + tMatch[2];
+
+    // Date from data column: "03/21/2026" -> "2026-03-21"
+    let dateStr = null;
+    if (safeDateIdx >= 0 && cells[safeDateIdx]) {
+      const dm = cells[safeDateIdx].match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (dm) dateStr = dm[3] + '-' + dm[1] + '-' + dm[2];
+    }
+    // Fallback to filename date
+    if (!dateStr) {
+      const fm = filename.match(/(\d{8})/);
+      if (fm) { const d = fm[1]; dateStr = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8); }
+    }
+    if (!dateStr) dateStr = new Date().toISOString().slice(0,10);
+
+    if (!result.has(dateStr)) result.set(dateStr, []);
+    result.get(dateStr).push({ time: timeStr, kwh: kwh });
+  }
+
+  return result;
 }
 
 // ── DATE / TIME HELPERS ──────────────────────────────────────────────────────
