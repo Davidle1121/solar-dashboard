@@ -8,6 +8,7 @@
   const DRIVE_API_KEY   = 'AIzaSyA_dH35fk8RoqGcm-vDmIc8nUr1G1EQcAA';
   const DRIVE_FOLDER_ID = '1WGUPKuuMKYkvUDVpJl6elwfgUU-vV2t7';
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
 <style>
@@ -91,11 +92,11 @@
     position: relative;
   }
   .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(240,165,0,0.04); }
-  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
   .upload-icon { font-size: 28px; margin-bottom: 8px; }
   .upload-label { color: var(--muted); font-size: 12px; line-height: 1.6; }
   .upload-label strong { color: var(--accent); }
-  .file-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; justify-content: center; }
+  .file-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; justify-content: center; position: relative; z-index: 2; pointer-events: all; }
   .chip {
     background: rgba(63,185,80,0.12);
     border: 1px solid rgba(63,185,80,0.3);
@@ -369,10 +370,10 @@
 
   <!-- TABS -->
   <div class="section-tabs" id="section-tabs" style="display:none">
-    <button class="tab-btn active" onclick="showTab('daily')">Daily View</button>
-    <button class="tab-btn" onclick="showTab('hourly')">Hourly Profile</button>
-    <button class="tab-btn" onclick="showTab('weekly')">Weekly</button>
-    <button class="tab-btn" onclick="showTab('table')">Data Table</button>
+    <button class="tab-btn active" onclick="showTab('daily',this)">Daily View</button>
+    <button class="tab-btn" onclick="showTab('hourly',this)">Hourly Profile</button>
+    <button class="tab-btn" onclick="showTab('weekly',this)">Weekly</button>
+    <button class="tab-btn" onclick="showTab('table',this)">Data Table</button>
   </div>
 
   <!-- DAILY TAB -->
@@ -502,7 +503,11 @@ uploadZone.addEventListener('drop', e => {
   uploadZone.classList.remove('drag');
   handleFiles([...e.dataTransfer.files]);
 });
-fileInput.addEventListener('change', e => handleFiles([...e.target.files]));
+fileInput.addEventListener('change', e => {
+  const files = [...e.target.files];
+  e.target.value = ''; // Clear so same file can be re-selected if needed
+  handleFiles(files);
+});
 
 async function handleFiles(files) {
   for (const file of files) {
@@ -684,13 +689,27 @@ function parseXLSXRows(rows, filename) {
   return result;
 }
 
+// Quote-aware CSV line splitter — handles fields with commas inside quotes
+function splitCSVLine(line) {
+  const result = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"' || ch === "'") { inQuote = !inQuote; continue; }
+    if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; continue; }
+    cur += ch;
+  }
+  result.push(cur.trim());
+  return result;
+}
+
 // CSV: Real SMT email format
 // Columns: ESIID, USAGE_DATE, REVISION_DATE, USAGE_START_TIME, USAGE_END_TIME, USAGE_KWH, ESTIMATED_ACTUAL, CONSUMPTION_SURPLUSGENERATION
 function parseCSV(text, filename) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return new Map();
 
-  const header = lines[0].split(',').map(h => h.replace(/['"]/g,'').trim().toLowerCase());
+  const header = splitCSVLine(lines[0]).map(h => h.toLowerCase());
 
   const dateIdx  = header.findIndex(h => h === 'usage_date');
   const startIdx = header.findIndex(h => h === 'usage_start_time');
@@ -711,8 +730,8 @@ function parseCSV(text, filename) {
     const line = lines[i];
     if (!line.trim()) continue;
 
-    // Strip leading apostrophe Excel artifact and parse cells
-    const cells = line.replace(/^'/, '').split(',').map(c => c.replace(/['"]/g,'').trim());
+    // Strip leading apostrophe Excel artifact and parse with quote-aware splitter
+    const cells = splitCSVLine(line.replace(/^'/, ''));
 
     // Only process Consumption rows, skip SurplusGeneration
     if (typeIdx >= 0 && cells[typeIdx] && cells[typeIdx].toLowerCase() !== 'consumption') continue;
@@ -772,11 +791,13 @@ function isDST(dt) {
 function getNthSundayUTC(year, month, n) {
   let d = new Date(Date.UTC(year, month, 1));
   let sundays = 0;
-  while (true) {
+  let safety = 0;
+  while (safety++ < 31) {
     if (d.getUTCDay() === 0) sundays++;
     if (sundays === n) return d;
     d = new Date(d.getTime() + 86400000);
   }
+  return d; // fallback — should never reach here
 }
 
 function fmtDate(dateStr) {
@@ -865,9 +886,10 @@ function renderDailyChart(days) {
     },
     options: chartOptions({ yLabel: 'kWh', onClick: (_, elements) => {
       if (elements.length > 0) {
+        const liveDays = [...readings.keys()].sort();
         currentDayIndex = elements[0].index;
-        renderDetailChart(days, currentDayIndex);
-        renderDaySelect(days);
+        renderDetailChart(liveDays, currentDayIndex);
+        renderDaySelect(liveDays);
       }
     }})
   });
@@ -875,7 +897,9 @@ function renderDailyChart(days) {
 
 // 15-min detail chart for selected day
 function renderDetailChart(days, idx) {
-  const day = days[idx];
+  if (!days || days.length === 0) return;
+  const safeIdx = Math.max(0, Math.min(days.length - 1, idx));
+  const day = days[safeIdx];
   const intervals = readings.get(day) || [];
   document.getElementById('detail-date-label').textContent = fmtDate(day);
 
@@ -906,8 +930,15 @@ function renderDetailChart(days, idx) {
     options: {
       ...chartOptions({ yLabel: 'kWh' }),
       plugins: {
-        ...chartOptions({}).plugins,
+        legend: { display: false },
         tooltip: {
+          backgroundColor: '#1c2430',
+          borderColor: '#21262d',
+          borderWidth: 1,
+          titleColor: '#e6edf3',
+          bodyColor: '#7d8590',
+          titleFont: { family: 'DM Mono', size: 11 },
+          bodyFont: { family: 'DM Mono', size: 11 },
           callbacks: {
             label: ctx => ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y*4).toFixed(2)} kWh/hr)`
           }
@@ -932,7 +963,6 @@ function renderHourlyProfile(days) {
     return `${hr}${ampm}`;
   });
   const avgs = hourTotals.map(arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0);
-  const mins = hourTotals.map(arr => arr.length ? Math.min(...arr) : 0);
   const maxs = hourTotals.map(arr => arr.length ? Math.max(...arr) : 0);
 
   destroyChart('chart-hourly');
@@ -1007,7 +1037,7 @@ function renderWeekly(days) {
     const dt = new Date(y, m-1, d);
     const dow = dt.getDay(); // 0=Sun
     const weekStart = new Date(dt); weekStart.setDate(d - dow);
-    const wk = weekStart.toISOString().slice(0,10);
+    const wk = weekStart.getFullYear() + '-' + String(weekStart.getMonth()+1).padStart(2,'0') + '-' + String(weekStart.getDate()).padStart(2,'0');
     if (!weeks[wk]) weeks[wk] = 0;
     weeks[wk] += readings.get(day).reduce((s,r) => s+r.kwh, 0);
   }
@@ -1068,22 +1098,24 @@ function renderDOW(days) {
 // Summary table
 function renderTable(days) {
   const tbody = document.getElementById('table-body');
-  tbody.innerHTML = '';
+  const rows = [];
   for (const day of [...days].reverse()) {
     const intervals = readings.get(day);
+    if (!intervals || intervals.length === 0) continue;
     const total = intervals.reduce((s,r) => s+r.kwh, 0);
     const peak = Math.max(...intervals.map(r => r.kwh));
     const peakInterval = intervals.find(r => r.kwh === peak);
     const cls = total > 30 ? 'val-high' : total > 20 ? 'val-mid' : 'val-low';
-    tbody.innerHTML += `<tr>
+    rows.push(`<tr>
       <td>${day}</td>
       <td style="color:var(--muted)">${dayOfWeek(day)}</td>
       <td class="${cls}">${total.toFixed(2)}</td>
       <td class="val-high">${peak.toFixed(3)}</td>
       <td style="color:var(--muted)">${peakInterval ? peakInterval.time : '—'}</td>
       <td style="color:var(--muted)">${intervals.length}</td>
-    </tr>`;
+    </tr>`);
   }
+  tbody.innerHTML = rows.join('');
 }
 
 // ── DAY NAVIGATION ───────────────────────────────────────────────────────────
@@ -1113,12 +1145,12 @@ function shiftDay(dir) {
 }
 
 // ── TAB SWITCHING ─────────────────────────────────────────────────────────────
-function showTab(name) {
+function showTab(name, btn) {
   ['daily','hourly','weekly','table'].forEach(t => {
     document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
   });
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  event.target.classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
 }
 
 // ── CHIPS ─────────────────────────────────────────────────────────────────────
@@ -1137,6 +1169,8 @@ function removeFile(idx) {
   const removed = loadedFiles.splice(idx, 1)[0];
   // Rebuild readings from remaining files
   readings.clear();
+  // Destroy all existing charts so canvases are clean for re-render
+  Object.keys(charts).forEach(id => destroyChart(id));
   const remaining = [...loadedFiles];
   loadedFiles = [];
   if (remaining.length === 0) {
@@ -1148,10 +1182,11 @@ function removeFile(idx) {
     );
     document.getElementById('header-meta').textContent = 'No data loaded — upload your SMT files below';
     renderChips();
+    showToast(`Removed ${removed.name}`, 'success');
     return;
   }
-  handleFiles(remaining);
   showToast(`Removed ${removed.name}`, 'success');
+  handleFiles(remaining);
 }
 
 // ── CHART HELPERS ────────────────────────────────────────────────────────────
@@ -1202,7 +1237,7 @@ async function syncFromDrive() {
 
   try {
     // List all files in folder matching SMT naming patterns
-    const listUrl = `https://www.googleapis.com/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,modifiedTime)&key=${DRIVE_API_KEY}&orderBy=name`;
+    const listUrl = `https://www.googleapis.com/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,modifiedTime)&key=${DRIVE_API_KEY}&orderBy=name&pageSize=1000`;
     const listRes = await fetch(listUrl);
     if (!listRes.ok) throw new Error(`Drive API error: ${listRes.status} ${listRes.statusText}`);
     const listData = await listRes.json();
@@ -1304,7 +1339,5 @@ function showToast(msg, type='') {
 }
 </script>
 
-<!-- SheetJS for XLSX parsing -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </body>
 </html>
