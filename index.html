@@ -337,8 +337,8 @@
     <div class="upload-icon">⚡</div>
     <div class="upload-label">
       <strong>Tap to upload SMT files</strong><br>
-      Accepts: XLSX, CSV, or XML (Green Button) — multiple files OK<br>
-      <span style="font-size:10px;opacity:0.6">Files are read locally in your browser. Nothing is uploaded anywhere.</span>
+      Accepts: XLSX, CSV, or XML (Green Button) — any filename, multiple files OK<br>
+      <span style="font-size:10px;opacity:0.6">Format is auto-detected from file contents. Nothing is uploaded anywhere.</span>
     </div>
     <div class="file-chips" id="file-chips"></div>
   </div>
@@ -534,10 +534,27 @@ async function handleFiles(files) {
 
 async function parseFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
+
+  // XML: check extension or sniff content for Green Button marker
   if (ext === 'xml') return parseXML(await file.text());
+
+  // XLSX: binary format, must use extension
   if (ext === 'xlsx') return parseXLSX(file);
-  if (ext === 'csv') return parseCSV(await file.text(), file.name);
-  throw new Error('Unsupported file type: ' + ext);
+
+  // CSV or unknown text file: read and detect format from header row
+  if (ext === 'csv' || ext === 'txt' || ext === '') {
+    const text = await file.text();
+    return parseCSV(text, file.name);
+  }
+
+  // Fallback: try reading as text and auto-detect
+  try {
+    const text = await file.text();
+    if (text.includes('IntervalBlock') || text.includes('espi')) return parseXML(text);
+    return parseCSV(text, file.name);
+  } catch(e) {
+    throw new Error('Could not parse file: ' + file.name);
+  }
 }
 
 // XML: Green Button ESPI format
@@ -604,21 +621,34 @@ async function parseXLSX(file) {
 }
 
 function parseXLSXRows(rows, filename) {
-  // Extract date from filename: YYYYMMDD_YYYYMMDD_SMT.xlsx → first date
-  const dateMatch = filename.match(/(\d{8})/);
-  let dateStr = null;
-  if (dateMatch) {
-    const d = dateMatch[1];
-    dateStr = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+  const result = new Map();
+  const header = rows[0] ? rows[0].map(h => String(h||'').replace(/['"]/g,'').trim().toLowerCase()) : [];
+
+  // Detect which XLSX variant we have
+  // Variant A (SMT website download): "start time", "end time", "consumption(kwh)" — no date column
+  // Variant B (SMT email CSV-style in xlsx): "usage_date", "usage_start_time", "usage_kwh"
+  const isVariantB = header.some(h => h === 'usage_date' || h === 'usage_kwh');
+
+  if (isVariantB) {
+    // Treat as CSV format rows — hand off to CSV-style logic
+    const text = rows.map(r => r.join(',')).join('\n');
+    return parseCSV(text, filename);
   }
 
-  const result = new Map();
-  const header = rows[0] ? rows[0].map(h => String(h||'').toLowerCase()) : [];
-  // Find column indices
-  const timeStartIdx = header.findIndex(h => h.includes('start'));
+  // Variant A: "Start Time", "End Time", "Consumption(Kwh)", "Act./Est.", "Surplus Generation(KwH)"
+  const timeStartIdx   = header.findIndex(h => h.includes('start'));
   const consumptionIdx = header.findIndex(h => h.includes('consumption'));
   if (timeStartIdx < 0 || consumptionIdx < 0) {
-    throw new Error('Could not find Start Time or Consumption columns');
+    throw new Error('XLSX columns not recognised. Found: ' + header.join(', '));
+  }
+
+  // Date: try to find a date header column first, then filename, then today
+  const dateColIdx = header.findIndex(h => h.includes('date'));
+  let fallbackDate = null;
+  const dateMatch = filename.match(/(\d{8})/);
+  if (dateMatch) {
+    const d = dateMatch[1];
+    fallbackDate = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8);
   }
 
   for (let i = 1; i < rows.length; i++) {
@@ -628,7 +658,7 @@ function parseXLSXRows(rows, filename) {
     const kwh = parseFloat(row[consumptionIdx]);
     if (isNaN(kwh)) continue;
 
-    // Parse time like "12:00 am", " 12:15 am"
+    // Parse 12-hr time: "12:00 am", " 3:45 pm"
     const tMatch = timeRaw.match(/(\d+):(\d+)\s*(am|pm)/i);
     if (!tMatch) continue;
     let h = parseInt(tMatch[1]);
@@ -636,12 +666,20 @@ function parseXLSXRows(rows, filename) {
     const ampm = tMatch[3].toLowerCase();
     if (ampm === 'pm' && h !== 12) h += 12;
     if (ampm === 'am' && h === 12) h = 0;
-    const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    const timeStr = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
 
-    // Use today's date if we couldn't extract from filename
-    const useDateStr = dateStr || new Date().toISOString().slice(0,10);
-    if (!result.has(useDateStr)) result.set(useDateStr, []);
-    result.get(useDateStr).push({ time: timeStr, kwh });
+    // Try date column in row, then fallback
+    let dateStr = fallbackDate;
+    if (dateColIdx >= 0 && row[dateColIdx]) {
+      const raw = String(row[dateColIdx]);
+      const dm = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (dm) dateStr = dm[3] + '-' + dm[1] + '-' + dm[2];
+      else if (raw.match(/^\d{4}-\d{2}-\d{2}/)) dateStr = raw.slice(0,10);
+    }
+    if (!dateStr) dateStr = new Date().toISOString().slice(0,10);
+
+    if (!result.has(dateStr)) result.set(dateStr, []);
+    result.get(dateStr).push({ time: timeStr, kwh });
   }
   return result;
 }
@@ -1176,16 +1214,15 @@ async function syncFromDrive() {
       return;
     }
 
-    // Filter to SMT files only (xlsx, csv, xml)
+    // Accept any energy data file: csv, xlsx, xml — regardless of filename
     const smtFiles = listData.files.filter(f => {
       const name = f.name.toLowerCase();
-      return (name.includes('smt') || name.match(/^\d{8}/)) &&
-             (name.endsWith('.xlsx') || name.endsWith('.csv') || name.endsWith('.xml'));
+      return name.endsWith('.xlsx') || name.endsWith('.csv') || name.endsWith('.xml');
     });
 
     if (smtFiles.length === 0) {
       status.className = 'drive-status err';
-      status.textContent = `Found ${listData.files.length} file(s) in folder but none matched SMT format`;
+      status.textContent = `Found ${listData.files.length} file(s) in folder but none are .xlsx, .csv, or .xml`;
       btn.disabled = false;
       return;
     }
