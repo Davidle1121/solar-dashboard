@@ -127,10 +127,49 @@
   .stat-value { font-family: var(--font-display); font-size: clamp(20px, 3vw, 28px); font-weight: 700; line-height: 1; }
   .stat-unit { font-size: 12px; color: var(--muted); margin-left: 3px; font-family: var(--font-mono); font-weight: 400; }
   .stat-sub { font-size: 10px; color: var(--muted); margin-top: 5px; }
-  .stat-card.grid-color .stat-value { color: var(--accent3); }
+  .stat-card.grid-color .stat-value  { color: var(--accent3); }
   .stat-card.solar-color .stat-value { color: var(--accent); }
-  .stat-card.days-color .stat-value { color: var(--accent2); }
-  .stat-card.peak-color .stat-value { color: var(--danger); }
+  .stat-card.days-color .stat-value  { color: var(--accent2); }
+  .stat-card.peak-color .stat-value  { color: var(--danger); }
+
+  /* ── SOLAR SECTION ── */
+  .solar-section {
+    margin-bottom: 28px;
+  }
+  .solar-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .solar-banner-icon { font-size: 24px; flex-shrink: 0; }
+  .solar-banner-text { flex: 1; min-width: 200px; }
+  .solar-banner-title { font-family: var(--font-display); font-size: 15px; color: var(--text); margin-bottom: 3px; }
+  .solar-banner-sub   { font-size: 11px; color: var(--muted); line-height: 1.6; }
+  .solar-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .solar-stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .solar-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+  .solar-stat-value { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+  .solar-stat-value.grid-v    { color: var(--accent3); }
+  .solar-stat-value.solar-v   { color: var(--accent); }
+  .solar-stat-value.battery-v { color: var(--accent2); }
+  .solar-stat-value.selfuse-v { color: #c084fc; }
 
   /* ── SECTION TABS ── */
   .section-tabs {
@@ -368,11 +407,67 @@
     </div>
   </div>
 
+  <!-- SOLAR ENERGY SECTION -->
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SIGENERGY DATA SECTION
+       When solar + battery data becomes available from the mySigen app,
+       this section will display:
+         - Solar produced (kWh)
+         - Solar consumed directly (kWh)
+         - Battery discharged (kWh)
+         - Grid drawn (kWh)
+         - Self-sufficiency % (solar+battery / total consumption)
+       File format: SIG_YYYYMMDD.csv (or whatever Sigenergy exports)
+       Parser to add: parseSIG() in the PARSERS section below
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="solar-section" id="solar-section">
+    <div class="solar-banner" id="solar-banner">
+      <div class="solar-banner-icon">☀️</div>
+      <div class="solar-banner-text">
+        <div class="solar-banner-title">Solar &amp; Battery Data — Coming Soon</div>
+        <div class="solar-banner-sub">
+          Once your SIGEnergy system is live (est. late May 2026) and you have your first export,
+          this section will show your solar production, battery usage, grid draw, and self-sufficiency rate.
+          Upload a SIG data file above to activate.
+        </div>
+      </div>
+    </div>
+    <!-- Populated by renderSolarStats() when SIG data is loaded -->
+    <div class="solar-stats-row" id="solar-stats-row" style="display:none">
+      <div class="solar-stat">
+        <div class="solar-stat-label">☀️ Solar Produced</div>
+        <div class="solar-stat-value solar-v" id="sig-produced">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">kWh</div>
+      </div>
+      <div class="solar-stat">
+        <div class="solar-stat-label">⚡ Used from Solar</div>
+        <div class="solar-stat-value solar-v" id="sig-direct">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">kWh</div>
+      </div>
+      <div class="solar-stat">
+        <div class="solar-stat-label">🔋 Used from Battery</div>
+        <div class="solar-stat-value battery-v" id="sig-battery">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">kWh</div>
+      </div>
+      <div class="solar-stat">
+        <div class="solar-stat-label">🔌 Pulled from Grid</div>
+        <div class="solar-stat-value grid-v" id="sig-grid">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">kWh</div>
+      </div>
+      <div class="solar-stat">
+        <div class="solar-stat-label">🌿 Self-Sufficiency</div>
+        <div class="solar-stat-value selfuse-v" id="sig-selfuse">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">% from solar+battery</div>
+      </div>
+    </div>
+  </div>
+
   <!-- TABS -->
   <div class="section-tabs" id="section-tabs" style="display:none">
     <button class="tab-btn active" onclick="showTab('daily',this)">Daily View</button>
     <button class="tab-btn" onclick="showTab('hourly',this)">Hourly Profile</button>
     <button class="tab-btn" onclick="showTab('weekly',this)">Weekly</button>
+    <button class="tab-btn" onclick="showTab('monthly',this)">Monthly</button>
     <button class="tab-btn" onclick="showTab('table',this)">Data Table</button>
   </div>
 
@@ -422,7 +517,7 @@
     <div class="chart-panel">
       <div class="chart-header">
         <div class="chart-title">Day vs Night Split</div>
-        <div class="chart-note">6am–10pm = Day / 10pm–6am = Night</div>
+        <div class="chart-note">Day = 6am–8pm (paid) · Free Night = 8pm–6am (Reliant Free Nights)</div>
       </div>
       <div class="chart-wrap" style="max-width:300px;margin:0 auto"><canvas id="chart-daynight"></canvas></div>
     </div>
@@ -443,6 +538,53 @@
         <div class="chart-note">Average kWh by day of week across all data</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-dow"></canvas></div>
+    </div>
+  </div>
+
+  <!-- MONTHLY TAB -->
+  <div id="tab-monthly" style="display:none">
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Monthly Grid Consumption</div>
+        <div class="chart-note">Total kWh drawn from grid per calendar month</div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-monthly"></canvas></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Monthly grid total (kWh)</div>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Monthly Day vs Free Night</div>
+        <div class="chart-note">Paid daytime (6am–8pm) vs free night (8pm–6am) kWh per month</div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-monthly-daynight"></canvas></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.75)"></div>Day (paid)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.75)"></div>Free Night</div>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Monthly Summary Table</div>
+        <div class="chart-note">Days of data, totals, and daily averages per month</div>
+      </div>
+      <div class="data-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Days of Data</th>
+              <th>Total kWh</th>
+              <th>Daily Avg kWh</th>
+              <th>Day kWh</th>
+              <th>Free Night kWh</th>
+              <th>Night %</th>
+            </tr>
+          </thead>
+          <tbody id="monthly-table-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -486,8 +628,10 @@
 
 <script>
 // ── DATA STORE ──────────────────────────────────────────────────────────────
-// readings: Map<dateStr YYYY-MM-DD, [{time: "HH:MM", kwh: number}]>
+// readings: Map<dateStr YYYY-MM-DD, [{time: "HH:MM", kwh: number}]>  — SMT grid data
+// sigData:  Map<dateStr YYYY-MM-DD, {produced, direct, battery, grid}> — Sigenergy solar data
 let readings = new Map();
+let sigData   = new Map(); // populated when SIG files are loaded (see parseSIG below)
 let loadedFiles = [];
 let currentDayIndex = 0;
 let charts = {};
@@ -800,6 +944,14 @@ function getNthSundayUTC(year, month, n) {
   return d; // fallback — should never reach here
 }
 
+// Convert "HH:MM" 24-hr to civilian "h:MMam/pm"
+function to12hr(timeStr) {
+  const [hh, mm] = timeStr.split(':').map(Number);
+  const ampm = hh < 12 ? 'am' : 'pm';
+  const hr   = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+  return mm === 0 ? `${hr}${ampm}` : `${hr}:${String(mm).padStart(2,'0')}${ampm}`;
+}
+
 function fmtDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m-1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -815,7 +967,7 @@ function renderAll() {
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('stats-row').style.display = 'grid';
   document.getElementById('section-tabs').style.display = 'flex';
-  ['tab-daily','tab-hourly','tab-weekly','tab-table'].forEach(id => {
+  ['tab-daily','tab-hourly','tab-weekly','tab-monthly','tab-table'].forEach(id => {
     document.getElementById(id).style.display = id === 'tab-daily' ? 'block' : 'none';
   });
 
@@ -830,6 +982,7 @@ function renderAll() {
   renderDayNight(sortedDays);
   renderWeekly(sortedDays);
   renderDOW(sortedDays);
+  renderMonthly(sortedDays);
   renderTable(sortedDays);
   updateHeaderMeta(sortedDays);
 }
@@ -903,7 +1056,7 @@ function renderDetailChart(days, idx) {
   const intervals = readings.get(day) || [];
   document.getElementById('detail-date-label').textContent = fmtDate(day);
 
-  const labels = intervals.map(r => r.time);
+  const labels = intervals.map(r => to12hr(r.time));
   const data = intervals.map(r => r.kwh);
   const colors = data.map(v => v >= 0.5 ? 'rgba(248,81,73,0.85)' : 'rgba(88,166,255,0.7)');
   const borderColors = data.map(v => v >= 0.5 ? 'rgba(248,81,73,1)' : 'rgba(88,166,255,1)');
@@ -940,7 +1093,8 @@ function renderDetailChart(days, idx) {
           titleFont: { family: 'DM Mono', size: 11 },
           bodyFont: { family: 'DM Mono', size: 11 },
           callbacks: {
-            label: ctx => ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y*4).toFixed(2)} kWh/hr)`
+            label: ctx => ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y*4).toFixed(2)} kWh/hr)`,
+            title: items => items.length ? [items[0].label] : []
           }
         }
       }
@@ -998,12 +1152,21 @@ function renderHourlyProfile(days) {
 }
 
 // Day/Night donut
+// ─────────────────────────────────────────────────────────────────────────────
+// FREE NIGHTS CONFIGURATION — adjust these if your plan's free period changes:
+//   DAY_START_HOUR  : first hour of "day" (paid) period  — currently 6 = 6:00 AM
+//   DAY_END_HOUR    : first hour of "night" (free) period — currently 20 = 8:00 PM
+//   Free Night window: 8:00 PM → 5:59 AM (Reliant Free Nights plan)
+// ─────────────────────────────────────────────────────────────────────────────
+const DAY_START_HOUR = 6;  // 6:00 AM — start of paid daytime
+const DAY_END_HOUR   = 20; // 8:00 PM — start of free night window
+
 function renderDayNight(days) {
   let dayKwh = 0, nightKwh = 0;
   for (const day of days) {
     for (const r of readings.get(day)) {
       const h = parseInt(r.time.split(':')[0]);
-      if (h >= 6 && h < 22) dayKwh += r.kwh;
+      if (h >= DAY_START_HOUR && h < DAY_END_HOUR) dayKwh += r.kwh;
       else nightKwh += r.kwh;
     }
   }
@@ -1012,7 +1175,7 @@ function renderDayNight(days) {
   charts['chart-daynight'] = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: [`Day (6am–10pm): ${dayKwh.toFixed(1)} kWh`, `Night (10pm–6am): ${nightKwh.toFixed(1)} kWh`],
+      labels: [`Day (6am–8pm): ${dayKwh.toFixed(1)} kWh`, `Free Night (8pm–6am): ${nightKwh.toFixed(1)} kWh`],
       datasets: [{
         data: [dayKwh, nightKwh],
         backgroundColor: ['rgba(240,165,0,0.75)', 'rgba(88,166,255,0.75)'],
@@ -1095,6 +1258,122 @@ function renderDOW(days) {
   });
 }
 
+// Monthly charts
+function renderMonthly(days) {
+  // Build monthly buckets: { "2026-03": { total, dayKwh, nightKwh, dayCount } }
+  const months = {};
+  for (const day of days) {
+    const monthKey = day.slice(0, 7); // "YYYY-MM"
+    if (!months[monthKey]) months[monthKey] = { total: 0, dayKwh: 0, nightKwh: 0, dayCount: 0 };
+    const intervals = readings.get(day) || [];
+    months[monthKey].dayCount++;
+    for (const r of intervals) {
+      const h = parseInt(r.time.split(':')[0]);
+      months[monthKey].total += r.kwh;
+      if (h >= DAY_START_HOUR && h < DAY_END_HOUR) months[monthKey].dayKwh += r.kwh;
+      else months[monthKey].nightKwh += r.kwh;
+    }
+  }
+
+  const mKeys = Object.keys(months).sort();
+  const mLabels = mKeys.map(k => {
+    const [y, m] = k.split('-');
+    return new Date(+y, +m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  });
+
+  // Chart 1: Monthly totals bar
+  destroyChart('chart-monthly');
+  const ctx1 = document.getElementById('chart-monthly').getContext('2d');
+  charts['chart-monthly'] = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: mLabels,
+      datasets: [{
+        label: 'Monthly kWh',
+        data: mKeys.map(k => +months[k].total.toFixed(2)),
+        backgroundColor: 'rgba(88,166,255,0.7)',
+        borderColor: 'rgba(88,166,255,1)',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: chartOptions({ yLabel: 'kWh' })
+  });
+
+  // Chart 2: Stacked Day vs Free Night per month
+  destroyChart('chart-monthly-daynight');
+  const ctx2 = document.getElementById('chart-monthly-daynight').getContext('2d');
+  charts['chart-monthly-daynight'] = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: mLabels,
+      datasets: [
+        {
+          label: 'Day (paid)',
+          data: mKeys.map(k => +months[k].dayKwh.toFixed(2)),
+          backgroundColor: 'rgba(240,165,0,0.75)',
+          borderColor: 'rgba(240,165,0,1)',
+          borderWidth: 1,
+          borderRadius: 0,
+          stack: 'daynight'
+        },
+        {
+          label: 'Free Night',
+          data: mKeys.map(k => +months[k].nightKwh.toFixed(2)),
+          backgroundColor: 'rgba(88,166,255,0.75)',
+          borderColor: 'rgba(88,166,255,1)',
+          borderWidth: 1,
+          borderRadius: 4,
+          stack: 'daynight'
+        }
+      ]
+    },
+    options: {
+      ...chartOptions({ yLabel: 'kWh' }),
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: { color: '#7d8590', font: { family: 'DM Mono', size: 11 }, boxWidth: 12 }
+        },
+        tooltip: {
+          backgroundColor: '#1c2430', borderColor: '#21262d', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#7d8590',
+          titleFont: { family: 'DM Mono', size: 11 },
+          bodyFont:  { family: 'DM Mono', size: 11 },
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } } },
+        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } }, beginAtZero: true, title: { display: true, text: 'kWh', color: '#7d8590', font: { family: 'DM Mono', size: 10 } } }
+      }
+    }
+  });
+
+  // Monthly summary table
+  const tbody = document.getElementById('monthly-table-body');
+  const rows = [];
+  for (const k of [...mKeys].reverse()) {
+    const mo = months[k];
+    const nightPct = mo.total > 0 ? (mo.nightKwh / mo.total * 100).toFixed(1) : '0.0';
+    const avg = mo.dayCount > 0 ? (mo.total / mo.dayCount).toFixed(2) : '—';
+    const [y, m] = k.split('-');
+    const label = new Date(+y, +m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const totalCls = mo.total > 800 ? 'val-high' : mo.total > 500 ? 'val-mid' : 'val-low';
+    rows.push(`<tr>
+      <td>${label}</td>
+      <td style="color:var(--muted)">${mo.dayCount}</td>
+      <td class="${totalCls}">${mo.total.toFixed(1)}</td>
+      <td style="color:var(--muted)">${avg}</td>
+      <td style="color:rgba(240,165,0,0.9)">${mo.dayKwh.toFixed(1)}</td>
+      <td style="color:rgba(88,166,255,0.9)">${mo.nightKwh.toFixed(1)}</td>
+      <td style="color:var(--accent2)">${nightPct}%</td>
+    </tr>`);
+  }
+  tbody.innerHTML = rows.join('');
+}
+
+
 // Summary table
 function renderTable(days) {
   const tbody = document.getElementById('table-body');
@@ -1146,7 +1425,7 @@ function shiftDay(dir) {
 
 // ── TAB SWITCHING ─────────────────────────────────────────────────────────────
 function showTab(name, btn) {
-  ['daily','hourly','weekly','table'].forEach(t => {
+  ['daily','hourly','weekly','monthly','table'].forEach(t => {
     document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
   });
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1177,7 +1456,7 @@ function removeFile(idx) {
     document.getElementById('empty-state').style.display = 'block';
     document.getElementById('stats-row').style.display = 'none';
     document.getElementById('section-tabs').style.display = 'none';
-    ['tab-daily','tab-hourly','tab-weekly','tab-table'].forEach(id =>
+    ['tab-daily','tab-hourly','tab-weekly','tab-monthly','tab-table'].forEach(id =>
       document.getElementById(id).style.display = 'none'
     );
     document.getElementById('header-meta').textContent = 'No data loaded — upload your SMT files below';
@@ -1326,6 +1605,50 @@ async function syncFromDrive() {
   }
 
   btn.disabled = false;
+}
+
+
+// ── SIGENERGY DATA (FUTURE) ───────────────────────────────────────────────────
+// TODO: When you have your first Sigenergy export, inspect the column names and
+// fill in parseSIG() below. Expected columns (based on mySigen app capabilities):
+//   - Date / Timestamp
+//   - Solar Production (kWh)
+//   - Solar Direct Consumption (kWh)   — solar used without going through battery
+//   - Battery Discharge (kWh)          — battery energy delivered to home
+//   - Grid Import (kWh)                — pulled from CenterPoint
+//   - Grid Export / Surplus (kWh)      — sent back to grid (if net metering applies)
+//
+// To activate: add 'sig' detection in parseFile(), call parseSIG(), merge into sigData,
+// then call renderSolarStats().
+
+function parseSIG(text, filename) {
+  // PLACEHOLDER — implement once Sigenergy export format is confirmed
+  // Return a Map<dateStr, {produced, direct, battery, grid, exported}>
+  throw new Error('Sigenergy parser not yet implemented — check back after first export.');
+}
+
+function renderSolarStats() {
+  if (sigData.size === 0) return;
+
+  let produced = 0, direct = 0, battery = 0, grid = 0;
+  for (const [, d] of sigData) {
+    produced += d.produced || 0;
+    direct   += d.direct   || 0;
+    battery  += d.battery  || 0;
+    grid     += d.grid     || 0;
+  }
+  const totalConsumption = direct + battery + grid;
+  const selfuse = totalConsumption > 0 ? ((direct + battery) / totalConsumption * 100).toFixed(1) : '—';
+
+  document.getElementById('sig-produced').textContent = produced.toFixed(1);
+  document.getElementById('sig-direct').textContent   = direct.toFixed(1);
+  document.getElementById('sig-battery').textContent  = battery.toFixed(1);
+  document.getElementById('sig-grid').textContent     = grid.toFixed(1);
+  document.getElementById('sig-selfuse').textContent  = selfuse + (selfuse !== '—' ? '%' : '');
+
+  // Hide placeholder banner, show stats cards
+  document.getElementById('solar-banner').style.display = 'none';
+  document.getElementById('solar-stats-row').style.display = 'grid';
 }
 
 // ── TOAST ────────────────────────────────────────────────────────────────────
