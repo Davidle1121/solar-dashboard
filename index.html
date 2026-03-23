@@ -883,8 +883,8 @@ function parseCSV(text, filename) {
     const kwh = parseFloat(cells[safeKwhIdx]);
     if (isNaN(kwh)) continue;
 
-    // Time already 24-hr HH:MM e.g. "00:15"
-    const timeRaw = cells[safeStartIdx] || '';
+    // Time already 24-hr HH:MM e.g. "00:15" — trim leading space (email CSV has " 00:15")
+    const timeRaw = (cells[safeStartIdx] || '').trim();
     const tMatch = timeRaw.match(/^(\d{1,2}):(\d{2})/);
     if (!tMatch) continue;
     const timeStr = String(parseInt(tMatch[1])).padStart(2,'0') + ':' + tMatch[2];
