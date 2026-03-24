@@ -1,24 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Home Energy Dashboard</title>
 <script>
   const DRIVE_API_KEY   = 'AIzaSyA_dH35fk8RoqGcm-vDmIc8nUr1G1EQcAA';
   const DRIVE_FOLDER_ID = '1WGUPKuuMKYkvUDVpJl6elwfgUU-vV2t7';
-
-  // Store only a hash here, not the raw PIN.
-  // Generate one with:
-  //   await crypto.subtle.digest('SHA-256', new TextEncoder().encode('123456'))
-  // then convert to hex and paste below.
-  // Note: because this page is fully client-side, this only deters casual use.
-  // It does NOT provide real security. For real protection, proxy the Drive call
-  // behind server-side auth and keep secrets off the client entirely.
-  const DRIVE_SYNC_PIN_HASH = 'SET_SHA256_HASH_HERE';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -108,7 +96,7 @@
   .upload-icon { font-size: 28px; margin-bottom: 8px; }
   .upload-label { color: var(--muted); font-size: 12px; line-height: 1.6; }
   .upload-label strong { color: var(--accent); }
-  .file-chips { display: none; flex-wrap: wrap; gap: 6px; margin-top: 12px; justify-content: center; position: relative; z-index: 2; pointer-events: all; }
+  .file-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; justify-content: center; position: relative; z-index: 2; pointer-events: all; }
   .chip {
     background: rgba(63,185,80,0.12);
     border: 1px solid rgba(63,185,80,0.3);
@@ -352,112 +340,6 @@
   .drive-status.ok { color: var(--accent2); }
   .drive-status.err { color: var(--danger); }
 
-  .control-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-  }
-  .control-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  .control-label {
-    font-size: 11px;
-    color: var(--muted);
-  }
-  .control-select, .control-input, .control-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    padding: 7px 10px;
-  }
-  .control-input { min-width: 110px; }
-  .control-btn {
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-  }
-  .control-btn:hover { border-color: var(--accent); background: rgba(240,165,0,0.06); }
-  .control-chip {
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 5px 10px;
-    font-size: 10px;
-    color: var(--muted);
-    background: rgba(255,255,255,0.02);
-  }
-  .mini-note {
-    font-size: 10px;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-  .insight-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-  .insight-card {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
-  }
-  .insight-label {
-    font-size: 10px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 4px;
-  }
-  .insight-value {
-    font-family: var(--font-display);
-    font-size: 20px;
-    line-height: 1.1;
-  }
-  .insight-sub {
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 4px;
-    line-height: 1.4;
-  }
-  .table-controls {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-  .drive-gate {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 12px;
-  }
-  .drive-gate.hidden { display: none; }
-  .disclaimer {
-    margin-top: 28px;
-    background: rgba(240,165,0,0.06);
-    border: 1px solid rgba(240,165,0,0.2);
-    border-radius: 10px;
-    padding: 12px 14px;
-    color: var(--muted);
-    font-size: 11px;
-    line-height: 1.6;
-  }
-
-
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -486,7 +368,7 @@
     <button class="drive-btn" id="drive-btn" onclick="syncFromDrive()">
       <span class="drive-icon">☁️</span> Sync from Google Drive
     </button>
-    <span class="drive-status" id="visit-counter">Visits today on this browser: 1</span>
+    <span class="drive-status" id="drive-status">Fetches all SMT files from your Drive folder automatically</span>
   </div>
 
   <!-- UPLOAD ZONE -->
@@ -494,10 +376,11 @@
     <input type="file" id="file-input" accept=".xlsx,.csv,.xml" multiple>
     <div class="upload-icon">⚡</div>
     <div class="upload-label">
-      Accepts: XLSX, CSV, or XML (Green Button) — multiple files OK<br>
+      <strong>Tap to upload SMT files</strong><br>
+      Accepts: XLSX, CSV, or XML (Green Button) — any filename, multiple files OK<br>
       <span style="font-size:10px;opacity:0.6">Format is auto-detected from file contents. Nothing is uploaded anywhere.</span>
     </div>
-    <div class="file-chips" id="file-chips" aria-hidden="true"></div>
+    <div class="file-chips" id="file-chips"></div>
   </div>
 
   <!-- STATS ROW -->
@@ -591,32 +474,19 @@
   <!-- DAILY TAB -->
   <div id="tab-daily">
     <div class="chart-panel">
-      <div class="control-bar">
-        <div>
-          <div class="chart-title">Daily Grid Consumption</div>
-          <div class="chart-note">Paid vs free-period kWh by day based on your selected free-night window</div>
-        </div>
-        <div class="control-group">
-          <span class="control-label">Free period</span>
-          <select class="control-select" id="free-start-select" onchange="updateFreePeriodFromControls()"></select>
-          <span class="control-label">to</span>
-          <select class="control-select" id="free-end-select" onchange="updateFreePeriodFromControls()"></select>
-          <span class="control-chip" id="free-period-label">8pm → 6am</span>
-        </div>
+      <div class="chart-header">
+        <div class="chart-title">Daily Grid Consumption</div>
+        <div class="chart-note">kWh per day from CenterPoint</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.75)"></div>Paid period</div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.78)"></div>Free period</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Grid consumption (kWh)</div>
       </div>
     </div>
 
     <div class="chart-panel">
       <div class="chart-header">
-        <div>
-          <div class="chart-title">15-Minute Detail — <span id="detail-date-label" style="color:var(--accent)">Select day above</span></div>
-          <div class="chart-note" id="detail-note">Free-period shading and start/end markers follow the selected time window</div>
-        </div>
+        <div class="chart-title">15-Minute Detail — <span id="detail-date-label" style="color:var(--accent)">Select day above</span></div>
         <div class="day-nav">
           <button onclick="shiftDay(-1)">← Prev</button>
           <select id="day-select" onchange="selectDay(this.value)"></select>
@@ -625,8 +495,7 @@
       </div>
       <div class="chart-wrap"><canvas id="chart-detail"></canvas></div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.78)"></div>Free-period interval</div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.72)"></div>Paid-period interval</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Grid draw per 15-min interval (kWh)</div>
         <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>Spike (&gt;0.5 kWh / 15 min ≈ 2 kW)</div>
       </div>
     </div>
@@ -636,48 +505,21 @@
   <div id="tab-hourly" style="display:none">
     <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">Hourly Usage Heatmap</div>
-        <div class="chart-note">Rows = dates, columns = hours, cell values = grid kWh used during that hour</div>
+        <div class="chart-title">Average Hourly Load Profile</div>
+        <div class="chart-note">Average kWh per hour across all loaded days</div>
       </div>
-      <div class="mini-note" style="margin-bottom:10px">
-        This replaces the earlier averages-only view. It is meant to show which specific hours and days are actually driving usage.
-      </div>
-      <div class="data-table-wrap">
-        <table>
-          <thead id="hourly-heatmap-head"></thead>
-          <tbody id="hourly-heatmap-body"></tbody>
-        </table>
+      <div class="chart-wrap"><canvas id="chart-hourly"></canvas></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Avg hourly draw (kWh)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.2)"></div>Range (min–max)</div>
       </div>
     </div>
     <div class="chart-panel">
       <div class="chart-header">
-        <div>
-          <div class="chart-title">Hourly Breakdown by Date</div>
-          <div class="chart-note">Useful for checking how much of each day lands inside your free period</div>
-        </div>
+        <div class="chart-title">Day vs Night Split</div>
+        <div class="chart-note">Day = 6am–8pm (paid) · Free Night = 8pm–6am (Reliant Free Nights)</div>
       </div>
-      <div class="insight-grid" id="hourly-insight-grid"></div>
-      <div class="table-controls">
-        <span class="control-label">Date</span>
-        <select class="control-select" id="hourly-date-select" onchange="renderHourlyDetailTable(this.value)"></select>
-      </div>
-      <div class="data-table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Hour</th>
-              <th>Grid kWh</th>
-              <th>Period</th>
-              <th>15-min Peak</th>
-              <th>15-min Intervals</th>
-            </tr>
-          </thead>
-          <tbody id="hourly-detail-body"></tbody>
-        </table>
-      </div>
-      <div class="mini-note" style="margin-top:10px">
-        Solar and battery columns are not shown yet because the current page only stores daily SIG placeholders, not interval-level solar or battery exports.
-      </div>
+      <div class="chart-wrap" style="max-width:300px;margin:0 auto"><canvas id="chart-daynight"></canvas></div>
     </div>
   </div>
 
@@ -713,8 +555,8 @@
     </div>
     <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">Monthly Paid vs Free Period</div>
-        <div class="chart-note">Paid vs free-period kWh per month using the selected free window</div>
+        <div class="chart-title">Monthly Day vs Free Night</div>
+        <div class="chart-note">Paid daytime (6am–8pm) vs free night (8pm–6am) kWh per month</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-monthly-daynight"></canvas></div>
       <div class="legend">
@@ -777,11 +619,6 @@
     <p>Upload your Smart Meter Texas files above to get started.<br>
     Supports XLSX, CSV (when available), and XML (Green Button) formats.<br><br>
     <span style="opacity:0.5">Files stay in your browser — nothing is sent anywhere.</span></p>
-  </div>
-
-  <div class="disclaimer">
-    For entertainment purposes only. This dashboard may contain parsing issues, assumptions, and incomplete utility-plan logic.
-    Verify billing, interval usage, solar performance, and tariff treatment against your utility, retail electric provider, and source exports before making decisions.
   </div>
 
 </div>
@@ -1125,104 +962,6 @@ function dayOfWeek(dateStr) {
   return new Date(y, m-1, d).toLocaleDateString('en-US', { weekday: 'long' });
 }
 
-function hourToLabel(hour) {
-  const ampm = hour < 12 ? 'am' : 'pm';
-  const hr = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${hr}${ampm}`;
-}
-
-function formatPeriodLabel(start = freePeriodStartHour, end = freePeriodEndHour) {
-  return `${hourToLabel(start)} → ${hourToLabel(end)}`;
-}
-
-function isFreeHour(hour) {
-  if (freePeriodStartHour === freePeriodEndHour) return true;
-  if (freePeriodStartHour < freePeriodEndHour) {
-    return hour >= freePeriodStartHour && hour < freePeriodEndHour;
-  }
-  return hour >= freePeriodStartHour || hour < freePeriodEndHour;
-}
-
-function splitDayTotals(dateStr) {
-  let paid = 0, free = 0;
-  const intervals = readings.get(dateStr) || [];
-  for (const r of intervals) {
-    const h = parseInt(r.time.split(':')[0], 10);
-    if (isFreeHour(h)) free += r.kwh;
-    else paid += r.kwh;
-  }
-  return { paid, free, total: paid + free };
-}
-
-function buildHourlyRollup(dateStr) {
-  const hours = Array.from({ length: 24 }, (_, h) => ({ hour: h, total: 0, peak: 0, intervals: 0 }));
-  const intervals = readings.get(dateStr) || [];
-  for (const r of intervals) {
-    const hour = parseInt(r.time.split(':')[0], 10);
-    hours[hour].total += r.kwh;
-    hours[hour].peak = Math.max(hours[hour].peak, r.kwh);
-    hours[hour].intervals += 1;
-  }
-  return hours;
-}
-
-function setupFreePeriodControls() {
-  const startSel = document.getElementById('free-start-select');
-  const endSel = document.getElementById('free-end-select');
-  if (!startSel || !endSel || startSel.options.length) return;
-  const options = Array.from({ length: 24 }, (_, hour) => `<option value="${hour}">${hourToLabel(hour)}</option>`).join('');
-  startSel.innerHTML = options;
-  endSel.innerHTML = options;
-  loadFreePeriodPreference();
-  startSel.value = String(freePeriodStartHour);
-  endSel.value = String(freePeriodEndHour);
-  updateFreePeriodLabel();
-}
-
-function loadFreePeriodPreference() {
-  const stored = localStorage.getItem('energy-free-period');
-  if (!stored) return;
-  try {
-    const parsed = JSON.parse(stored);
-    if (Number.isInteger(parsed.start) && parsed.start >= 0 && parsed.start <= 23) freePeriodStartHour = parsed.start;
-    if (Number.isInteger(parsed.end) && parsed.end >= 0 && parsed.end <= 23) freePeriodEndHour = parsed.end;
-  } catch (err) {
-    console.warn('Could not load saved free-period preference', err);
-  }
-}
-
-function persistFreePeriodPreference() {
-  localStorage.setItem('energy-free-period', JSON.stringify({ start: freePeriodStartHour, end: freePeriodEndHour }));
-}
-
-function updateFreePeriodLabel() {
-  const label = document.getElementById('free-period-label');
-  const detailNote = document.getElementById('detail-note');
-  const text = `${formatPeriodLabel()} free period`;
-  if (label) label.textContent = text;
-  if (detailNote) detailNote.textContent = `Free-period shading and start/end markers follow ${formatPeriodLabel()}.`;
-}
-
-function updateFreePeriodFromControls() {
-  const startSel = document.getElementById('free-start-select');
-  const endSel = document.getElementById('free-end-select');
-  freePeriodStartHour = parseInt(startSel.value, 10);
-  freePeriodEndHour = parseInt(endSel.value, 10);
-  persistFreePeriodPreference();
-  updateFreePeriodLabel();
-  if (readings.size > 0) {
-    const sortedDays = [...readings.keys()].sort();
-    renderDailyChart(sortedDays);
-    renderDetailChart(sortedDays, currentDayIndex);
-    renderHourlyHeatmap(sortedDays);
-    renderHourlyInsights(sortedDays);
-    renderHourlyDetailTable(sortedDays[Math.max(0, currentDayIndex)]);
-    renderDayNight(sortedDays);
-    renderMonthly(sortedDays);
-  }
-}
-
-
 // ── RENDER ───────────────────────────────────────────────────────────────────
 function renderAll() {
   document.getElementById('empty-state').style.display = 'none';
@@ -1235,15 +974,11 @@ function renderAll() {
   const sortedDays = [...readings.keys()].sort();
   currentDayIndex = sortedDays.length - 1;
 
-  setupFreePeriodControls();
   renderStats(sortedDays);
   renderDailyChart(sortedDays);
   renderDetailChart(sortedDays, currentDayIndex);
   renderDaySelect(sortedDays);
-  renderHourlyHeatmap(sortedDays);
-  renderHourlyInsights(sortedDays);
-  renderHourlyDateSelect(sortedDays);
-  renderHourlyDetailTable(sortedDays[currentDayIndex]);
+  renderHourlyProfile(sortedDays);
   renderDayNight(sortedDays);
   renderWeekly(sortedDays);
   renderDOW(sortedDays);
@@ -1285,8 +1020,7 @@ function updateHeaderMeta(days) {
 // Daily bar chart
 function renderDailyChart(days) {
   const labels = days.map(d => fmtDate(d));
-  const freeData = days.map(d => +splitDayTotals(d).free.toFixed(3));
-  const paidData = days.map(d => +splitDayTotals(d).paid.toFixed(3));
+  const data = days.map(d => readings.get(d).reduce((s,r) => s+r.kwh, 0));
 
   destroyChart('chart-daily');
   const ctx = document.getElementById('chart-daily').getContext('2d');
@@ -1294,67 +1028,23 @@ function renderDailyChart(days) {
     type: 'bar',
     data: {
       labels,
-      datasets: [
-        {
-          label: 'Paid period',
-          data: paidData,
-          backgroundColor: 'rgba(240,165,0,0.75)',
-          borderColor: 'rgba(240,165,0,1)',
-          borderWidth: 1,
-          borderRadius: 4,
-          stack: 'daily-split'
-        },
-        {
-          label: 'Free period',
-          data: freeData,
-          backgroundColor: 'rgba(88,166,255,0.78)',
-          borderColor: 'rgba(88,166,255,1)',
-          borderWidth: 1,
-          borderRadius: 4,
-          stack: 'daily-split'
-        }
-      ]
+      datasets: [{
+        label: 'Grid kWh',
+        data,
+        backgroundColor: 'rgba(88,166,255,0.7)',
+        borderColor: 'rgba(88,166,255,1)',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
     },
-    options: {
-      ...chartOptions({
-        yLabel: 'kWh',
-        onClick: (_, elements) => {
-          if (elements.length > 0) {
-            const liveDays = [...readings.keys()].sort();
-            currentDayIndex = elements[0].index;
-            renderDetailChart(liveDays, currentDayIndex);
-            renderDaySelect(liveDays);
-            renderHourlyDetailTable(liveDays[currentDayIndex]);
-            const hourlySel = document.getElementById('hourly-date-select');
-            if (hourlySel) hourlySel.value = liveDays[currentDayIndex];
-          }
-        }
-      }),
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1c2430',
-          borderColor: '#21262d',
-          borderWidth: 1,
-          titleColor: '#e6edf3',
-          bodyColor: '#7d8590',
-          titleFont: { family: 'DM Mono', size: 11 },
-          bodyFont: { family: 'DM Mono', size: 11 },
-          callbacks: {
-            footer: items => {
-              const idx = items?.[0]?.dataIndex ?? 0;
-              const total = paidData[idx] + freeData[idx];
-              const pct = total > 0 ? (freeData[idx] / total * 100).toFixed(1) : '0.0';
-              return `Free share: ${pct}%`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 }, maxRotation: 45 } },
-        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } }, title: { display: true, text: 'kWh', color: '#7d8590', font: { family: 'DM Mono', size: 10 } }, beginAtZero: true }
+    options: chartOptions({ yLabel: 'kWh', onClick: (_, elements) => {
+      if (elements.length > 0) {
+        const liveDays = [...readings.keys()].sort();
+        currentDayIndex = elements[0].index;
+        renderDetailChart(liveDays, currentDayIndex);
+        renderDaySelect(liveDays);
       }
-    }
+    }})
   });
 }
 
@@ -1368,70 +1058,12 @@ function renderDetailChart(days, idx) {
 
   const labels = intervals.map(r => to12hr(r.time));
   const data = intervals.map(r => r.kwh);
-  const paidColor = 'rgba(240,165,0,0.72)';
-  const freeColor = 'rgba(88,166,255,0.78)';
-  const colors = intervals.map(r => {
-    const hour = parseInt(r.time.split(':')[0], 10);
-    if (r.kwh >= 0.5) return 'rgba(248,81,73,0.85)';
-    return isFreeHour(hour) ? freeColor : paidColor;
-  });
-  const borderColors = intervals.map(r => {
-    const hour = parseInt(r.time.split(':')[0], 10);
-    if (r.kwh >= 0.5) return 'rgba(248,81,73,1)';
-    return isFreeHour(hour) ? 'rgba(88,166,255,1)' : 'rgba(240,165,0,1)';
-  });
+  const colors = data.map(v => v >= 0.5 ? 'rgba(248,81,73,0.85)' : 'rgba(88,166,255,0.7)');
+  const borderColors = data.map(v => v >= 0.5 ? 'rgba(248,81,73,1)' : 'rgba(88,166,255,1)');
 
   // Update day-select
   const sel = document.getElementById('day-select');
   if (sel) sel.value = day;
-
-  const freeMarkerPlugin = {
-    id: 'freeMarkerPlugin',
-    beforeDatasetsDraw(chart) {
-      const { ctx, chartArea, scales: { x } } = chart;
-      if (!chartArea || !x) return;
-      ctx.save();
-      intervals.forEach((r, i) => {
-        if (!isFreeHour(parseInt(r.time.split(':')[0], 10))) return;
-        const center = x.getPixelForValue(i);
-        const nextCenter = i < intervals.length - 1 ? x.getPixelForValue(i + 1) : center + (i > 0 ? center - x.getPixelForValue(i - 1) : 8);
-        const prevCenter = i > 0 ? x.getPixelForValue(i - 1) : center - (nextCenter - center);
-        const left = i === 0 ? prevCenter + ((center - prevCenter) / 2) : (prevCenter + center) / 2;
-        const right = i === intervals.length - 1 ? nextCenter - ((nextCenter - center) / 2) : (center + nextCenter) / 2;
-        ctx.fillStyle = 'rgba(88,166,255,0.08)';
-        ctx.fillRect(left, chartArea.top, right - left, chartArea.bottom - chartArea.top);
-      });
-      ctx.restore();
-    },
-    afterDatasetsDraw(chart) {
-      const { ctx, chartArea, scales: { x } } = chart;
-      if (!chartArea || !x) return;
-      const markers = [];
-      intervals.forEach((r, i) => {
-        const hour = parseInt(r.time.split(':')[0], 10);
-        const minute = parseInt(r.time.split(':')[1], 10);
-        if (minute !== 0) return;
-        if (hour === freePeriodStartHour) markers.push({ i, label: 'Free starts' });
-        if (hour === freePeriodEndHour) markers.push({ i, label: 'Paid starts' });
-      });
-      ctx.save();
-      markers.forEach(({ i, label }) => {
-        const px = x.getPixelForValue(i);
-        ctx.strokeStyle = 'rgba(230,237,243,0.55)';
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(px, chartArea.top);
-        ctx.lineTo(px, chartArea.bottom);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = '#e6edf3';
-        ctx.font = '10px "DM Mono"';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, px, chartArea.bottom + 14);
-      });
-      ctx.restore();
-    }
-  };
 
   destroyChart('chart-detail');
   const ctx = document.getElementById('chart-detail').getContext('2d');
@@ -1448,10 +1080,8 @@ function renderDetailChart(days, idx) {
         borderRadius: 2,
       }]
     },
-    plugins: [freeMarkerPlugin],
     options: {
       ...chartOptions({ yLabel: 'kWh' }),
-      layout: { padding: { bottom: 22 } },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -1463,13 +1093,7 @@ function renderDetailChart(days, idx) {
           titleFont: { family: 'DM Mono', size: 11 },
           bodyFont: { family: 'DM Mono', size: 11 },
           callbacks: {
-            label: ctx => {
-              const raw = intervals[ctx.dataIndex];
-              const hour = parseInt(raw.time.split(':')[0], 10);
-              const period = isFreeHour(hour) ? 'Free period' : 'Paid period';
-              return ` ${ctx.parsed.y.toFixed(3)} kWh · ${period}`;
-            },
-            afterLabel: ctx => `≈ ${(ctx.parsed.y * 4).toFixed(2)} kWh/hr`,
+            label: ctx => ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y*4).toFixed(2)} kWh/hr)`,
             title: items => items.length ? [items[0].label] : []
           }
         }
@@ -1479,127 +1103,81 @@ function renderDetailChart(days, idx) {
 }
 
 // Hourly profile
-function renderHourlyHeatmap(days) {
-  const head = document.getElementById('hourly-heatmap-head');
-  const body = document.getElementById('hourly-heatmap-body');
-  if (!head || !body) return;
-
-  head.innerHTML = `<tr><th>Date</th>${Array.from({ length: 24 }, (_, h) => `<th>${hourToLabel(h)}</th>`).join('')}<th>Total</th><th>Free %</th></tr>`;
-
-  const rows = [...days].reverse().map(day => {
-    const rollup = buildHourlyRollup(day);
-    const maxVal = Math.max(...rollup.map(h => h.total), 0.001);
-    const split = splitDayTotals(day);
-    const freePct = split.total > 0 ? (split.free / split.total * 100).toFixed(1) : '0.0';
-
-    const cells = rollup.map(cell => {
-      const intensity = Math.max(0.08, Math.min(0.95, cell.total / maxVal));
-      const bg = isFreeHour(cell.hour)
-        ? `rgba(88,166,255,${intensity.toFixed(2)})`
-        : `rgba(240,165,0,${(intensity * 0.9).toFixed(2)})`;
-      const textColor = cell.total > (maxVal * 0.55) ? '#0d1117' : '#e6edf3';
-      return `<td style="background:${bg};color:${textColor};text-align:center">${cell.total ? cell.total.toFixed(2) : '—'}</td>`;
-    }).join('');
-
-    return `<tr>
-      <td>${fmtDate(day)}</td>
-      ${cells}
-      <td class="${split.total > 30 ? 'val-high' : split.total > 20 ? 'val-mid' : 'val-low'}">${split.total.toFixed(2)}</td>
-      <td style="color:var(--accent2)">${freePct}%</td>
-    </tr>`;
+function renderHourlyProfile(days) {
+  const hourTotals = Array(24).fill(0).map(() => []);
+  for (const day of days) {
+    for (const r of readings.get(day)) {
+      const h = parseInt(r.time.split(':')[0]);
+      hourTotals[h].push(r.kwh);
+    }
+  }
+  const labels = Array.from({length:24}, (_,h) => {
+    const ampm = h < 12 ? 'am' : 'pm';
+    const hr = h === 0 ? 12 : h > 12 ? h-12 : h;
+    return `${hr}${ampm}`;
   });
+  const avgs = hourTotals.map(arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0);
+  const maxs = hourTotals.map(arr => arr.length ? Math.max(...arr) : 0);
 
-  body.innerHTML = rows.join('');
-}
-
-function renderHourlyDateSelect(days) {
-  const sel = document.getElementById('hourly-date-select');
-  if (!sel) return;
-  sel.innerHTML = days.map((d, i) => `<option value="${d}" ${i === currentDayIndex ? 'selected' : ''}>${fmtDate(d)}</option>`).join('');
-}
-
-function renderHourlyInsights(days) {
-  const container = document.getElementById('hourly-insight-grid');
-  if (!container || !days.length) return;
-
-  let paid = 0, free = 0;
-  const hourlyTotals = Array(24).fill(0);
-  days.forEach(day => {
-    const split = splitDayTotals(day);
-    paid += split.paid;
-    free += split.free;
-    buildHourlyRollup(day).forEach((cell, idx) => hourlyTotals[idx] += cell.total);
+  destroyChart('chart-hourly');
+  const ctx = document.getElementById('chart-hourly').getContext('2d');
+  charts['chart-hourly'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Avg kWh/hr',
+          data: avgs.map(v => +(v*4).toFixed(3)),
+          backgroundColor: 'rgba(88,166,255,0.7)',
+          borderColor: 'rgba(88,166,255,1)',
+          borderWidth: 1,
+          borderRadius: 3,
+          order: 2
+        },
+        {
+          label: 'Max kWh/hr',
+          data: maxs.map(v => +(v*4).toFixed(3)),
+          type: 'line',
+          borderColor: 'rgba(248,81,73,0.5)',
+          backgroundColor: 'transparent',
+          pointRadius: 2,
+          borderWidth: 1.5,
+          order: 1
+        }
+      ]
+    },
+    options: chartOptions({ yLabel: 'kWh/hr' })
   });
-
-  const peakHour = hourlyTotals.indexOf(Math.max(...hourlyTotals));
-  const avgDaily = (paid + free) / days.length;
-  const freePct = (paid + free) > 0 ? (free / (paid + free) * 100).toFixed(1) : '0.0';
-
-  container.innerHTML = `
-    <div class="insight-card">
-      <div class="insight-label">Largest recurring hour</div>
-      <div class="insight-value">${hourToLabel(peakHour)}</div>
-      <div class="insight-sub">${hourlyTotals[peakHour].toFixed(2)} kWh across all loaded days</div>
-    </div>
-    <div class="insight-card">
-      <div class="insight-label">Average daily free share</div>
-      <div class="insight-value">${freePct}%</div>
-      <div class="insight-sub">Using current free period of ${formatPeriodLabel()}</div>
-    </div>
-    <div class="insight-card">
-      <div class="insight-label">Average daily grid usage</div>
-      <div class="insight-value">${avgDaily.toFixed(1)} kWh</div>
-      <div class="insight-sub">${days.length} day${days.length !== 1 ? 's' : ''} loaded</div>
-    </div>
-  `;
-}
-
-function renderHourlyDetailTable(dateStr) {
-  if (!dateStr) return;
-  const sel = document.getElementById('hourly-date-select');
-  if (sel) sel.value = dateStr;
-
-  const tbody = document.getElementById('hourly-detail-body');
-  if (!tbody) return;
-  const rows = buildHourlyRollup(dateStr).map(cell => {
-    const period = isFreeHour(cell.hour) ? 'Free' : 'Paid';
-    return `<tr>
-      <td>${hourToLabel(cell.hour)}</td>
-      <td class="${cell.total > 1.5 ? 'val-high' : cell.total > 0.75 ? 'val-mid' : 'val-low'}">${cell.total ? cell.total.toFixed(3) : '—'}</td>
-      <td style="color:${isFreeHour(cell.hour) ? 'rgba(88,166,255,0.95)' : 'rgba(240,165,0,0.95)'}">${period}</td>
-      <td style="color:var(--muted)">${cell.peak ? cell.peak.toFixed(3) : '—'}</td>
-      <td style="color:var(--muted)">${cell.intervals || '—'}</td>
-    </tr>`;
-  }).join('');
-  tbody.innerHTML = rows;
 }
 
 // Day/Night donut
 // ─────────────────────────────────────────────────────────────────────────────
-// FREE / PAID PERIOD CONFIGURATION
-// These values drive the Daily View charts and the Hourly/Monthly paid-vs-free summaries.
-// Stored in localStorage so your preferred window persists in this browser.
+// FREE NIGHTS CONFIGURATION — adjust these if your plan's free period changes:
+//   DAY_START_HOUR  : first hour of "day" (paid) period  — currently 6 = 6:00 AM
+//   DAY_END_HOUR    : first hour of "night" (free) period — currently 20 = 8:00 PM
+//   Free Night window: 8:00 PM → 5:59 AM (Reliant Free Nights plan)
 // ─────────────────────────────────────────────────────────────────────────────
-let freePeriodStartHour = 20; // 8:00 PM
-let freePeriodEndHour   = 6;  // 6:00 AM
+const DAY_START_HOUR = 6;  // 6:00 AM — start of paid daytime
+const DAY_END_HOUR   = 20; // 8:00 PM — start of free night window
 
 function renderDayNight(days) {
-  let paidKwh = 0, freeKwh = 0;
+  let dayKwh = 0, nightKwh = 0;
   for (const day of days) {
-    const split = splitDayTotals(day);
-    paidKwh += split.paid;
-    freeKwh += split.free;
+    for (const r of readings.get(day)) {
+      const h = parseInt(r.time.split(':')[0]);
+      if (h >= DAY_START_HOUR && h < DAY_END_HOUR) dayKwh += r.kwh;
+      else nightKwh += r.kwh;
+    }
   }
   destroyChart('chart-daynight');
-  const el = document.getElementById('chart-daynight');
-  if (!el) return;
-  const ctx = el.getContext('2d');
+  const ctx = document.getElementById('chart-daynight').getContext('2d');
   charts['chart-daynight'] = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: [`Paid: ${paidKwh.toFixed(1)} kWh`, `Free: ${freeKwh.toFixed(1)} kWh`],
+      labels: [`Day (6am–8pm): ${dayKwh.toFixed(1)} kWh`, `Free Night (8pm–6am): ${nightKwh.toFixed(1)} kWh`],
       datasets: [{
-        data: [paidKwh, freeKwh],
+        data: [dayKwh, nightKwh],
         backgroundColor: ['rgba(240,165,0,0.75)', 'rgba(88,166,255,0.75)'],
         borderColor: ['rgba(240,165,0,1)', 'rgba(88,166,255,1)'],
         borderWidth: 1
@@ -1692,8 +1270,8 @@ function renderMonthly(days) {
     for (const r of intervals) {
       const h = parseInt(r.time.split(':')[0]);
       months[monthKey].total += r.kwh;
-      if (isFreeHour(h)) months[monthKey].nightKwh += r.kwh;
-      else months[monthKey].dayKwh += r.kwh;
+      if (h >= DAY_START_HOUR && h < DAY_END_HOUR) months[monthKey].dayKwh += r.kwh;
+      else months[monthKey].nightKwh += r.kwh;
     }
   }
 
@@ -1836,9 +1414,6 @@ function selectDay(dateStr) {
   const days = [...readings.keys()].sort();
   currentDayIndex = days.indexOf(dateStr);
   renderDetailChart(days, currentDayIndex);
-  renderHourlyDetailTable(dateStr);
-  const hourlySel = document.getElementById('hourly-date-select');
-  if (hourlySel) hourlySel.value = dateStr;
 }
 
 function shiftDay(dir) {
@@ -1846,9 +1421,6 @@ function shiftDay(dir) {
   currentDayIndex = Math.max(0, Math.min(days.length-1, currentDayIndex + dir));
   renderDetailChart(days, currentDayIndex);
   document.getElementById('day-select').value = days[currentDayIndex];
-  renderHourlyDetailTable(days[currentDayIndex]);
-  const hourlySel = document.getElementById('hourly-date-select');
-  if (hourlySel) hourlySel.value = days[currentDayIndex];
 }
 
 // ── TAB SWITCHING ─────────────────────────────────────────────────────────────
@@ -1862,7 +1434,14 @@ function showTab(name, btn) {
 
 // ── CHIPS ─────────────────────────────────────────────────────────────────────
 function renderChips() {
-  // Intentionally hidden to keep the page compact when many files are loaded.
+  const container = document.getElementById('file-chips');
+  container.innerHTML = '';
+  loadedFiles.forEach((f, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `📄 ${f.name} <span class="remove" onclick="removeFile(${i})">✕</span>`;
+    container.appendChild(chip);
+  });
 }
 
 function removeFile(idx) {
@@ -1928,25 +1507,6 @@ function chartOptions({ yLabel = '', onClick = null } = {}) {
 }
 
 // ── GOOGLE DRIVE SYNC ────────────────────────────────────────────────────────
-
-function updateDailyVisitCounter() {
-  const counterEl = document.getElementById('visit-counter');
-  if (!counterEl) return;
-
-  const today = new Date().toISOString().slice(0, 10);
-  const storedDate = localStorage.getItem('visit-counter-date');
-  let count = Number(localStorage.getItem('visit-counter-count') || '0');
-
-  if (storedDate !== today) {
-    count = 0;
-    localStorage.setItem('visit-counter-date', today);
-  }
-
-  count += 1;
-  localStorage.setItem('visit-counter-count', String(count));
-  counterEl.textContent = `Visits today on this browser: ${count}`;
-}
-
 async function syncFromDrive() {
   const btn = document.getElementById('drive-btn');
   const status = document.getElementById('drive-status');
@@ -2092,8 +1652,6 @@ function renderSolarStats() {
 }
 
 // ── TOAST ────────────────────────────────────────────────────────────────────
-updateDailyVisitCounter();
-
 let toastTimer;
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
