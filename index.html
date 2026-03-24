@@ -1208,11 +1208,23 @@ function updateFreeNightWindow() {
   const sortedDays = [...readings.keys()].sort();
   renderDailyChart(sortedDays);
   renderDetailChart(sortedDays, currentDayIndex);
-  renderHourlyAnalysis(sortedDays);
-  renderDayNight(sortedDays);
-  renderMonthly(sortedDays);
   updateHeaderMeta(sortedDays);
+  // Re-render visible tab immediately; mark others pending
+  const visibleTab = ['hourly','weekly','monthly','table'].find(t =>
+    document.getElementById('tab-'+t).style.display !== 'none'
+  );
+  if (visibleTab === 'hourly') { renderHourlyAnalysis(sortedDays); renderDayNight(sortedDays); }
+  else pendingRender.hourly = true;
+  if (visibleTab === 'weekly') { renderWeekly(sortedDays); renderDOW(sortedDays); }
+  else pendingRender.weekly = true;
+  if (visibleTab === 'monthly') renderMonthly(sortedDays);
+  else pendingRender.monthly = true;
+  if (visibleTab === 'table') renderTable(sortedDays);
+  else pendingRender.table = true;
 }
+
+// Track which tabs need a (re)render when they become visible
+const pendingRender = { hourly: false, weekly: false, monthly: false, table: false };
 
 function renderAll() {
   document.getElementById('stats-row').style.display = 'grid';
@@ -1229,12 +1241,11 @@ function renderAll() {
   renderDailyChart(sortedDays);
   renderDetailChart(sortedDays, currentDayIndex);
   renderDaySelect(sortedDays);
-  renderHourlyAnalysis(sortedDays);
-  renderDayNight(sortedDays);
-  renderWeekly(sortedDays);
-  renderDOW(sortedDays);
-  renderMonthly(sortedDays);
-  renderTable(sortedDays);
+  // Mark hidden-tab charts as pending — they'll render when their tab is opened
+  pendingRender.hourly  = true;
+  pendingRender.weekly  = true;
+  pendingRender.monthly = true;
+  pendingRender.table   = true;
   updateHeaderMeta(sortedDays);
 }
 
@@ -1760,6 +1771,25 @@ function showTab(name, btn) {
   });
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+
+  // Lazy-render charts that were deferred while their tab was hidden
+  if (!readings.size) return;
+  const sortedDays = [...readings.keys()].sort();
+  if (name === 'hourly' && pendingRender.hourly) {
+    renderHourlyAnalysis(sortedDays);
+    renderDayNight(sortedDays);
+    pendingRender.hourly = false;
+  } else if (name === 'weekly' && pendingRender.weekly) {
+    renderWeekly(sortedDays);
+    renderDOW(sortedDays);
+    pendingRender.weekly = false;
+  } else if (name === 'monthly' && pendingRender.monthly) {
+    renderMonthly(sortedDays);
+    pendingRender.monthly = false;
+  } else if (name === 'table' && pendingRender.table) {
+    renderTable(sortedDays);
+    pendingRender.table = false;
+  }
 }
 
 // ── CHIPS ─────────────────────────────────────────────────────────────────────
