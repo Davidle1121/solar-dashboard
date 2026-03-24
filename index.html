@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://www.googleapis.com data: blob:; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://www.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
 <title>Home Energy Dashboard</title>
 <script>
   const DRIVE_API_KEY   = 'AIzaSyA_dH35fk8RoqGcm-vDmIc8nUr1G1EQcAA';
@@ -340,6 +342,106 @@
   .drive-status.ok { color: var(--accent2); }
   .drive-status.err { color: var(--danger); }
 
+
+  .controls-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+  }
+  .controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    align-items: end;
+  }
+  .control-label {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .control-select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 9px 10px;
+  }
+  .control-helper {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .disclaimer-banner {
+    margin: 20px 0 24px;
+    padding: 12px 14px;
+    background: rgba(248,81,73,0.08);
+    border: 1px solid rgba(248,81,73,0.25);
+    border-radius: 10px;
+    color: #f3c3bf;
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .hourly-table-wrap {
+    overflow-x: auto;
+    margin-top: 6px;
+  }
+  .hourly-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+  .hourly-table th,
+  .hourly-table td {
+    text-align: center;
+    min-width: 52px;
+  }
+  .hourly-table th:first-child,
+  .hourly-table td:first-child {
+    text-align: left;
+    min-width: 118px;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+  }
+  .hourly-table thead th:first-child { background: var(--surface2); }
+  .hour-cell-paid { background: rgba(240,165,0,0.08); }
+  .hour-cell-free { background: rgba(88,166,255,0.10); }
+  .hour-cell-empty { color: rgba(125,133,144,0.55); }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .summary-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .summary-card-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 5px;
+  }
+  .summary-card-value {
+    font-family: var(--font-display);
+    font-size: 20px;
+  }
+
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -359,7 +461,7 @@
   <header>
     <div class="header-left">
       <h1>Home <span>Energy</span> Dashboard</h1>
-      <div class="header-meta" id="header-meta">No data loaded — upload your SMT files below</div>
+      <div class="header-meta" id="header-meta">No data loaded — use Google Drive sync to load SMT files</div>
     </div>
   </header>
 
@@ -371,17 +473,9 @@
     <span class="drive-status" id="drive-status">Fetches all SMT files from your Drive folder automatically</span>
   </div>
 
-  <!-- UPLOAD ZONE -->
-  <div class="upload-zone" id="upload-zone">
-    <input type="file" id="file-input" accept=".xlsx,.csv,.xml" multiple>
-    <div class="upload-icon">⚡</div>
-    <div class="upload-label">
-      <strong>Tap to upload SMT files</strong><br>
-      Accepts: XLSX, CSV, or XML (Green Button) — any filename, multiple files OK<br>
-      <span style="font-size:10px;opacity:0.6">Format is auto-detected from file contents. Nothing is uploaded anywhere.</span>
-    </div>
-    <div class="file-chips" id="file-chips"></div>
-  </div>
+  <div class="disclaimer-banner">For entertainment purposes only. This dashboard is a convenience view of your files and may be incomplete, inaccurate, or unsuitable for billing, operational, financial, tax, warranty, or planning decisions. Verify everything against your utility, solar, battery, and retailer records.</div>
+
+  <input type="file" id="file-input" accept=".xlsx,.csv,.xml" multiple style="display:none">
 
   <!-- STATS ROW -->
   <div class="stats-row" id="stats-row" style="display:none">
@@ -428,7 +522,7 @@
         <div class="solar-banner-sub">
           Once your SIGEnergy system is live (est. late May 2026) and you have your first export,
           this section will show your solar production, battery usage, grid draw, and self-sufficiency rate.
-          Upload a SIG data file above to activate.
+          Once SIG exports are supported, loading a SIG file through your existing workflow will activate this section.
         </div>
       </div>
     </div>
@@ -473,14 +567,33 @@
 
   <!-- DAILY TAB -->
   <div id="tab-daily">
+    <div class="controls-panel">
+      <div class="chart-header" style="margin-bottom:10px">
+        <div class="chart-title">Free Night Window</div>
+        <div class="chart-note">Updates Daily View, Hourly Analysis, Monthly split, and summary calculations</div>
+      </div>
+      <div class="controls-grid">
+        <div>
+          <label class="control-label" for="free-start-select">Free period starts</label>
+          <select class="control-select" id="free-start-select" onchange="updateFreeNightWindow()"></select>
+        </div>
+        <div>
+          <label class="control-label" for="free-end-select">Free period ends</label>
+          <select class="control-select" id="free-end-select" onchange="updateFreeNightWindow()"></select>
+        </div>
+      </div>
+      <div class="control-helper" id="free-window-helper">Free period: 8:00 PM to 6:00 AM. Bars and tables are recolored automatically.</div>
+    </div>
+
     <div class="chart-panel">
       <div class="chart-header">
         <div class="chart-title">Daily Grid Consumption</div>
-        <div class="chart-note">kWh per day from CenterPoint</div>
+        <div class="chart-note">Stacked by paid vs free-night usage for each day</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Grid consumption (kWh)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.75)"></div>Paid period</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.75)"></div>Free night period</div>
       </div>
     </div>
 
@@ -495,7 +608,8 @@
       </div>
       <div class="chart-wrap"><canvas id="chart-detail"></canvas></div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Grid draw per 15-min interval (kWh)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.75)"></div>Paid period</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.75)"></div>Free night period</div>
         <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>Spike (&gt;0.5 kWh / 15 min ≈ 2 kW)</div>
       </div>
     </div>
@@ -505,21 +619,37 @@
   <div id="tab-hourly" style="display:none">
     <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">Average Hourly Load Profile</div>
-        <div class="chart-note">Average kWh per hour across all loaded days</div>
+        <div class="chart-title">Hourly Usage by Date</div>
+        <div class="chart-note">Each cell shows grid kWh for that hour. Blue columns are in the current free-night window.</div>
       </div>
-      <div class="chart-wrap"><canvas id="chart-hourly"></canvas></div>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Avg hourly draw (kWh)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.2)"></div>Range (min–max)</div>
+      <div class="hourly-table-wrap">
+        <table class="hourly-table">
+          <thead id="hourly-date-head"></thead>
+          <tbody id="hourly-date-body"></tbody>
+        </table>
       </div>
     </div>
     <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">Day vs Night Split</div>
-        <div class="chart-note">Day = 6am–8pm (paid) · Free Night = 8pm–6am (Reliant Free Nights)</div>
+        <div class="chart-title">Hourly Action Summary</div>
+        <div class="chart-note">Use this to spot the best hours to shift load and compare against future solar and battery data.</div>
       </div>
-      <div class="chart-wrap" style="max-width:300px;margin:0 auto"><canvas id="chart-daynight"></canvas></div>
+      <div class="summary-grid" id="hourly-summary-cards"></div>
+      <div class="data-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Hour</th>
+              <th>Window</th>
+              <th>Avg Grid kWh</th>
+              <th>Max Grid kWh</th>
+              <th>Days With Usage</th>
+              <th>Solar/Battery Context</th>
+            </tr>
+          </thead>
+          <tbody id="hourly-summary-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -556,7 +686,7 @@
     <div class="chart-panel">
       <div class="chart-header">
         <div class="chart-title">Monthly Day vs Free Night</div>
-        <div class="chart-note">Paid daytime (6am–8pm) vs free night (8pm–6am) kWh per month</div>
+        <div class="chart-note">Paid period vs free-night period kWh per month</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-monthly-daynight"></canvas></div>
       <div class="legend">
@@ -613,13 +743,6 @@
     </div>
   </div>
 
-  <!-- EMPTY STATE -->
-  <div class="empty" id="empty-state">
-    <div class="empty-icon">📂</div>
-    <p>Upload your Smart Meter Texas files above to get started.<br>
-    Supports XLSX, CSV (when available), and XML (Green Button) formats.<br><br>
-    <span style="opacity:0.5">Files stay in your browser — nothing is sent anywhere.</span></p>
-  </div>
 
 </div>
 
@@ -635,23 +758,30 @@ let sigData   = new Map(); // populated when SIG files are loaded (see parseSIG 
 let loadedFiles = [];
 let currentDayIndex = 0;
 let charts = {};
+let freeNightStartHour = 20;
+let freeNightEndHour = 6;
+const HOUR_OPTIONS = Array.from({length: 24}, (_, h) => h);
 
 // ── FILE HANDLING ────────────────────────────────────────────────────────────
 const fileInput = document.getElementById('file-input');
 const uploadZone = document.getElementById('upload-zone');
 
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('drag');
-  handleFiles([...e.dataTransfer.files]);
-});
-fileInput.addEventListener('change', e => {
-  const files = [...e.target.files];
-  e.target.value = ''; // Clear so same file can be re-selected if needed
-  handleFiles(files);
-});
+if (uploadZone) {
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag');
+    handleFiles([...e.dataTransfer.files]);
+  });
+}
+if (fileInput) {
+  fileInput.addEventListener('change', e => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    handleFiles(files);
+  });
+}
 
 async function handleFiles(files) {
   for (const file of files) {
@@ -952,6 +1082,80 @@ function to12hr(timeStr) {
   return mm === 0 ? `${hr}${ampm}` : `${hr}:${String(mm).padStart(2,'0')}${ampm}`;
 }
 
+
+function formatHourLabel(hour) {
+  const ampm = hour < 12 ? 'AM' : 'PM';
+  const hr = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${hr}:00 ${ampm}`;
+}
+
+function formatWindowLabel(startHour, endHour) {
+  return `${formatHourLabel(startHour)} to ${formatHourLabel(endHour)}`;
+}
+
+function isFreeNightHour(hour) {
+  if (freeNightStartHour === freeNightEndHour) return true;
+  if (freeNightStartHour < freeNightEndHour) return hour >= freeNightStartHour && hour < freeNightEndHour;
+  return hour >= freeNightStartHour || hour < freeNightEndHour;
+}
+
+function splitIntervalsByWindow(intervals) {
+  let paid = 0, free = 0;
+  for (const r of intervals) {
+    const h = parseInt(r.time.split(':')[0], 10);
+    if (isFreeNightHour(h)) free += r.kwh;
+    else paid += r.kwh;
+  }
+  return { paid, free };
+}
+
+function getHourlyBucketsForDay(day) {
+  const buckets = Array(24).fill(0);
+  for (const r of (readings.get(day) || [])) {
+    const h = parseInt(r.time.split(':')[0], 10);
+    buckets[h] += r.kwh;
+  }
+  return buckets;
+}
+
+function freeNightLabelShort() {
+  return `${formatHourLabel(freeNightStartHour)}–${formatHourLabel(freeNightEndHour)}`;
+}
+
+const freeNightMarkersPlugin = {
+  id: 'freeNightMarkers',
+  afterDraw(chart, args, pluginOptions) {
+    if (!pluginOptions || !pluginOptions.enabled) return;
+    const {ctx, chartArea, scales} = chart;
+    const xScale = scales.x;
+    if (!xScale || !chartArea) return;
+    const labels = chart.data.labels || [];
+    const startIndex = pluginOptions.startIndex;
+    const endIndex = pluginOptions.endIndex;
+    const drawMarker = (index, text, color) => {
+      if (index == null || index < 0 || index >= labels.length) return;
+      const x = xScale.getPixelForValue(index);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x, chartArea.top);
+      ctx.lineTo(x, chartArea.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = color;
+      ctx.font = '10px DM Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, x, chartArea.bottom + 18);
+      ctx.restore();
+    };
+    drawMarker(startIndex, 'Free starts', 'rgba(88,166,255,0.95)');
+    drawMarker(endIndex, 'Free ends', 'rgba(240,165,0,0.95)');
+  }
+};
+Chart.register(freeNightMarkersPlugin);
+
 function fmtDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m-1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -963,8 +1167,54 @@ function dayOfWeek(dateStr) {
 }
 
 // ── RENDER ───────────────────────────────────────────────────────────────────
+
+function initFreeNightControls() {
+  const startSel = document.getElementById('free-start-select');
+  const endSel = document.getElementById('free-end-select');
+  if (!startSel || !endSel || startSel.options.length) {
+    updateFreeNightHelper();
+    return;
+  }
+
+  HOUR_OPTIONS.forEach(h => {
+    const startOpt = document.createElement('option');
+    startOpt.value = h;
+    startOpt.textContent = formatHourLabel(h);
+    if (h === freeNightStartHour) startOpt.selected = true;
+    startSel.appendChild(startOpt);
+
+    const endOpt = document.createElement('option');
+    endOpt.value = h;
+    endOpt.textContent = formatHourLabel(h);
+    if (h === freeNightEndHour) endOpt.selected = true;
+    endSel.appendChild(endOpt);
+  });
+  updateFreeNightHelper();
+}
+
+function updateFreeNightHelper() {
+  const helper = document.getElementById('free-window-helper');
+  if (helper) helper.textContent = `Free period: ${formatWindowLabel(freeNightStartHour, freeNightEndHour)}. Charts, tables, and split totals update automatically.`;
+}
+
+function updateFreeNightWindow() {
+  const startSel = document.getElementById('free-start-select');
+  const endSel = document.getElementById('free-end-select');
+  if (!startSel || !endSel) return;
+  freeNightStartHour = parseInt(startSel.value, 10);
+  freeNightEndHour = parseInt(endSel.value, 10);
+  updateFreeNightHelper();
+  if (!readings.size) return;
+  const sortedDays = [...readings.keys()].sort();
+  renderDailyChart(sortedDays);
+  renderDetailChart(sortedDays, currentDayIndex);
+  renderHourlyAnalysis(sortedDays);
+  renderDayNight(sortedDays);
+  renderMonthly(sortedDays);
+  updateHeaderMeta(sortedDays);
+}
+
 function renderAll() {
-  document.getElementById('empty-state').style.display = 'none';
   document.getElementById('stats-row').style.display = 'grid';
   document.getElementById('section-tabs').style.display = 'flex';
   ['tab-daily','tab-hourly','tab-weekly','tab-monthly','tab-table'].forEach(id => {
@@ -975,10 +1225,11 @@ function renderAll() {
   currentDayIndex = sortedDays.length - 1;
 
   renderStats(sortedDays);
+  initFreeNightControls();
   renderDailyChart(sortedDays);
   renderDetailChart(sortedDays, currentDayIndex);
   renderDaySelect(sortedDays);
-  renderHourlyProfile(sortedDays);
+  renderHourlyAnalysis(sortedDays);
   renderDayNight(sortedDays);
   renderWeekly(sortedDays);
   renderDOW(sortedDays);
@@ -1014,37 +1265,77 @@ function renderStats(days) {
 function updateHeaderMeta(days) {
   const total = [...readings.values()].flat().reduce((s,r) => s+r.kwh, 0);
   document.getElementById('header-meta').textContent =
-    `${days.length} day${days.length!==1?'s':''} loaded  ·  ${total.toFixed(1)} kWh total  ·  SMT data`;
+    `${days.length} day${days.length!==1?'s':''} loaded  ·  ${total.toFixed(1)} kWh total  ·  Free period ${freeNightLabelShort()}`;
 }
 
-// Daily bar chart
+// Daily stacked chart
 function renderDailyChart(days) {
   const labels = days.map(d => fmtDate(d));
-  const data = days.map(d => readings.get(d).reduce((s,r) => s+r.kwh, 0));
+  const paidData = days.map(d => +splitIntervalsByWindow(readings.get(d) || []).paid.toFixed(3));
+  const freeData = days.map(d => +splitIntervalsByWindow(readings.get(d) || []).free.toFixed(3));
 
   destroyChart('chart-daily');
-  const ctx = document.getElementById('chart-daily').getContext('2d');
+  const dailyCanvas = document.getElementById('chart-daily');
+  if (!dailyCanvas) return;
+  const ctx = dailyCanvas.getContext('2d');
   charts['chart-daily'] = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
-      datasets: [{
-        label: 'Grid kWh',
-        data,
-        backgroundColor: 'rgba(88,166,255,0.7)',
-        borderColor: 'rgba(88,166,255,1)',
-        borderWidth: 1,
-        borderRadius: 4,
-      }]
+      datasets: [
+        {
+          label: 'Paid period',
+          data: paidData,
+          backgroundColor: 'rgba(240,165,0,0.75)',
+          borderColor: 'rgba(240,165,0,1)',
+          borderWidth: 1,
+          borderRadius: 0,
+          stack: 'dailyWindow'
+        },
+        {
+          label: 'Free night period',
+          data: freeData,
+          backgroundColor: 'rgba(88,166,255,0.75)',
+          borderColor: 'rgba(88,166,255,1)',
+          borderWidth: 1,
+          borderRadius: 4,
+          stack: 'dailyWindow'
+        }
+      ]
     },
-    options: chartOptions({ yLabel: 'kWh', onClick: (_, elements) => {
-      if (elements.length > 0) {
-        const liveDays = [...readings.keys()].sort();
-        currentDayIndex = elements[0].index;
-        renderDetailChart(liveDays, currentDayIndex);
-        renderDaySelect(liveDays);
+    options: {
+      ...chartOptions({ yLabel: 'kWh', onClick: (_, elements) => {
+        if (elements.length > 0) {
+          const liveDays = [...readings.keys()].sort();
+          currentDayIndex = elements[0].index;
+          renderDetailChart(liveDays, currentDayIndex);
+          renderDaySelect(liveDays);
+        }
+      }}),
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1c2430',
+          borderColor: '#21262d',
+          borderWidth: 1,
+          titleColor: '#e6edf3',
+          bodyColor: '#7d8590',
+          titleFont: { family: 'DM Mono', size: 11 },
+          bodyFont: { family: 'DM Mono', size: 11 },
+          callbacks: {
+            footer: items => {
+              if (!items.length) return '';
+              const i = items[0].dataIndex;
+              return `Total: ${(paidData[i] + freeData[i]).toFixed(3)} kWh`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 }, maxRotation: 45 } },
+        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } }, title: { display: true, text: 'kWh', color: '#7d8590', font: { family: 'DM Mono', size: 10 } }, beginAtZero: true }
       }
-    }})
+    }
   });
 }
 
@@ -1054,19 +1345,23 @@ function renderDetailChart(days, idx) {
   const safeIdx = Math.max(0, Math.min(days.length - 1, idx));
   const day = days[safeIdx];
   const intervals = readings.get(day) || [];
-  document.getElementById('detail-date-label').textContent = fmtDate(day);
+  document.getElementById('detail-date-label').textContent = `${fmtDate(day)} · Free ${freeNightLabelShort()}`;
 
   const labels = intervals.map(r => to12hr(r.time));
   const data = intervals.map(r => r.kwh);
-  const colors = data.map(v => v >= 0.5 ? 'rgba(248,81,73,0.85)' : 'rgba(88,166,255,0.7)');
-  const borderColors = data.map(v => v >= 0.5 ? 'rgba(248,81,73,1)' : 'rgba(88,166,255,1)');
+  const freeMask = intervals.map(r => isFreeNightHour(parseInt(r.time.split(':')[0], 10)));
+  const colors = data.map((v, i) => v >= 0.5 ? 'rgba(248,81,73,0.85)' : (freeMask[i] ? 'rgba(88,166,255,0.75)' : 'rgba(240,165,0,0.75)'));
+  const borderColors = data.map((v, i) => v >= 0.5 ? 'rgba(248,81,73,1)' : (freeMask[i] ? 'rgba(88,166,255,1)' : 'rgba(240,165,0,1)'));
+  const startIndex = intervals.findIndex(r => parseInt(r.time.split(':')[0], 10) === freeNightStartHour && r.time.endsWith(':00'));
+  const endIndex = intervals.findIndex(r => parseInt(r.time.split(':')[0], 10) === freeNightEndHour && r.time.endsWith(':00'));
 
-  // Update day-select
   const sel = document.getElementById('day-select');
   if (sel) sel.value = day;
 
   destroyChart('chart-detail');
-  const ctx = document.getElementById('chart-detail').getContext('2d');
+  const detailCanvas = document.getElementById('chart-detail');
+  if (!detailCanvas) return;
+  const ctx = detailCanvas.getContext('2d');
   charts['chart-detail'] = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1082,8 +1377,10 @@ function renderDetailChart(days, idx) {
     },
     options: {
       ...chartOptions({ yLabel: 'kWh' }),
+      layout: { padding: { bottom: 24 } },
       plugins: {
         legend: { display: false },
+        freeNightMarkers: { enabled: true, startIndex, endIndex },
         tooltip: {
           backgroundColor: '#1c2430',
           borderColor: '#21262d',
@@ -1093,7 +1390,10 @@ function renderDetailChart(days, idx) {
           titleFont: { family: 'DM Mono', size: 11 },
           bodyFont: { family: 'DM Mono', size: 11 },
           callbacks: {
-            label: ctx => ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y*4).toFixed(2)} kWh/hr)`,
+            label: ctx => {
+              const period = freeMask[ctx.dataIndex] ? 'Free period' : 'Paid period';
+              return ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y*4).toFixed(2)} kWh/hr) · ${period}`;
+            },
             title: items => items.length ? [items[0].label] : []
           }
         }
@@ -1102,80 +1402,102 @@ function renderDetailChart(days, idx) {
   });
 }
 
-// Hourly profile
-function renderHourlyProfile(days) {
-  const hourTotals = Array(24).fill(0).map(() => []);
-  for (const day of days) {
-    for (const r of readings.get(day)) {
-      const h = parseInt(r.time.split(':')[0]);
-      hourTotals[h].push(r.kwh);
-    }
-  }
-  const labels = Array.from({length:24}, (_,h) => {
-    const ampm = h < 12 ? 'am' : 'pm';
-    const hr = h === 0 ? 12 : h > 12 ? h-12 : h;
-    return `${hr}${ampm}`;
-  });
-  const avgs = hourTotals.map(arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0);
-  const maxs = hourTotals.map(arr => arr.length ? Math.max(...arr) : 0);
-
-  destroyChart('chart-hourly');
-  const ctx = document.getElementById('chart-hourly').getContext('2d');
-  charts['chart-hourly'] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Avg kWh/hr',
-          data: avgs.map(v => +(v*4).toFixed(3)),
-          backgroundColor: 'rgba(88,166,255,0.7)',
-          borderColor: 'rgba(88,166,255,1)',
-          borderWidth: 1,
-          borderRadius: 3,
-          order: 2
-        },
-        {
-          label: 'Max kWh/hr',
-          data: maxs.map(v => +(v*4).toFixed(3)),
-          type: 'line',
-          borderColor: 'rgba(248,81,73,0.5)',
-          backgroundColor: 'transparent',
-          pointRadius: 2,
-          borderWidth: 1.5,
-          order: 1
-        }
-      ]
-    },
-    options: chartOptions({ yLabel: 'kWh/hr' })
-  });
+// Hourly analysis
+function renderHourlyAnalysis(days) {
+  renderHourlyDateTable(days);
+  renderHourlySummary(days);
 }
 
-// Day/Night donut
-// ─────────────────────────────────────────────────────────────────────────────
-// FREE NIGHTS CONFIGURATION — adjust these if your plan's free period changes:
-//   DAY_START_HOUR  : first hour of "day" (paid) period  — currently 6 = 6:00 AM
-//   DAY_END_HOUR    : first hour of "night" (free) period — currently 20 = 8:00 PM
-//   Free Night window: 8:00 PM → 5:59 AM (Reliant Free Nights plan)
-// ─────────────────────────────────────────────────────────────────────────────
-const DAY_START_HOUR = 6;  // 6:00 AM — start of paid daytime
-const DAY_END_HOUR   = 20; // 8:00 PM — start of free night window
+function renderHourlyDateTable(days) {
+  const head = document.getElementById('hourly-date-head');
+  const body = document.getElementById('hourly-date-body');
+  const hourHeaders = HOUR_OPTIONS.map(h => `<th class="${isFreeNightHour(h) ? 'hour-cell-free' : 'hour-cell-paid'}">${h}:00</th>`).join('');
+  head.innerHTML = `<tr><th>Date</th>${hourHeaders}<th>Total</th></tr>`;
+
+  const rows = [...days].reverse().map(day => {
+    const hourly = getHourlyBucketsForDay(day);
+    const total = hourly.reduce((sum, v) => sum + v, 0);
+    const cells = hourly.map((v, h) => {
+      const cls = isFreeNightHour(h) ? 'hour-cell-free' : 'hour-cell-paid';
+      return `<td class="${cls} ${v === 0 ? 'hour-cell-empty' : ''}">${v ? v.toFixed(2) : '—'}</td>`;
+    }).join('');
+    return `<tr><td>${fmtDate(day)}</td>${cells}<td>${total.toFixed(2)}</td></tr>`;
+  });
+  body.innerHTML = rows.join('');
+}
+
+function renderHourlySummary(days) {
+  const buckets = HOUR_OPTIONS.map(() => []);
+  for (const day of days) {
+    const hourly = getHourlyBucketsForDay(day);
+    hourly.forEach((v, h) => buckets[h].push(v));
+  }
+
+  const summaryRows = [];
+  const ranked = [];
+  HOUR_OPTIONS.forEach(h => {
+    const vals = buckets[h];
+    const avg = vals.length ? vals.reduce((a,b) => a+b, 0) / vals.length : 0;
+    const max = vals.length ? Math.max(...vals) : 0;
+    const usedDays = vals.filter(v => v > 0).length;
+    ranked.push({ hour: h, avg, max, free: isFreeNightHour(h) });
+    summaryRows.push(`<tr>
+      <td>${formatHourLabel(h)}</td>
+      <td style="color:${isFreeNightHour(h) ? 'rgba(88,166,255,0.95)' : 'rgba(240,165,0,0.95)'}">${isFreeNightHour(h) ? 'Free night' : 'Paid'}</td>
+      <td>${avg.toFixed(2)}</td>
+      <td>${max.toFixed(2)}</td>
+      <td style="color:var(--muted)">${usedDays} / ${days.length}</td>
+      <td style="color:var(--muted)">${sigData.size ? 'Compare this hour against solar direct-use and battery discharge once loaded.' : 'Solar/battery columns will appear when SIG data is loaded.'}</td>
+    </tr>`);
+  });
+  document.getElementById('hourly-summary-body').innerHTML = summaryRows.join('');
+
+  const highestPaid = ranked.filter(r => !r.free).sort((a,b) => b.avg - a.avg)[0];
+  const highestFree = ranked.filter(r => r.free).sort((a,b) => b.avg - a.avg)[0];
+  const bestShift = ranked.filter(r => r.free).sort((a,b) => a.avg - b.avg)[0];
+  const paidAvg = ranked.filter(r => !r.free).reduce((s, r) => s + r.avg, 0) / Math.max(1, ranked.filter(r => !r.free).length);
+  const freeAvg = ranked.filter(r => r.free).reduce((s, r) => s + r.avg, 0) / Math.max(1, ranked.filter(r => r.free).length);
+
+  document.getElementById('hourly-summary-cards').innerHTML = `
+    <div class="summary-card">
+      <div class="summary-card-label">Highest Avg Paid Hour</div>
+      <div class="summary-card-value">${highestPaid ? formatHourLabel(highestPaid.hour) : '—'}</div>
+      <div class="stat-sub">${highestPaid ? highestPaid.avg.toFixed(2) : '0.00'} kWh avg</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">Highest Avg Free Hour</div>
+      <div class="summary-card-value">${highestFree ? formatHourLabel(highestFree.hour) : '—'}</div>
+      <div class="stat-sub">${highestFree ? highestFree.avg.toFixed(2) : '0.00'} kWh avg</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">Lowest Avg Free Hour</div>
+      <div class="summary-card-value">${bestShift ? formatHourLabel(bestShift.hour) : '—'}</div>
+      <div class="stat-sub">${bestShift ? bestShift.avg.toFixed(2) : '0.00'} kWh avg</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">Paid vs Free Avg Hour</div>
+      <div class="summary-card-value">${paidAvg.toFixed(2)} / ${freeAvg.toFixed(2)}</div>
+      <div class="stat-sub">paid kWh vs free kWh</div>
+    </div>`;
+}
 
 function renderDayNight(days) {
   let dayKwh = 0, nightKwh = 0;
   for (const day of days) {
     for (const r of readings.get(day)) {
-      const h = parseInt(r.time.split(':')[0]);
-      if (h >= DAY_START_HOUR && h < DAY_END_HOUR) dayKwh += r.kwh;
-      else nightKwh += r.kwh;
+      const h = parseInt(r.time.split(':')[0], 10);
+      if (isFreeNightHour(h)) nightKwh += r.kwh;
+      else dayKwh += r.kwh;
     }
   }
   destroyChart('chart-daynight');
-  const ctx = document.getElementById('chart-daynight').getContext('2d');
+  const dayNightCanvas = document.getElementById('chart-daynight');
+  if (!dayNightCanvas) return;
+  const ctx = dayNightCanvas.getContext('2d');
   charts['chart-daynight'] = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: [`Day (6am–8pm): ${dayKwh.toFixed(1)} kWh`, `Free Night (8pm–6am): ${nightKwh.toFixed(1)} kWh`],
+      labels: [`Paid period: ${dayKwh.toFixed(1)} kWh`, `Free night (${freeNightLabelShort()}): ${nightKwh.toFixed(1)} kWh`],
       datasets: [{
         data: [dayKwh, nightKwh],
         backgroundColor: ['rgba(240,165,0,0.75)', 'rgba(88,166,255,0.75)'],
@@ -1209,7 +1531,9 @@ function renderWeekly(days) {
   const data = wkKeys.map(k => +weeks[k].toFixed(2));
 
   destroyChart('chart-weekly');
-  const ctx = document.getElementById('chart-weekly').getContext('2d');
+  const weeklyCanvas = document.getElementById('chart-weekly');
+  if (!weeklyCanvas) return;
+  const ctx = weeklyCanvas.getContext('2d');
   charts['chart-weekly'] = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1240,7 +1564,9 @@ function renderDOW(days) {
   const avgs = dowBuckets.map(arr => arr.length ? +(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2) : null);
 
   destroyChart('chart-dow');
-  const ctx = document.getElementById('chart-dow').getContext('2d');
+  const dowCanvas = document.getElementById('chart-dow');
+  if (!dowCanvas) return;
+  const ctx = dowCanvas.getContext('2d');
   charts['chart-dow'] = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1268,10 +1594,10 @@ function renderMonthly(days) {
     const intervals = readings.get(day) || [];
     months[monthKey].dayCount++;
     for (const r of intervals) {
-      const h = parseInt(r.time.split(':')[0]);
+      const h = parseInt(r.time.split(':')[0], 10);
       months[monthKey].total += r.kwh;
-      if (h >= DAY_START_HOUR && h < DAY_END_HOUR) months[monthKey].dayKwh += r.kwh;
-      else months[monthKey].nightKwh += r.kwh;
+      if (isFreeNightHour(h)) months[monthKey].nightKwh += r.kwh;
+      else months[monthKey].dayKwh += r.kwh;
     }
   }
 
@@ -1283,7 +1609,9 @@ function renderMonthly(days) {
 
   // Chart 1: Monthly totals bar
   destroyChart('chart-monthly');
-  const ctx1 = document.getElementById('chart-monthly').getContext('2d');
+  const monthlyCanvas = document.getElementById('chart-monthly');
+  if (!monthlyCanvas) return;
+  const ctx1 = monthlyCanvas.getContext('2d');
   charts['chart-monthly'] = new Chart(ctx1, {
     type: 'bar',
     data: {
@@ -1302,7 +1630,9 @@ function renderMonthly(days) {
 
   // Chart 2: Stacked Day vs Free Night per month
   destroyChart('chart-monthly-daynight');
-  const ctx2 = document.getElementById('chart-monthly-daynight').getContext('2d');
+  const monthlySplitCanvas = document.getElementById('chart-monthly-daynight');
+  if (!monthlySplitCanvas) return;
+  const ctx2 = monthlySplitCanvas.getContext('2d');
   charts['chart-monthly-daynight'] = new Chart(ctx2, {
     type: 'bar',
     data: {
@@ -1435,6 +1765,7 @@ function showTab(name, btn) {
 // ── CHIPS ─────────────────────────────────────────────────────────────────────
 function renderChips() {
   const container = document.getElementById('file-chips');
+  if (!container) return;
   container.innerHTML = '';
   loadedFiles.forEach((f, i) => {
     const chip = document.createElement('div');
@@ -1453,13 +1784,12 @@ function removeFile(idx) {
   const remaining = [...loadedFiles];
   loadedFiles = [];
   if (remaining.length === 0) {
-    document.getElementById('empty-state').style.display = 'block';
     document.getElementById('stats-row').style.display = 'none';
     document.getElementById('section-tabs').style.display = 'none';
     ['tab-daily','tab-hourly','tab-weekly','tab-monthly','tab-table'].forEach(id =>
       document.getElementById(id).style.display = 'none'
     );
-    document.getElementById('header-meta').textContent = 'No data loaded — upload your SMT files below';
+    document.getElementById('header-meta').textContent = 'No data loaded — use Google Drive sync to load SMT files';
     renderChips();
     showToast(`Removed ${removed.name}`, 'success');
     return;
