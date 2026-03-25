@@ -3,8 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://www.googleapis.com data: blob:; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://www.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
-<meta name="referrer" content="no-referrer">
 <title>Home Energy Dashboard</title>
 <script>
   const DRIVE_API_KEY   = 'AIzaSyA_dH35fk8RoqGcm-vDmIc8nUr1G1EQcAA';
@@ -41,7 +39,6 @@
     overflow-x: hidden;
   }
 
-  /* subtle grid background */
   body::before {
     content: '';
     position: fixed;
@@ -56,7 +53,6 @@
 
   .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
 
-  /* ── HEADER ── */
   header {
     display: flex;
     align-items: flex-end;
@@ -81,37 +77,36 @@
     letter-spacing: 0.05em;
   }
 
-  /* ── UPLOAD ZONE ── */
-  .upload-zone {
-    border: 1.5px dashed var(--border);
-    border-radius: 12px;
-    padding: 28px 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
+  .header-right {
+    text-align: right;
+  }
+  .weather-widget {
     background: var(--surface);
-    margin-bottom: 28px;
-    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
   }
-  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(240,165,0,0.04); }
-  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  .upload-icon { font-size: 28px; margin-bottom: 8px; }
-  .upload-label { color: var(--muted); font-size: 12px; line-height: 1.6; }
-  .upload-label strong { color: var(--accent); }
-  .file-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; justify-content: center; position: relative; z-index: 2; pointer-events: all; }
-  .chip {
-    background: rgba(63,185,80,0.12);
-    border: 1px solid rgba(63,185,80,0.3);
-    border-radius: 20px;
-    padding: 3px 10px;
-    font-size: 11px;
-    color: var(--accent2);
-    display: flex; align-items: center; gap: 5px;
+  .weather-icon {
+    font-size: 24px;
   }
-  .chip .remove { cursor: pointer; opacity: 0.6; }
-  .chip .remove:hover { opacity: 1; }
+  .weather-info {
+    text-align: left;
+  }
+  .weather-temp {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--text);
+    line-height: 1;
+  }
+  .weather-loc {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
 
-  /* ── STAT CARDS ── */
   .stats-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -133,8 +128,8 @@
   .stat-card.solar-color .stat-value { color: var(--accent); }
   .stat-card.days-color .stat-value  { color: var(--accent2); }
   .stat-card.peak-color .stat-value  { color: var(--danger); }
+  .stat-card.proj-color .stat-value  { color: #c084fc; }
 
-  /* ── SOLAR SECTION ── */
   .solar-section {
     margin-bottom: 28px;
   }
@@ -173,7 +168,6 @@
   .solar-stat-value.battery-v { color: var(--accent2); }
   .solar-stat-value.selfuse-v { color: #c084fc; }
 
-  /* ── SECTION TABS ── */
   .section-tabs {
     display: flex;
     gap: 4px;
@@ -198,7 +192,6 @@
   .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
   .tab-btn:hover:not(.active) { color: var(--text); }
 
-  /* ── CHART PANELS ── */
   .chart-panel {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -225,12 +218,10 @@
   .chart-wrap { position: relative; }
   .chart-wrap canvas { max-height: 280px; }
 
-  /* ── LEGEND ── */
   .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
   .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
   .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 
-  /* ── DAY SELECTOR ── */
   .day-nav {
     display: flex;
     align-items: center;
@@ -260,16 +251,27 @@
     cursor: pointer;
   }
 
-  /* ── EMPTY STATE ── */
-  .empty {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--muted);
+  .settings-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 11px;
   }
-  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
-  .empty p { font-size: 12px; line-height: 1.8; }
+  .settings-bar select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+  }
 
-  /* ── DATA TABLE ── */
   .data-table-wrap { overflow-x: auto; margin-top: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
   th {
@@ -289,7 +291,6 @@
   .val-mid { color: var(--accent); }
   .val-low { color: var(--accent2); }
 
-  /* ── TOAST ── */
   .toast {
     position: fixed;
     bottom: 20px;
@@ -309,7 +310,6 @@
   .toast.error { border-color: var(--danger); color: var(--danger); }
   .toast.success { border-color: var(--accent2); color: var(--accent2); }
 
-  /* ── DRIVE SYNC BUTTON ── */
   .drive-bar {
     display: flex;
     align-items: center;
@@ -342,104 +342,13 @@
   .drive-status.ok { color: var(--accent2); }
   .drive-status.err { color: var(--danger); }
 
-
-  .controls-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 18px;
-    margin-bottom: 20px;
-  }
-  .controls-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-    align-items: end;
-  }
-  .control-label {
-    display: block;
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-  .control-select {
-    width: 100%;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    padding: 9px 10px;
-  }
-  .control-helper {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 10px;
-    line-height: 1.5;
-  }
-  .disclaimer-banner {
-    margin: 20px 0 24px;
-    padding: 12px 14px;
-    background: rgba(248,81,73,0.08);
-    border: 1px solid rgba(248,81,73,0.25);
-    border-radius: 10px;
-    color: #f3c3bf;
-    font-size: 11px;
-    line-height: 1.6;
-  }
-  .hourly-table-wrap {
-    overflow-x: auto;
-    margin-top: 6px;
-  }
-  .hourly-table {
-    width: max-content;
-    min-width: 100%;
-    border-collapse: collapse;
-    font-size: 10px;
-  }
-  .hourly-table th,
-  .hourly-table td {
+  .disclaimer {
     text-align: center;
-    min-width: 52px;
-  }
-  .hourly-table th:first-child,
-  .hourly-table td:first-child {
-    text-align: left;
-    min-width: 118px;
-    position: sticky;
-    left: 0;
-    z-index: 1;
-    background: var(--surface);
-  }
-  .hourly-table thead th:first-child { background: var(--surface2); }
-  .hour-cell-paid { background: rgba(240,165,0,0.08); }
-  .hour-cell-free { background: rgba(88,166,255,0.10); }
-  .hour-cell-empty { color: rgba(125,133,144,0.55); }
-  .summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
-    margin-top: 12px;
-  }
-  .summary-card {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px 14px;
-  }
-  .summary-card-label {
-    font-size: 10px;
+    padding: 20px;
+    margin-top: 40px;
+    font-size: 11px;
     color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    margin-bottom: 5px;
-  }
-  .summary-card-value {
-    font-family: var(--font-display);
-    font-size: 20px;
+    border-top: 1px solid var(--border);
   }
 
   @keyframes fadeUp {
@@ -447,7 +356,6 @@
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* ── RESPONSIVE ── */
   @media (max-width: 600px) {
     .stats-row { grid-template-columns: 1fr 1fr; }
     .chart-wrap canvas { max-height: 220px; }
@@ -457,15 +365,22 @@
 <body>
 <div class="app">
 
-  <!-- HEADER -->
   <header>
     <div class="header-left">
       <h1>Home <span>Energy</span> Dashboard</h1>
-      <div class="header-meta" id="header-meta">No data loaded — use Google Drive sync to load SMT files</div>
+      <div class="header-meta" id="header-meta">No data loaded</div>
+    </div>
+    <div class="header-right">
+      <div class="weather-widget" id="weather-widget">
+        <div class="weather-icon" id="weather-icon">⏳</div>
+        <div class="weather-info">
+          <div class="weather-temp" id="weather-temp">--°F</div>
+          <div class="weather-loc">Katy, TX (77494)</div>
+        </div>
+      </div>
     </div>
   </header>
 
-  <!-- DRIVE SYNC BAR -->
   <div class="drive-bar">
     <button class="drive-btn" id="drive-btn" onclick="syncFromDrive()">
       <span class="drive-icon">☁️</span> Sync from Google Drive
@@ -473,11 +388,17 @@
     <span class="drive-status" id="drive-status">Fetches all SMT files from your Drive folder automatically</span>
   </div>
 
-  <div class="disclaimer-banner">For entertainment purposes only. This dashboard is a convenience view of your files and may be incomplete, inaccurate, or unsuitable for billing, operational, financial, tax, warranty, or planning decisions. Verify everything against your utility, solar, battery, and retailer records.</div>
+  <div class="settings-bar">
+    <div>
+      <span style="color:var(--muted)">Free Night Start:</span>
+      <select id="free-start" onchange="updateFreeHours()"></select>
+    </div>
+    <div>
+      <span style="color:var(--muted)">Free Night End:</span>
+      <select id="free-end" onchange="updateFreeHours()"></select>
+    </div>
+  </div>
 
-  <input type="file" id="file-input" accept=".xlsx,.csv,.xml" multiple style="display:none">
-
-  <!-- STATS ROW -->
   <div class="stats-row" id="stats-row" style="display:none">
     <div class="stat-card grid-color">
       <div class="stat-label">Total Grid Usage</div>
@@ -499,21 +420,13 @@
       <div class="stat-value" id="stat-peak">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub" id="stat-peak-time">—</div>
     </div>
+    <div class="stat-card proj-color">
+      <div class="stat-label">Projected Daily</div>
+      <div class="stat-value" id="stat-projected">—<span class="stat-unit">kWh</span></div>
+      <div class="stat-sub" id="stat-projected-sub">based on last 7 days</div>
+    </div>
   </div>
 
-  <!-- SOLAR ENERGY SECTION -->
-  <!-- ═══════════════════════════════════════════════════════════════════════
-       SIGENERGY DATA SECTION
-       When solar + battery data becomes available from the mySigen app,
-       this section will display:
-         - Solar produced (kWh)
-         - Solar consumed directly (kWh)
-         - Battery discharged (kWh)
-         - Grid drawn (kWh)
-         - Self-sufficiency % (solar+battery / total consumption)
-       File format: SIG_YYYYMMDD.csv (or whatever Sigenergy exports)
-       Parser to add: parseSIG() in the PARSERS section below
-  ═══════════════════════════════════════════════════════════════════════ -->
   <div class="solar-section" id="solar-section">
     <div class="solar-banner" id="solar-banner">
       <div class="solar-banner-icon">☀️</div>
@@ -522,11 +435,9 @@
         <div class="solar-banner-sub">
           Once your SIGEnergy system is live (est. late May 2026) and you have your first export,
           this section will show your solar production, battery usage, grid draw, and self-sufficiency rate.
-          Once SIG exports are supported, loading a SIG file through your existing workflow will activate this section.
         </div>
       </div>
     </div>
-    <!-- Populated by renderSolarStats() when SIG data is loaded -->
     <div class="solar-stats-row" id="solar-stats-row" style="display:none">
       <div class="solar-stat">
         <div class="solar-stat-label">☀️ Solar Produced</div>
@@ -556,50 +467,30 @@
     </div>
   </div>
 
-  <!-- TABS -->
   <div class="section-tabs" id="section-tabs" style="display:none">
     <button class="tab-btn active" onclick="showTab('daily',this)">Daily View</button>
-    <button class="tab-btn" onclick="showTab('hourly',this)">Hourly Profile</button>
+    <button class="tab-btn" onclick="showTab('hourly',this)">Hourly Profile Table</button>
     <button class="tab-btn" onclick="showTab('weekly',this)">Weekly</button>
     <button class="tab-btn" onclick="showTab('monthly',this)">Monthly</button>
     <button class="tab-btn" onclick="showTab('table',this)">Data Table</button>
   </div>
 
-  <!-- DAILY TAB -->
   <div id="tab-daily">
-    <div class="controls-panel">
-      <div class="chart-header" style="margin-bottom:10px">
-        <div class="chart-title">Free Night Window</div>
-        <div class="chart-note">Updates Daily View, Hourly Analysis, Monthly split, and summary calculations</div>
-      </div>
-      <div class="controls-grid">
-        <div>
-          <label class="control-label" for="free-start-select">Free period starts</label>
-          <select class="control-select" id="free-start-select" onchange="updateFreeNightWindow()"></select>
-        </div>
-        <div>
-          <label class="control-label" for="free-end-select">Free period ends</label>
-          <select class="control-select" id="free-end-select" onchange="updateFreeNightWindow()"></select>
-        </div>
-      </div>
-      <div class="control-helper" id="free-window-helper">Free period: 8:00 PM to 6:00 AM. Bars and tables are recolored automatically.</div>
-    </div>
-
     <div class="chart-panel">
       <div class="chart-header">
         <div class="chart-title">Daily Grid Consumption</div>
-        <div class="chart-note">Stacked by paid vs free-night usage for each day</div>
+        <div class="chart-note">Total kWh separated by Free and Paid periods</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.75)"></div>Paid period</div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.75)"></div>Free night period</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Free kWh</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Paid kWh</div>
       </div>
     </div>
 
     <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">15-Minute Detail — <span id="detail-date-label" style="color:var(--accent)">Select day above</span></div>
+        <div class="chart-title">15-Minute Detail — <span id="detail-date-label" style="color:var(--accent)">Select day</span></div>
         <div class="day-nav">
           <button onclick="shiftDay(-1)">← Prev</button>
           <select id="day-select" onchange="selectDay(this.value)"></select>
@@ -608,52 +499,30 @@
       </div>
       <div class="chart-wrap"><canvas id="chart-detail"></canvas></div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.75)"></div>Paid period</div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.75)"></div>Free night period</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>Spike (&gt;0.5 kWh / 15 min ≈ 2 kW)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Free Period Draw</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Paid Period Draw</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>Spike (&gt;0.5 kWh)</div>
       </div>
     </div>
   </div>
 
-  <!-- HOURLY PROFILE TAB -->
   <div id="tab-hourly" style="display:none">
     <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">Hourly Usage by Date</div>
-        <div class="chart-note">Each cell shows grid kWh for that hour. Blue columns are in the current free-night window.</div>
+        <div class="chart-title">Hourly Consumption Table</div>
+        <div class="chart-note">Total kWh per hour for each day. Highlights your specific power usage patterns.</div>
       </div>
-      <div class="hourly-table-wrap">
-        <table class="hourly-table">
-          <thead id="hourly-date-head"></thead>
-          <tbody id="hourly-date-body"></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">Hourly Action Summary</div>
-        <div class="chart-note">Use this to spot the best hours to shift load and compare against future solar and battery data.</div>
-      </div>
-      <div class="summary-grid" id="hourly-summary-cards"></div>
       <div class="data-table-wrap">
-        <table>
+        <table id="hourly-table">
           <thead>
-            <tr>
-              <th>Hour</th>
-              <th>Window</th>
-              <th>Avg Grid kWh</th>
-              <th>Max Grid kWh</th>
-              <th>Days With Usage</th>
-              <th>Solar/Battery Context</th>
-            </tr>
+            <tr id="hourly-table-head"></tr>
           </thead>
-          <tbody id="hourly-summary-body"></tbody>
+          <tbody id="hourly-table-body"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- WEEKLY TAB -->
   <div id="tab-weekly" style="display:none">
     <div class="chart-panel">
       <div class="chart-header">
@@ -671,7 +540,6 @@
     </div>
   </div>
 
-  <!-- MONTHLY TAB -->
   <div id="tab-monthly" style="display:none">
     <div class="chart-panel">
       <div class="chart-header">
@@ -679,18 +547,15 @@
         <div class="chart-note">Total kWh drawn from grid per calendar month</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-monthly"></canvas></div>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Monthly grid total (kWh)</div>
-      </div>
     </div>
     <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">Monthly Day vs Free Night</div>
-        <div class="chart-note">Paid period vs free-night period kWh per month</div>
+        <div class="chart-title">Monthly Paid vs Free Night</div>
+        <div class="chart-note">Totals separated by your selected Free Night configuration</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-monthly-daynight"></canvas></div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.75)"></div>Day (paid)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.75)"></div>Paid</div>
         <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.75)"></div>Free Night</div>
       </div>
     </div>
@@ -707,7 +572,7 @@
               <th>Days of Data</th>
               <th>Total kWh</th>
               <th>Daily Avg kWh</th>
-              <th>Day kWh</th>
+              <th>Paid kWh</th>
               <th>Free Night kWh</th>
               <th>Night %</th>
             </tr>
@@ -718,12 +583,11 @@
     </div>
   </div>
 
-  <!-- TABLE TAB -->
   <div id="tab-table" style="display:none">
     <div class="chart-panel">
       <div class="chart-header">
         <div class="chart-title">Daily Summary Table</div>
-        <div class="chart-note">Tap column headers to sort</div>
+        <div class="chart-note">Core overview of daily consumption rates</div>
       </div>
       <div class="data-table-wrap">
         <table id="summary-table">
@@ -743,90 +607,72 @@
     </div>
   </div>
 
+  <div class="disclaimer">
+    Disclaimer: This dashboard is for entertainment purposes only.
+  </div>
 
 </div>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ── DATA STORE ──────────────────────────────────────────────────────────────
-// readings: Map<dateStr YYYY-MM-DD, [{time: "HH:MM", kwh: number}]>  — SMT grid data
-// sigData:  Map<dateStr YYYY-MM-DD, {produced, direct, battery, grid}> — Sigenergy solar data
 let readings = new Map();
-let sigData   = new Map(); // populated when SIG files are loaded (see parseSIG below)
+let sigData   = new Map(); 
 let loadedFiles = [];
 let currentDayIndex = 0;
 let charts = {};
-let freeNightStartHour = 20;
-let freeNightEndHour = 6;
-const HOUR_OPTIONS = Array.from({length: 24}, (_, h) => h);
 
-// ── FILE HANDLING ────────────────────────────────────────────────────────────
-const fileInput = document.getElementById('file-input');
-const uploadZone = document.getElementById('upload-zone');
+let freeStartHour = 20;
+let freeEndHour = 6;
 
-if (uploadZone) {
-  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
-  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
-  uploadZone.addEventListener('drop', e => {
-    e.preventDefault();
-    uploadZone.classList.remove('drag');
-    handleFiles([...e.dataTransfer.files]);
-  });
-}
-if (fileInput) {
-  fileInput.addEventListener('change', e => {
-    const files = [...e.target.files];
-    e.target.value = '';
-    handleFiles(files);
-  });
-}
-
-async function handleFiles(files) {
-  for (const file of files) {
-    if (loadedFiles.find(f => f.name === file.name)) continue;
-    try {
-      const data = await parseFile(file);
-      if (data.size === 0) { showToast('No data found in ' + file.name, 'error'); continue; }
-      // Merge into readings
-      for (const [date, intervals] of data.entries()) {
-        if (!readings.has(date)) readings.set(date, []);
-        // Avoid duplicate intervals from same file re-upload
-        const existing = new Set(readings.get(date).map(r => r.time));
-        for (const r of intervals) {
-          if (!existing.has(r.time)) readings.get(date).push(r);
-        }
-      }
-      loadedFiles.push(file);
-      showToast(`Loaded ${file.name}`, 'success');
-    } catch(err) {
-      showToast('Error reading ' + file.name + ': ' + err.message, 'error');
-      console.error(err);
-    }
+async function fetchWeather() {
+  try {
+    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.738&longitude=-95.823&current_weather=true&temperature_unit=fahrenheit');
+    const data = await res.json();
+    const temp = data.current_weather.temperature;
+    const isDay = data.current_weather.is_day;
+    document.getElementById('weather-temp').textContent = Math.round(temp) + '°F';
+    document.getElementById('weather-icon').textContent = isDay ? '☀️' : '🌙';
+  } catch(e) {
+    document.getElementById('weather-temp').textContent = 'N/A';
+    console.error('Weather fetch failed');
   }
-  if (readings.size > 0) renderAll();
-  renderChips();
 }
 
-// ── PARSERS ──────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  fetchWeather();
+  const startSel = document.getElementById('free-start');
+  const endSel = document.getElementById('free-end');
+  for(let i=0; i<24; i++) {
+    const ampm = i < 12 ? 'am' : 'pm';
+    const hr = i === 0 ? 12 : i > 12 ? i - 12 : i;
+    const label = `${hr}:00 ${ampm}`;
+    startSel.innerHTML += `<option value="${i}" ${i===20?'selected':''}>${label}</option>`;
+    endSel.innerHTML += `<option value="${i}" ${i===6?'selected':''}>${label}</option>`;
+  }
+});
+
+function updateFreeHours() {
+  freeStartHour = parseInt(document.getElementById('free-start').value);
+  freeEndHour = parseInt(document.getElementById('free-end').value);
+  if (readings.size > 0) renderAll();
+}
+
+function isFreeHour(h) {
+  if (freeStartHour < freeEndHour) return h >= freeStartHour && h < freeEndHour;
+  return h >= freeStartHour || h < freeEndHour;
+}
 
 async function parseFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
-
-  // XML: check extension or sniff content for Green Button marker
   if (ext === 'xml') return parseXML(await file.text());
-
-  // XLSX: binary format, must use extension
   if (ext === 'xlsx') return parseXLSX(file);
-
-  // CSV or unknown text file: read and detect format from header row
+  
   if (ext === 'csv' || ext === 'txt' || ext === '') {
     const text = await file.text();
     return parseCSV(text, file.name);
   }
 
-  // Fallback: try reading as text and auto-detect
   try {
     const text = await file.text();
     if (text.includes('IntervalBlock') || text.includes('espi')) return parseXML(text);
@@ -836,7 +682,6 @@ async function parseFile(file) {
   }
 }
 
-// XML: Green Button ESPI format
 function parseXML(text) {
   const result = new Map();
   const parser = new DOMParser();
@@ -848,7 +693,6 @@ function parseXML(text) {
     const blockStartEl = block.querySelector('interval > start');
     if (!blockStartEl) continue;
     const blockStartEpoch = parseInt(blockStartEl.textContent);
-    // Date from block start (UTC midnight)
     const blockDate = new Date(blockStartEpoch * 1000);
     const dateStr = toLocalDateStr(blockDate);
 
@@ -861,7 +705,6 @@ function parseXML(text) {
       const epoch = parseInt(startEl.textContent);
       const wh = parseInt(valEl.textContent);
       const dt = new Date(epoch * 1000);
-      // Use local time string as dedup key
       const timeKey = epoch.toString();
       if (seenTimes.has(timeKey)) continue;
       seenTimes.add(timeKey);
@@ -871,18 +714,14 @@ function parseXML(text) {
       result.get(readingDate).push({ time: timeStr, epoch, kwh: wh / 1000 });
     }
   }
-  // Sort each day's readings by epoch
   for (const [, arr] of result) arr.sort((a,b) => a.epoch - b.epoch);
   return result;
 }
 
-// XLSX: SMT format — one day per file, time-only columns, date from filename
 async function parseXLSX(file) {
-  // We'll use a pure-JS XLSX reader (SheetJS via CDN loaded below)
-  // Fall back to a manual approach since we need to load SheetJS
   return new Promise((resolve, reject) => {
     if (typeof XLSX === 'undefined') {
-      reject(new Error('XLSX parser not loaded yet — try again in a moment'));
+      reject(new Error('XLSX parser not loaded yet'));
       return;
     }
     const reader = new FileReader();
@@ -902,26 +741,19 @@ async function parseXLSX(file) {
 function parseXLSXRows(rows, filename) {
   const result = new Map();
   const header = rows[0] ? rows[0].map(h => String(h||'').replace(/['"]/g,'').trim().toLowerCase()) : [];
-
-  // Detect which XLSX variant we have
-  // Variant A (SMT website download): "start time", "end time", "consumption(kwh)" — no date column
-  // Variant B (SMT email CSV-style in xlsx): "usage_date", "usage_start_time", "usage_kwh"
   const isVariantB = header.some(h => h === 'usage_date' || h === 'usage_kwh');
 
   if (isVariantB) {
-    // Treat as CSV format rows — hand off to CSV-style logic
     const text = rows.map(r => r.join(',')).join('\n');
     return parseCSV(text, filename);
   }
 
-  // Variant A: "Start Time", "End Time", "Consumption(Kwh)", "Act./Est.", "Surplus Generation(KwH)"
   const timeStartIdx   = header.findIndex(h => h.includes('start'));
   const consumptionIdx = header.findIndex(h => h.includes('consumption'));
   if (timeStartIdx < 0 || consumptionIdx < 0) {
     throw new Error('XLSX columns not recognised. Found: ' + header.join(', '));
   }
 
-  // Date: try to find a date header column first, then filename, then today
   const dateColIdx = header.findIndex(h => h.includes('date'));
   let fallbackDate = null;
   const dateMatch = filename.match(/(\d{8})/);
@@ -937,7 +769,6 @@ function parseXLSXRows(rows, filename) {
     const kwh = parseFloat(row[consumptionIdx]);
     if (isNaN(kwh)) continue;
 
-    // Parse 12-hr time: "12:00 am", " 3:45 pm"
     const tMatch = timeRaw.match(/(\d+):(\d+)\s*(am|pm)/i);
     if (!tMatch) continue;
     let h = parseInt(tMatch[1]);
@@ -947,7 +778,6 @@ function parseXLSXRows(rows, filename) {
     if (ampm === 'am' && h === 12) h = 0;
     const timeStr = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
 
-    // Try date column in row, then fallback
     let dateStr = fallbackDate;
     if (dateColIdx >= 0 && row[dateColIdx]) {
       const raw = String(row[dateColIdx]);
@@ -963,7 +793,6 @@ function parseXLSXRows(rows, filename) {
   return result;
 }
 
-// Quote-aware CSV line splitter — handles fields with commas inside quotes
 function splitCSVLine(line) {
   const result = [];
   let cur = '', inQuote = false;
@@ -977,14 +806,11 @@ function splitCSVLine(line) {
   return result;
 }
 
-// CSV: Real SMT email format
-// Columns: ESIID, USAGE_DATE, REVISION_DATE, USAGE_START_TIME, USAGE_END_TIME, USAGE_KWH, ESTIMATED_ACTUAL, CONSUMPTION_SURPLUSGENERATION
 function parseCSV(text, filename) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return new Map();
 
   const header = splitCSVLine(lines[0]).map(h => h.toLowerCase());
-
   const dateIdx  = header.findIndex(h => h === 'usage_date');
   const startIdx = header.findIndex(h => h === 'usage_start_time');
   const kwhIdx   = header.findIndex(h => h === 'usage_kwh');
@@ -1004,28 +830,22 @@ function parseCSV(text, filename) {
     const line = lines[i];
     if (!line.trim()) continue;
 
-    // Strip leading apostrophe Excel artifact and parse with quote-aware splitter
     const cells = splitCSVLine(line.replace(/^'/, ''));
-
-    // Only process Consumption rows, skip SurplusGeneration
     if (typeIdx >= 0 && cells[typeIdx] && cells[typeIdx].toLowerCase() !== 'consumption') continue;
 
     const kwh = parseFloat(cells[safeKwhIdx]);
     if (isNaN(kwh)) continue;
 
-    // Time already 24-hr HH:MM e.g. "00:15" — trim leading space (email CSV has " 00:15")
     const timeRaw = (cells[safeStartIdx] || '').trim();
     const tMatch = timeRaw.match(/^(\d{1,2}):(\d{2})/);
     if (!tMatch) continue;
     const timeStr = String(parseInt(tMatch[1])).padStart(2,'0') + ':' + tMatch[2];
 
-    // Date from data column: "03/21/2026" -> "2026-03-21"
     let dateStr = null;
     if (safeDateIdx >= 0 && cells[safeDateIdx]) {
       const dm = cells[safeDateIdx].match(/(\d{2})\/(\d{2})\/(\d{4})/);
       if (dm) dateStr = dm[3] + '-' + dm[1] + '-' + dm[2];
     }
-    // Fallback to filename date
     if (!dateStr) {
       const fm = filename.match(/(\d{8})/);
       if (fm) { const d = fm[1]; dateStr = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8); }
@@ -1039,10 +859,7 @@ function parseCSV(text, filename) {
   return result;
 }
 
-// ── DATE / TIME HELPERS ──────────────────────────────────────────────────────
 function toLocalDateStr(dt) {
-  // Central Time: UTC-6 (CDT) or UTC-5 (CST). SMT data is Central.
-  // For display, offset by -5 or -6 hours. Use a simple heuristic.
   const offset = isDST(dt) ? -5 : -6;
   const local = new Date(dt.getTime() + offset * 3600000);
   return local.toISOString().slice(0, 10);
@@ -1055,10 +872,9 @@ function toLocalTimeStr(dt) {
 }
 
 function isDST(dt) {
-  // US DST: 2nd Sunday March → 1st Sunday November
   const year = dt.getUTCFullYear();
-  const dstStart = getNthSundayUTC(year, 2, 2); // March (month=2), 2nd Sunday
-  const dstEnd = getNthSundayUTC(year, 10, 1);  // November (month=10), 1st Sunday
+  const dstStart = getNthSundayUTC(year, 2, 2); 
+  const dstEnd = getNthSundayUTC(year, 10, 1);  
   return dt >= dstStart && dt < dstEnd;
 }
 
@@ -1071,90 +887,15 @@ function getNthSundayUTC(year, month, n) {
     if (sundays === n) return d;
     d = new Date(d.getTime() + 86400000);
   }
-  return d; // fallback — should never reach here
+  return d; 
 }
 
-// Convert "HH:MM" 24-hr to civilian "h:MMam/pm"
 function to12hr(timeStr) {
   const [hh, mm] = timeStr.split(':').map(Number);
   const ampm = hh < 12 ? 'am' : 'pm';
   const hr   = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
   return mm === 0 ? `${hr}${ampm}` : `${hr}:${String(mm).padStart(2,'0')}${ampm}`;
 }
-
-
-function formatHourLabel(hour) {
-  const ampm = hour < 12 ? 'AM' : 'PM';
-  const hr = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${hr}:00 ${ampm}`;
-}
-
-function formatWindowLabel(startHour, endHour) {
-  return `${formatHourLabel(startHour)} to ${formatHourLabel(endHour)}`;
-}
-
-function isFreeNightHour(hour) {
-  if (freeNightStartHour === freeNightEndHour) return true;
-  if (freeNightStartHour < freeNightEndHour) return hour >= freeNightStartHour && hour < freeNightEndHour;
-  return hour >= freeNightStartHour || hour < freeNightEndHour;
-}
-
-function splitIntervalsByWindow(intervals) {
-  let paid = 0, free = 0;
-  for (const r of intervals) {
-    const h = parseInt(r.time.split(':')[0], 10);
-    if (isFreeNightHour(h)) free += r.kwh;
-    else paid += r.kwh;
-  }
-  return { paid, free };
-}
-
-function getHourlyBucketsForDay(day) {
-  const buckets = Array(24).fill(0);
-  for (const r of (readings.get(day) || [])) {
-    const h = parseInt(r.time.split(':')[0], 10);
-    buckets[h] += r.kwh;
-  }
-  return buckets;
-}
-
-function freeNightLabelShort() {
-  return `${formatHourLabel(freeNightStartHour)}–${formatHourLabel(freeNightEndHour)}`;
-}
-
-const freeNightMarkersPlugin = {
-  id: 'freeNightMarkers',
-  afterDraw(chart, args, pluginOptions) {
-    if (!pluginOptions || !pluginOptions.enabled) return;
-    const {ctx, chartArea, scales} = chart;
-    const xScale = scales.x;
-    if (!xScale || !chartArea) return;
-    const labels = chart.data.labels || [];
-    const startIndex = pluginOptions.startIndex;
-    const endIndex = pluginOptions.endIndex;
-    const drawMarker = (index, text, color) => {
-      if (index == null || index < 0 || index >= labels.length) return;
-      const x = xScale.getPixelForValue(index);
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(x, chartArea.top);
-      ctx.lineTo(x, chartArea.bottom);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = color;
-      ctx.font = '10px DM Mono';
-      ctx.textAlign = 'center';
-      ctx.fillText(text, x, chartArea.bottom + 18);
-      ctx.restore();
-    };
-    drawMarker(startIndex, 'Free starts', 'rgba(88,166,255,0.95)');
-    drawMarker(endIndex, 'Free ends', 'rgba(240,165,0,0.95)');
-  }
-};
-Chart.register(freeNightMarkersPlugin);
 
 function fmtDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -1165,66 +906,6 @@ function dayOfWeek(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m-1, d).toLocaleDateString('en-US', { weekday: 'long' });
 }
-
-// ── RENDER ───────────────────────────────────────────────────────────────────
-
-function initFreeNightControls() {
-  const startSel = document.getElementById('free-start-select');
-  const endSel = document.getElementById('free-end-select');
-  if (!startSel || !endSel || startSel.options.length) {
-    updateFreeNightHelper();
-    return;
-  }
-
-  HOUR_OPTIONS.forEach(h => {
-    const startOpt = document.createElement('option');
-    startOpt.value = h;
-    startOpt.textContent = formatHourLabel(h);
-    if (h === freeNightStartHour) startOpt.selected = true;
-    startSel.appendChild(startOpt);
-
-    const endOpt = document.createElement('option');
-    endOpt.value = h;
-    endOpt.textContent = formatHourLabel(h);
-    if (h === freeNightEndHour) endOpt.selected = true;
-    endSel.appendChild(endOpt);
-  });
-  updateFreeNightHelper();
-}
-
-function updateFreeNightHelper() {
-  const helper = document.getElementById('free-window-helper');
-  if (helper) helper.textContent = `Free period: ${formatWindowLabel(freeNightStartHour, freeNightEndHour)}. Charts, tables, and split totals update automatically.`;
-}
-
-function updateFreeNightWindow() {
-  const startSel = document.getElementById('free-start-select');
-  const endSel = document.getElementById('free-end-select');
-  if (!startSel || !endSel) return;
-  freeNightStartHour = parseInt(startSel.value, 10);
-  freeNightEndHour = parseInt(endSel.value, 10);
-  updateFreeNightHelper();
-  if (!readings.size) return;
-  const sortedDays = [...readings.keys()].sort();
-  renderDailyChart(sortedDays);
-  renderDetailChart(sortedDays, currentDayIndex);
-  updateHeaderMeta(sortedDays);
-  // Re-render visible tab immediately; mark others pending
-  const visibleTab = ['hourly','weekly','monthly','table'].find(t =>
-    document.getElementById('tab-'+t).style.display !== 'none'
-  );
-  if (visibleTab === 'hourly') { renderHourlyAnalysis(sortedDays); renderDayNight(sortedDays); }
-  else pendingRender.hourly = true;
-  if (visibleTab === 'weekly') { renderWeekly(sortedDays); renderDOW(sortedDays); }
-  else pendingRender.weekly = true;
-  if (visibleTab === 'monthly') renderMonthly(sortedDays);
-  else pendingRender.monthly = true;
-  if (visibleTab === 'table') renderTable(sortedDays);
-  else pendingRender.table = true;
-}
-
-// Track which tabs need a (re)render when they become visible
-const pendingRender = { hourly: false, weekly: false, monthly: false, table: false };
 
 function renderAll() {
   document.getElementById('stats-row').style.display = 'grid';
@@ -1237,15 +918,14 @@ function renderAll() {
   currentDayIndex = sortedDays.length - 1;
 
   renderStats(sortedDays);
-  initFreeNightControls();
   renderDailyChart(sortedDays);
   renderDetailChart(sortedDays, currentDayIndex);
   renderDaySelect(sortedDays);
-  // Mark hidden-tab charts as pending — they'll render when their tab is opened
-  pendingRender.hourly  = true;
-  pendingRender.weekly  = true;
-  pendingRender.monthly = true;
-  pendingRender.table   = true;
+  renderHourlyTable(sortedDays);
+  renderWeekly(sortedDays);
+  renderDOW(sortedDays);
+  renderMonthly(sortedDays);
+  renderTable(sortedDays);
   updateHeaderMeta(sortedDays);
 }
 
@@ -1264,6 +944,14 @@ function renderStats(days) {
     }
   }
   const avg = totalKwh / days.length;
+  
+  const last7Days = days.slice(-7);
+  let last7Total = 0;
+  for (const d of last7Days) {
+    last7Total += readings.get(d).reduce((s,r) => s+r.kwh, 0);
+  }
+  const projected = last7Days.length > 0 ? (last7Total / last7Days.length) : 0;
+
   document.getElementById('stat-total').innerHTML = totalKwh.toFixed(1) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-days').textContent = days.length;
   document.getElementById('stat-avg').innerHTML = avg.toFixed(1) + '<span class="stat-unit">kWh</span>';
@@ -1271,108 +959,103 @@ function renderStats(days) {
   document.getElementById('stat-days-span').textContent = `total across ${days.length} day${days.length!==1?'s':''}`;
   document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])} – ${fmtDate(days[days.length-1])}` : fmtDate(days[0]);
   document.getElementById('stat-peak-time').textContent = `${peakDate} at ${peakTime}`;
+  
+  document.getElementById('stat-projected').innerHTML = projected.toFixed(1) + '<span class="stat-unit">kWh</span>';
+  document.getElementById('stat-projected-sub').textContent = `based on last ${last7Days.length} days`;
 }
 
 function updateHeaderMeta(days) {
   const total = [...readings.values()].flat().reduce((s,r) => s+r.kwh, 0);
   document.getElementById('header-meta').textContent =
-    `${days.length} day${days.length!==1?'s':''} loaded  ·  ${total.toFixed(1)} kWh total  ·  Free period ${freeNightLabelShort()}`;
+    `${days.length} day${days.length!==1?'s':''} loaded  ·  ${total.toFixed(1)} kWh total  ·  SMT data`;
 }
 
-// Daily stacked chart
 function renderDailyChart(days) {
   const labels = days.map(d => fmtDate(d));
-  const paidData = days.map(d => +splitIntervalsByWindow(readings.get(d) || []).paid.toFixed(3));
-  const freeData = days.map(d => +splitIntervalsByWindow(readings.get(d) || []).free.toFixed(3));
+  const freeData = [];
+  const paidData = [];
+  
+  days.forEach(d => {
+    let f = 0, p = 0;
+    readings.get(d).forEach(r => {
+      const h = parseInt(r.time.split(':')[0]);
+      if (isFreeHour(h)) f += r.kwh; else p += r.kwh;
+    });
+    freeData.push(f);
+    paidData.push(p);
+  });
 
   destroyChart('chart-daily');
-  const dailyCanvas = document.getElementById('chart-daily');
-  if (!dailyCanvas) return;
-  const ctx = dailyCanvas.getContext('2d');
+  const ctx = document.getElementById('chart-daily').getContext('2d');
   charts['chart-daily'] = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [
         {
-          label: 'Paid period',
+          label: 'Free kWh',
+          data: freeData,
+          backgroundColor: 'rgba(88,166,255,0.7)',
+          borderColor: 'rgba(88,166,255,1)',
+          borderWidth: 1,
+          stack: 'Stack 0',
+        },
+        {
+          label: 'Paid kWh',
           data: paidData,
           backgroundColor: 'rgba(240,165,0,0.75)',
           borderColor: 'rgba(240,165,0,1)',
           borderWidth: 1,
-          borderRadius: 0,
-          stack: 'dailyWindow'
-        },
-        {
-          label: 'Free night period',
-          data: freeData,
-          backgroundColor: 'rgba(88,166,255,0.75)',
-          borderColor: 'rgba(88,166,255,1)',
-          borderWidth: 1,
-          borderRadius: 4,
-          stack: 'dailyWindow'
+          stack: 'Stack 0',
         }
       ]
     },
-    options: {
-      ...chartOptions({ yLabel: 'kWh', onClick: (_, elements) => {
-        if (elements.length > 0) {
-          const liveDays = [...readings.keys()].sort();
-          currentDayIndex = elements[0].index;
-          renderDetailChart(liveDays, currentDayIndex);
-          renderDaySelect(liveDays);
-        }
-      }}),
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1c2430',
-          borderColor: '#21262d',
-          borderWidth: 1,
-          titleColor: '#e6edf3',
-          bodyColor: '#7d8590',
-          titleFont: { family: 'DM Mono', size: 11 },
-          bodyFont: { family: 'DM Mono', size: 11 },
-          callbacks: {
-            footer: items => {
-              if (!items.length) return '';
-              const i = items[0].dataIndex;
-              return `Total: ${(paidData[i] + freeData[i]).toFixed(3)} kWh`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 }, maxRotation: 45 } },
-        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } }, title: { display: true, text: 'kWh', color: '#7d8590', font: { family: 'DM Mono', size: 10 } }, beginAtZero: true }
+    options: chartOptions({ yLabel: 'kWh', onClick: (_, elements) => {
+      if (elements.length > 0) {
+        const liveDays = [...readings.keys()].sort();
+        currentDayIndex = elements[0].index;
+        renderDetailChart(liveDays, currentDayIndex);
+        renderDaySelect(liveDays);
       }
-    }
+    }})
   });
 }
 
-// 15-min detail chart for selected day
 function renderDetailChart(days, idx) {
   if (!days || days.length === 0) return;
   const safeIdx = Math.max(0, Math.min(days.length - 1, idx));
   const day = days[safeIdx];
   const intervals = readings.get(day) || [];
-  document.getElementById('detail-date-label').textContent = `${fmtDate(day)} · Free ${freeNightLabelShort()}`;
+  document.getElementById('detail-date-label').textContent = fmtDate(day);
 
-  const labels = intervals.map(r => to12hr(r.time));
+  const labels = intervals.map(r => {
+    const h = parseInt(r.time.split(':')[0]);
+    const min = r.time.split(':')[1];
+    let label = to12hr(r.time);
+    if (h === freeStartHour && min === "00") label = "🟢 " + label;
+    if (h === freeEndHour && min === "00") label = "🔴 " + label;
+    return label;
+  });
+  
   const data = intervals.map(r => r.kwh);
-  const freeMask = intervals.map(r => isFreeNightHour(parseInt(r.time.split(':')[0], 10)));
-  const colors = data.map((v, i) => v >= 0.5 ? 'rgba(248,81,73,0.85)' : (freeMask[i] ? 'rgba(88,166,255,0.75)' : 'rgba(240,165,0,0.75)'));
-  const borderColors = data.map((v, i) => v >= 0.5 ? 'rgba(248,81,73,1)' : (freeMask[i] ? 'rgba(88,166,255,1)' : 'rgba(240,165,0,1)'));
-  const startIndex = intervals.findIndex(r => parseInt(r.time.split(':')[0], 10) === freeNightStartHour && r.time.endsWith(':00'));
-  const endIndex = intervals.findIndex(r => parseInt(r.time.split(':')[0], 10) === freeNightEndHour && r.time.endsWith(':00'));
+  const colors = intervals.map(r => {
+    const h = parseInt(r.time.split(':')[0]);
+    const isFree = isFreeHour(h);
+    if (r.kwh >= 0.5) return 'rgba(248,81,73,0.85)';
+    return isFree ? 'rgba(88,166,255,0.7)' : 'rgba(240,165,0,0.7)';
+  });
+  const borderColors = intervals.map(r => {
+    const h = parseInt(r.time.split(':')[0]);
+    const isFree = isFreeHour(h);
+    if (r.kwh >= 0.5) return 'rgba(248,81,73,1)';
+    return isFree ? 'rgba(88,166,255,1)' : 'rgba(240,165,0,1)';
+  });
 
   const sel = document.getElementById('day-select');
   if (sel) sel.value = day;
 
   destroyChart('chart-detail');
-  const detailCanvas = document.getElementById('chart-detail');
-  if (!detailCanvas) return;
-  const ctx = detailCanvas.getContext('2d');
+  const ctx = document.getElementById('chart-detail').getContext('2d');
   charts['chart-detail'] = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1388,10 +1071,8 @@ function renderDetailChart(days, idx) {
     },
     options: {
       ...chartOptions({ yLabel: 'kWh' }),
-      layout: { padding: { bottom: 24 } },
       plugins: {
         legend: { display: false },
-        freeNightMarkers: { enabled: true, startIndex, endIndex },
         tooltip: {
           backgroundColor: '#1c2430',
           borderColor: '#21262d',
@@ -1401,10 +1082,7 @@ function renderDetailChart(days, idx) {
           titleFont: { family: 'DM Mono', size: 11 },
           bodyFont: { family: 'DM Mono', size: 11 },
           callbacks: {
-            label: ctx => {
-              const period = freeMask[ctx.dataIndex] ? 'Free period' : 'Paid period';
-              return ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y*4).toFixed(2)} kWh/hr) · ${period}`;
-            },
+            label: ctx => ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y*4).toFixed(2)} kWh/hr)`,
             title: items => items.length ? [items[0].label] : []
           }
         }
@@ -1413,125 +1091,42 @@ function renderDetailChart(days, idx) {
   });
 }
 
-// Hourly analysis
-function renderHourlyAnalysis(days) {
-  renderHourlyDateTable(days);
-  renderHourlySummary(days);
-}
-
-function renderHourlyDateTable(days) {
-  const head = document.getElementById('hourly-date-head');
-  const body = document.getElementById('hourly-date-body');
-  const hourHeaders = HOUR_OPTIONS.map(h => `<th class="${isFreeNightHour(h) ? 'hour-cell-free' : 'hour-cell-paid'}">${h}:00</th>`).join('');
-  head.innerHTML = `<tr><th>Date</th>${hourHeaders}<th>Total</th></tr>`;
-
-  const rows = [...days].reverse().map(day => {
-    const hourly = getHourlyBucketsForDay(day);
-    const total = hourly.reduce((sum, v) => sum + v, 0);
-    const cells = hourly.map((v, h) => {
-      const cls = isFreeNightHour(h) ? 'hour-cell-free' : 'hour-cell-paid';
-      return `<td class="${cls} ${v === 0 ? 'hour-cell-empty' : ''}">${v ? v.toFixed(2) : '—'}</td>`;
-    }).join('');
-    return `<tr><td>${fmtDate(day)}</td>${cells}<td>${total.toFixed(2)}</td></tr>`;
-  });
-  body.innerHTML = rows.join('');
-}
-
-function renderHourlySummary(days) {
-  const buckets = HOUR_OPTIONS.map(() => []);
-  for (const day of days) {
-    const hourly = getHourlyBucketsForDay(day);
-    hourly.forEach((v, h) => buckets[h].push(v));
+function renderHourlyTable(days) {
+  const thead = document.getElementById('hourly-table-head');
+  let headHtml = '<th>Date</th>';
+  for(let i=0; i<24; i++) {
+    const hr = i === 0 ? 12 : i > 12 ? i - 12 : i;
+    const ampm = i < 12 ? 'am' : 'pm';
+    headHtml += `<th>${hr}${ampm}</th>`;
   }
+  thead.innerHTML = headHtml;
 
-  const summaryRows = [];
-  const ranked = [];
-  HOUR_OPTIONS.forEach(h => {
-    const vals = buckets[h];
-    const avg = vals.length ? vals.reduce((a,b) => a+b, 0) / vals.length : 0;
-    const max = vals.length ? Math.max(...vals) : 0;
-    const usedDays = vals.filter(v => v > 0).length;
-    ranked.push({ hour: h, avg, max, free: isFreeNightHour(h) });
-    summaryRows.push(`<tr>
-      <td>${formatHourLabel(h)}</td>
-      <td style="color:${isFreeNightHour(h) ? 'rgba(88,166,255,0.95)' : 'rgba(240,165,0,0.95)'}">${isFreeNightHour(h) ? 'Free night' : 'Paid'}</td>
-      <td>${avg.toFixed(2)}</td>
-      <td>${max.toFixed(2)}</td>
-      <td style="color:var(--muted)">${usedDays} / ${days.length}</td>
-      <td style="color:var(--muted)">${sigData.size ? 'Compare this hour against solar direct-use and battery discharge once loaded.' : 'Solar/battery columns will appear when SIG data is loaded.'}</td>
-    </tr>`);
-  });
-  document.getElementById('hourly-summary-body').innerHTML = summaryRows.join('');
-
-  const highestPaid = ranked.filter(r => !r.free).sort((a,b) => b.avg - a.avg)[0];
-  const highestFree = ranked.filter(r => r.free).sort((a,b) => b.avg - a.avg)[0];
-  const bestShift = ranked.filter(r => r.free).sort((a,b) => a.avg - b.avg)[0];
-  const paidAvg = ranked.filter(r => !r.free).reduce((s, r) => s + r.avg, 0) / Math.max(1, ranked.filter(r => !r.free).length);
-  const freeAvg = ranked.filter(r => r.free).reduce((s, r) => s + r.avg, 0) / Math.max(1, ranked.filter(r => r.free).length);
-
-  document.getElementById('hourly-summary-cards').innerHTML = `
-    <div class="summary-card">
-      <div class="summary-card-label">Highest Avg Paid Hour</div>
-      <div class="summary-card-value">${highestPaid ? formatHourLabel(highestPaid.hour) : '—'}</div>
-      <div class="stat-sub">${highestPaid ? highestPaid.avg.toFixed(2) : '0.00'} kWh avg</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-card-label">Highest Avg Free Hour</div>
-      <div class="summary-card-value">${highestFree ? formatHourLabel(highestFree.hour) : '—'}</div>
-      <div class="stat-sub">${highestFree ? highestFree.avg.toFixed(2) : '0.00'} kWh avg</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-card-label">Lowest Avg Free Hour</div>
-      <div class="summary-card-value">${bestShift ? formatHourLabel(bestShift.hour) : '—'}</div>
-      <div class="stat-sub">${bestShift ? bestShift.avg.toFixed(2) : '0.00'} kWh avg</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-card-label">Paid vs Free Avg Hour</div>
-      <div class="summary-card-value">${paidAvg.toFixed(2)} / ${freeAvg.toFixed(2)}</div>
-      <div class="stat-sub">paid kWh vs free kWh</div>
-    </div>`;
-}
-
-function renderDayNight(days) {
-  let dayKwh = 0, nightKwh = 0;
-  for (const day of days) {
-    for (const r of readings.get(day)) {
-      const h = parseInt(r.time.split(':')[0], 10);
-      if (isFreeNightHour(h)) nightKwh += r.kwh;
-      else dayKwh += r.kwh;
-    }
+  const tbody = document.getElementById('hourly-table-body');
+  const rows = [];
+  for (const day of [...days].reverse()) {
+    const hourTotals = Array(24).fill(0);
+    readings.get(day).forEach(r => {
+      const h = parseInt(r.time.split(':')[0]);
+      hourTotals[h] += r.kwh;
+    });
+    let rowHtml = `<td>${fmtDate(day)}</td>`;
+    hourTotals.forEach((val, h) => {
+      const isFree = isFreeHour(h);
+      const colorCls = isFree ? 'color:rgba(88,166,255,0.9)' : 'color:rgba(240,165,0,0.9)';
+      const bgCls = val >= 1.5 ? 'background:rgba(248,81,73,0.15)' : val >= 0.5 ? 'background:rgba(240,165,0,0.1)' : '';
+      rowHtml += `<td style="${colorCls}; ${bgCls}">${val > 0 ? val.toFixed(2) : '0'}</td>`;
+    });
+    rows.push(`<tr>${rowHtml}</tr>`);
   }
-  destroyChart('chart-daynight');
-  const dayNightCanvas = document.getElementById('chart-daynight');
-  if (!dayNightCanvas) return;
-  const ctx = dayNightCanvas.getContext('2d');
-  charts['chart-daynight'] = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: [`Paid period: ${dayKwh.toFixed(1)} kWh`, `Free night (${freeNightLabelShort()}): ${nightKwh.toFixed(1)} kWh`],
-      datasets: [{
-        data: [dayKwh, nightKwh],
-        backgroundColor: ['rgba(240,165,0,0.75)', 'rgba(88,166,255,0.75)'],
-        borderColor: ['rgba(240,165,0,1)', 'rgba(88,166,255,1)'],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      plugins: {
-        legend: { position: 'bottom', labels: { color: '#7d8590', font: { family: 'DM Mono', size: 11 }, boxWidth: 12 } }
-      },
-      cutout: '60%'
-    }
-  });
+  tbody.innerHTML = rows.join('');
 }
 
-// Weekly chart
 function renderWeekly(days) {
   const weeks = {};
   for (const day of days) {
     const [y, m, d] = day.split('-').map(Number);
     const dt = new Date(y, m-1, d);
-    const dow = dt.getDay(); // 0=Sun
+    const dow = dt.getDay(); 
     const weekStart = new Date(dt); weekStart.setDate(d - dow);
     const wk = weekStart.getFullYear() + '-' + String(weekStart.getMonth()+1).padStart(2,'0') + '-' + String(weekStart.getDate()).padStart(2,'0');
     if (!weeks[wk]) weeks[wk] = 0;
@@ -1542,9 +1137,7 @@ function renderWeekly(days) {
   const data = wkKeys.map(k => +weeks[k].toFixed(2));
 
   destroyChart('chart-weekly');
-  const weeklyCanvas = document.getElementById('chart-weekly');
-  if (!weeklyCanvas) return;
-  const ctx = weeklyCanvas.getContext('2d');
+  const ctx = document.getElementById('chart-weekly').getContext('2d');
   charts['chart-weekly'] = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1562,7 +1155,6 @@ function renderWeekly(days) {
   });
 }
 
-// Day-of-week averages
 function renderDOW(days) {
   const dowBuckets = Array(7).fill(null).map(() => []);
   for (const day of days) {
@@ -1575,9 +1167,7 @@ function renderDOW(days) {
   const avgs = dowBuckets.map(arr => arr.length ? +(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2) : null);
 
   destroyChart('chart-dow');
-  const dowCanvas = document.getElementById('chart-dow');
-  if (!dowCanvas) return;
-  const ctx = dowCanvas.getContext('2d');
+  const ctx = document.getElementById('chart-dow').getContext('2d');
   charts['chart-dow'] = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1595,20 +1185,18 @@ function renderDOW(days) {
   });
 }
 
-// Monthly charts
 function renderMonthly(days) {
-  // Build monthly buckets: { "2026-03": { total, dayKwh, nightKwh, dayCount } }
   const months = {};
   for (const day of days) {
-    const monthKey = day.slice(0, 7); // "YYYY-MM"
+    const monthKey = day.slice(0, 7);
     if (!months[monthKey]) months[monthKey] = { total: 0, dayKwh: 0, nightKwh: 0, dayCount: 0 };
     const intervals = readings.get(day) || [];
     months[monthKey].dayCount++;
     for (const r of intervals) {
-      const h = parseInt(r.time.split(':')[0], 10);
+      const h = parseInt(r.time.split(':')[0]);
       months[monthKey].total += r.kwh;
-      if (isFreeNightHour(h)) months[monthKey].nightKwh += r.kwh;
-      else months[monthKey].dayKwh += r.kwh;
+      if (!isFreeHour(h)) months[monthKey].dayKwh += r.kwh;
+      else months[monthKey].nightKwh += r.kwh;
     }
   }
 
@@ -1618,11 +1206,8 @@ function renderMonthly(days) {
     return new Date(+y, +m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   });
 
-  // Chart 1: Monthly totals bar
   destroyChart('chart-monthly');
-  const monthlyCanvas = document.getElementById('chart-monthly');
-  if (!monthlyCanvas) return;
-  const ctx1 = monthlyCanvas.getContext('2d');
+  const ctx1 = document.getElementById('chart-monthly').getContext('2d');
   charts['chart-monthly'] = new Chart(ctx1, {
     type: 'bar',
     data: {
@@ -1639,25 +1224,13 @@ function renderMonthly(days) {
     options: chartOptions({ yLabel: 'kWh' })
   });
 
-  // Chart 2: Stacked Day vs Free Night per month
   destroyChart('chart-monthly-daynight');
-  const monthlySplitCanvas = document.getElementById('chart-monthly-daynight');
-  if (!monthlySplitCanvas) return;
-  const ctx2 = monthlySplitCanvas.getContext('2d');
+  const ctx2 = document.getElementById('chart-monthly-daynight').getContext('2d');
   charts['chart-monthly-daynight'] = new Chart(ctx2, {
     type: 'bar',
     data: {
       labels: mLabels,
       datasets: [
-        {
-          label: 'Day (paid)',
-          data: mKeys.map(k => +months[k].dayKwh.toFixed(2)),
-          backgroundColor: 'rgba(240,165,0,0.75)',
-          borderColor: 'rgba(240,165,0,1)',
-          borderWidth: 1,
-          borderRadius: 0,
-          stack: 'daynight'
-        },
         {
           label: 'Free Night',
           data: mKeys.map(k => +months[k].nightKwh.toFixed(2)),
@@ -1665,6 +1238,15 @@ function renderMonthly(days) {
           borderColor: 'rgba(88,166,255,1)',
           borderWidth: 1,
           borderRadius: 4,
+          stack: 'daynight'
+        },
+        {
+          label: 'Paid',
+          data: mKeys.map(k => +months[k].dayKwh.toFixed(2)),
+          backgroundColor: 'rgba(240,165,0,0.75)',
+          borderColor: 'rgba(240,165,0,1)',
+          borderWidth: 1,
+          borderRadius: 0,
           stack: 'daynight'
         }
       ]
@@ -1691,7 +1273,6 @@ function renderMonthly(days) {
     }
   });
 
-  // Monthly summary table
   const tbody = document.getElementById('monthly-table-body');
   const rows = [];
   for (const k of [...mKeys].reverse()) {
@@ -1715,7 +1296,6 @@ function renderMonthly(days) {
 }
 
 
-// Summary table
 function renderTable(days) {
   const tbody = document.getElementById('table-body');
   const rows = [];
@@ -1738,7 +1318,6 @@ function renderTable(days) {
   tbody.innerHTML = rows.join('');
 }
 
-// ── DAY NAVIGATION ───────────────────────────────────────────────────────────
 function renderDaySelect(days) {
   const sel = document.getElementById('day-select');
   sel.innerHTML = '';
@@ -1764,71 +1343,14 @@ function shiftDay(dir) {
   document.getElementById('day-select').value = days[currentDayIndex];
 }
 
-// ── TAB SWITCHING ─────────────────────────────────────────────────────────────
 function showTab(name, btn) {
   ['daily','hourly','weekly','monthly','table'].forEach(t => {
     document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
   });
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-
-  // Lazy-render charts that were deferred while their tab was hidden
-  if (!readings.size) return;
-  const sortedDays = [...readings.keys()].sort();
-  if (name === 'hourly' && pendingRender.hourly) {
-    renderHourlyAnalysis(sortedDays);
-    renderDayNight(sortedDays);
-    pendingRender.hourly = false;
-  } else if (name === 'weekly' && pendingRender.weekly) {
-    renderWeekly(sortedDays);
-    renderDOW(sortedDays);
-    pendingRender.weekly = false;
-  } else if (name === 'monthly' && pendingRender.monthly) {
-    renderMonthly(sortedDays);
-    pendingRender.monthly = false;
-  } else if (name === 'table' && pendingRender.table) {
-    renderTable(sortedDays);
-    pendingRender.table = false;
-  }
 }
 
-// ── CHIPS ─────────────────────────────────────────────────────────────────────
-function renderChips() {
-  const container = document.getElementById('file-chips');
-  if (!container) return;
-  container.innerHTML = '';
-  loadedFiles.forEach((f, i) => {
-    const chip = document.createElement('div');
-    chip.className = 'chip';
-    chip.innerHTML = `📄 ${f.name} <span class="remove" onclick="removeFile(${i})">✕</span>`;
-    container.appendChild(chip);
-  });
-}
-
-function removeFile(idx) {
-  const removed = loadedFiles.splice(idx, 1)[0];
-  // Rebuild readings from remaining files
-  readings.clear();
-  // Destroy all existing charts so canvases are clean for re-render
-  Object.keys(charts).forEach(id => destroyChart(id));
-  const remaining = [...loadedFiles];
-  loadedFiles = [];
-  if (remaining.length === 0) {
-    document.getElementById('stats-row').style.display = 'none';
-    document.getElementById('section-tabs').style.display = 'none';
-    ['tab-daily','tab-hourly','tab-weekly','tab-monthly','tab-table'].forEach(id =>
-      document.getElementById(id).style.display = 'none'
-    );
-    document.getElementById('header-meta').textContent = 'No data loaded — use Google Drive sync to load SMT files';
-    renderChips();
-    showToast(`Removed ${removed.name}`, 'success');
-    return;
-  }
-  showToast(`Removed ${removed.name}`, 'success');
-  handleFiles(remaining);
-}
-
-// ── CHART HELPERS ────────────────────────────────────────────────────────────
 function destroyChart(id) {
   if (charts[id]) { charts[id].destroy(); delete charts[id]; }
 }
@@ -1866,7 +1388,6 @@ function chartOptions({ yLabel = '', onClick = null } = {}) {
   };
 }
 
-// ── GOOGLE DRIVE SYNC ────────────────────────────────────────────────────────
 async function syncFromDrive() {
   const btn = document.getElementById('drive-btn');
   const status = document.getElementById('drive-status');
@@ -1875,7 +1396,6 @@ async function syncFromDrive() {
   status.textContent = 'Connecting to Drive…';
 
   try {
-    // List all files in folder matching SMT naming patterns
     const listUrl = `https://www.googleapis.com/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,modifiedTime)&key=${DRIVE_API_KEY}&orderBy=name&pageSize=1000`;
     const listRes = await fetch(listUrl);
     if (!listRes.ok) throw new Error(`Drive API error: ${listRes.status} ${listRes.statusText}`);
@@ -1888,7 +1408,6 @@ async function syncFromDrive() {
       return;
     }
 
-    // Accept any energy data file: csv, xlsx, xml — regardless of filename
     const smtFiles = listData.files.filter(f => {
       const name = f.name.toLowerCase();
       return name.endsWith('.xlsx') || name.endsWith('.csv') || name.endsWith('.xml');
@@ -1903,14 +1422,12 @@ async function syncFromDrive() {
 
     status.textContent = `Found ${smtFiles.length} file(s) — downloading…`;
 
-    // Download each file not already loaded
     let loaded = 0, skipped = 0;
     for (const driveFile of smtFiles) {
       if (loadedFiles.find(f => f.name === driveFile.name)) { skipped++; continue; }
 
       status.textContent = `Downloading ${driveFile.name}…`;
 
-      // Use export for Google Sheets, direct download for binary files
       let downloadUrl;
       if (driveFile.mimeType === 'application/vnd.google-apps.spreadsheet') {
         downloadUrl = `https://www.googleapis.com/drive/v3/files/${driveFile.id}/export?mimeType=text/csv&key=${DRIVE_API_KEY}`;
@@ -1925,7 +1442,6 @@ async function syncFromDrive() {
       }
 
       const blob = await fileRes.blob();
-      // Determine mime type for File constructor
       const ext = driveFile.name.split('.').pop().toLowerCase();
       const mimeMap = { xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv', xml: 'application/xml' };
       const file = new File([blob], driveFile.name, { type: mimeMap[ext] || 'application/octet-stream' });
@@ -1947,7 +1463,6 @@ async function syncFromDrive() {
       }
     }
 
-    renderChips();
     if (readings.size > 0) renderAll();
 
     const msg = skipped > 0
@@ -1967,24 +1482,8 @@ async function syncFromDrive() {
   btn.disabled = false;
 }
 
-
-// ── SIGENERGY DATA (FUTURE) ───────────────────────────────────────────────────
-// TODO: When you have your first Sigenergy export, inspect the column names and
-// fill in parseSIG() below. Expected columns (based on mySigen app capabilities):
-//   - Date / Timestamp
-//   - Solar Production (kWh)
-//   - Solar Direct Consumption (kWh)   — solar used without going through battery
-//   - Battery Discharge (kWh)          — battery energy delivered to home
-//   - Grid Import (kWh)                — pulled from CenterPoint
-//   - Grid Export / Surplus (kWh)      — sent back to grid (if net metering applies)
-//
-// To activate: add 'sig' detection in parseFile(), call parseSIG(), merge into sigData,
-// then call renderSolarStats().
-
 function parseSIG(text, filename) {
-  // PLACEHOLDER — implement once Sigenergy export format is confirmed
-  // Return a Map<dateStr, {produced, direct, battery, grid, exported}>
-  throw new Error('Sigenergy parser not yet implemented — check back after first export.');
+  throw new Error('Sigenergy parser not yet implemented');
 }
 
 function renderSolarStats() {
@@ -2006,12 +1505,10 @@ function renderSolarStats() {
   document.getElementById('sig-grid').textContent     = grid.toFixed(1);
   document.getElementById('sig-selfuse').textContent  = selfuse + (selfuse !== '—' ? '%' : '');
 
-  // Hide placeholder banner, show stats cards
   document.getElementById('solar-banner').style.display = 'none';
   document.getElementById('solar-stats-row').style.display = 'grid';
 }
 
-// ── TOAST ────────────────────────────────────────────────────────────────────
 let toastTimer;
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
