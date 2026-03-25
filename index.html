@@ -77,6 +77,36 @@
     letter-spacing: 0.05em;
   }
 
+  .header-right {
+    text-align: right;
+  }
+  .weather-widget {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .weather-icon {
+    font-size: 24px;
+  }
+  .weather-info {
+    text-align: left;
+  }
+  .weather-temp {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--text);
+    line-height: 1;
+  }
+  .weather-loc {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
   .stats-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -98,6 +128,7 @@
   .stat-card.solar-color .stat-value { color: var(--accent); }
   .stat-card.days-color .stat-value  { color: var(--accent2); }
   .stat-card.peak-color .stat-value  { color: var(--danger); }
+  .stat-card.proj-color .stat-value  { color: #c084fc; }
 
   .solar-section {
     margin-bottom: 28px;
@@ -339,6 +370,15 @@
       <h1>Home <span>Energy</span> Dashboard</h1>
       <div class="header-meta" id="header-meta">No data loaded</div>
     </div>
+    <div class="header-right">
+      <div class="weather-widget" id="weather-widget">
+        <div class="weather-icon" id="weather-icon">⏳</div>
+        <div class="weather-info">
+          <div class="weather-temp" id="weather-temp">--°F</div>
+          <div class="weather-loc">Katy, TX (77494)</div>
+        </div>
+      </div>
+    </div>
   </header>
 
   <div class="drive-bar">
@@ -379,6 +419,11 @@
       <div class="stat-label">Peak 15-min Draw</div>
       <div class="stat-value" id="stat-peak">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub" id="stat-peak-time">—</div>
+    </div>
+    <div class="stat-card proj-color">
+      <div class="stat-label">Projected Daily</div>
+      <div class="stat-value" id="stat-projected">—<span class="stat-unit">kWh</span></div>
+      <div class="stat-sub" id="stat-projected-sub">based on last 7 days</div>
     </div>
   </div>
 
@@ -580,7 +625,22 @@ let charts = {};
 let freeStartHour = 20;
 let freeEndHour = 6;
 
+async function fetchWeather() {
+  try {
+    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.738&longitude=-95.823&current_weather=true&temperature_unit=fahrenheit');
+    const data = await res.json();
+    const temp = data.current_weather.temperature;
+    const isDay = data.current_weather.is_day;
+    document.getElementById('weather-temp').textContent = Math.round(temp) + '°F';
+    document.getElementById('weather-icon').textContent = isDay ? '☀️' : '🌙';
+  } catch(e) {
+    document.getElementById('weather-temp').textContent = 'N/A';
+    console.error('Weather fetch failed');
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
+  fetchWeather();
   const startSel = document.getElementById('free-start');
   const endSel = document.getElementById('free-end');
   for(let i=0; i<24; i++) {
@@ -884,6 +944,14 @@ function renderStats(days) {
     }
   }
   const avg = totalKwh / days.length;
+  
+  const last7Days = days.slice(-7);
+  let last7Total = 0;
+  for (const d of last7Days) {
+    last7Total += readings.get(d).reduce((s,r) => s+r.kwh, 0);
+  }
+  const projected = last7Days.length > 0 ? (last7Total / last7Days.length) : 0;
+
   document.getElementById('stat-total').innerHTML = totalKwh.toFixed(1) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-days').textContent = days.length;
   document.getElementById('stat-avg').innerHTML = avg.toFixed(1) + '<span class="stat-unit">kWh</span>';
@@ -891,6 +959,9 @@ function renderStats(days) {
   document.getElementById('stat-days-span').textContent = `total across ${days.length} day${days.length!==1?'s':''}`;
   document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])} – ${fmtDate(days[days.length-1])}` : fmtDate(days[0]);
   document.getElementById('stat-peak-time').textContent = `${peakDate} at ${peakTime}`;
+  
+  document.getElementById('stat-projected').innerHTML = projected.toFixed(1) + '<span class="stat-unit">kWh</span>';
+  document.getElementById('stat-projected-sub').textContent = `based on last ${last7Days.length} days`;
 }
 
 function updateHeaderMeta(days) {
