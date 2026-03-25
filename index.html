@@ -382,10 +382,11 @@
   </header>
 
   <div class="drive-bar">
-    <button class="drive-btn" id="drive-btn" onclick="syncFromDrive()">
-      <span class="drive-icon">☁️</span> Sync from Google Drive
+    <button class="drive-btn" id="drive-btn" onclick="syncFromDrive(true, 'manual')">
+      <span class="drive-icon">☁️</span> Refresh from Google Drive
     </button>
-    <span class="drive-status" id="drive-status">Fetches all SMT files from your Drive folder automatically</span>
+    <span class="drive-status" id="drive-status">Auto-sync checks on load, then manual refresh when you want it</span>
+    <span class="drive-status" id="last-sync-label"></span>
   </div>
 
   <div class="settings-bar">
@@ -625,6 +626,121 @@ let charts = {};
 let freeStartHour = 20;
 let freeEndHour = 6;
 
+const AUTO_SYNC_MODE = 'smart'; // 'smart' = every N hours, 'daily' = once per day
+const AUTO_SYNC_INTERVAL_HOURS = 6;
+
+function getTodayKey() {
+  const d = new Date();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+function shouldAutoSync() {
+  if (AUTO_SYNC_MODE === 'daily') {
+    return localStorage.getItem('lastSyncDate') !== getTodayKey();
+  }
+
+  const last = localStorage.getItem('lastSyncTime');
+  if (!last) return true;
+
+  const elapsed = Date.now() - parseInt(last, 10);
+  const intervalMs = AUTO_SYNC_INTERVAL_HOURS * 60 * 60 * 1000;
+  return elapsed > intervalMs;
+}
+
+function markSyncedNow() {
+  localStorage.setItem('lastSyncTime', Date.now().toString());
+  localStorage.setItem('lastSyncDate', getTodayKey());
+}
+
+function updateLastSyncLabel() {
+  const label = document.getElementById('last-sync-label');
+  if (!label) return;
+
+  const last = localStorage.getItem('lastSyncTime');
+  if (!last) {
+    label.textContent = 'Last sync: never';
+    return;
+  }
+
+  const dt = new Date(parseInt(last, 10));
+  if (Number.isNaN(dt.getTime())) {
+    label.textContent = 'Last sync: unknown';
+    return;
+  }
+
+  label.textContent = `Last sync: ${dt.toLocaleString()}`;
+}
+
+function serializeReadingsMap(source) {
+  return Object.fromEntries(
+    [...source.entries()].map(([date, intervals]) => [date, intervals.map(r => ({ ...r }))])
+  );
+}
+
+function deserializeReadingsMap(source) {
+  const restored = new Map();
+  if (!source || typeof source !== 'object') return restored;
+
+  for (const [date, intervals] of Object.entries(source)) {
+    if (!Array.isArray(intervals)) continue;
+    restored.set(date, intervals.map(r => ({ ...r })));
+  }
+
+  return restored;
+}
+
+function cacheDashboardData() {
+  try {
+    const payload = {
+      readings: serializeReadingsMap(readings),
+      loadedFiles: loadedFiles.map(f => ({ name: f.name || String(f), type: f.type || '', cached: true }))
+    };
+    localStorage.setItem('energyDashboardCacheV1', JSON.stringify(payload));
+  } catch (err) {
+    console.warn('Could not cache dashboard data', err);
+  }
+}
+
+function restoreDashboardData() {
+  try {
+    const raw = localStorage.getItem('energyDashboardCacheV1');
+    if (!raw) return false;
+
+    const parsed = JSON.parse(raw);
+    const restoredReadings = deserializeReadingsMap(parsed.readings);
+    if (restoredReadings.size === 0) return false;
+
+    readings = restoredReadings;
+    loadedFiles = Array.isArray(parsed.loadedFiles) ? parsed.loadedFiles : [];
+    currentDayIndex = 0;
+    renderAll();
+    return true;
+  } catch (err) {
+    console.warn('Could not restore cached dashboard data', err);
+    return false;
+  }
+}
+
+function clearDashboard() {
+  document.getElementById('stats-row').style.display = 'none';
+  document.getElementById('section-tabs').style.display = 'none';
+  document.getElementById('header-meta').textContent = 'No data loaded';
+  ['tab-daily','tab-hourly','tab-weekly','tab-monthly','tab-table'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+function cloneReadingsMap(source) {
+  const cloned = new Map();
+  for (const [date, intervals] of source.entries()) {
+    cloned.set(date, intervals.map(r => ({ ...r })));
+  }
+  return cloned;
+}
+
 async function fetchWeather() {
   try {
     const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.738&longitude=-95.823&current_weather=true&temperature_unit=fahrenheit');
@@ -639,7 +755,7 @@ async function fetchWeather() {
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   fetchWeather();
   const startSel = document.getElementById('free-start');
   const endSel = document.getElementById('free-end');
@@ -649,6 +765,25 @@ window.addEventListener('DOMContentLoaded', () => {
     const label = `${hr}:00 ${ampm}`;
     startSel.innerHTML += `<option value="${i}" ${i===20?'selected':''}>${label}</option>`;
     endSel.innerHTML += `<option value="${i}" ${i===6?'selected':''}>${label}</option>`;
+  }
+
+  updateLastSyncLabel();
+  const restoredFromCache = restoreDashboardData();
+
+  if (shouldAutoSync()) {
+    await syncFromDrive(true, 'auto');
+  } else {
+    const status = document.getElementById('drive-status');
+    if (restoredFromCache) {
+      status.className = 'drive-status ok';
+      status.textContent = AUTO_SYNC_MODE === 'daily'
+        ? 'Auto-sync skipped — using cached data from today'
+        : `Auto-sync skipped — using cached data (last sync was within ${AUTO_SYNC_INTERVAL_HOURS} hour${AUTO_SYNC_INTERVAL_HOURS !== 1 ? 's' : ''})`;
+    } else {
+      status.className = 'drive-status syncing';
+      status.textContent = 'No cached data available — syncing from Drive…';
+      await syncFromDrive(true, 'auto');
+    }
   }
 });
 
@@ -1388,12 +1523,19 @@ function chartOptions({ yLabel = '', onClick = null } = {}) {
   };
 }
 
-async function syncFromDrive() {
+async function syncFromDrive(forceRefresh = false, source = 'manual') {
   const btn = document.getElementById('drive-btn');
   const status = document.getElementById('drive-status');
   btn.disabled = true;
   status.className = 'drive-status syncing';
-  status.textContent = 'Connecting to Drive…';
+  status.textContent = forceRefresh ? 'Refreshing from Drive…' : 'Connecting to Drive…';
+
+  const previousReadings = cloneReadingsMap(readings);
+  const previousLoadedFiles = [...loadedFiles];
+  const hadExistingData = previousReadings.size > 0;
+
+  const nextReadings = forceRefresh ? new Map() : cloneReadingsMap(readings);
+  const nextLoadedFiles = forceRefresh ? [] : [...loadedFiles];
 
   try {
     const listUrl = `https://www.googleapis.com/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,modifiedTime)&key=${DRIVE_API_KEY}&orderBy=name&pageSize=1000`;
@@ -1403,7 +1545,9 @@ async function syncFromDrive() {
 
     if (!listData.files || listData.files.length === 0) {
       status.className = 'drive-status err';
-      status.textContent = 'No files found in Drive folder';
+      status.textContent = hadExistingData
+        ? 'No files found in Drive folder — showing previously loaded data'
+        : 'No files found in Drive folder';
       btn.disabled = false;
       return;
     }
@@ -1415,7 +1559,9 @@ async function syncFromDrive() {
 
     if (smtFiles.length === 0) {
       status.className = 'drive-status err';
-      status.textContent = `Found ${listData.files.length} file(s) in folder but none are .xlsx, .csv, or .xml`;
+      status.textContent = hadExistingData
+        ? `Found ${listData.files.length} file(s) in folder but none are .xlsx, .csv, or .xml — showing previously loaded data`
+        : `Found ${listData.files.length} file(s) in folder but none are .xlsx, .csv, or .xml`;
       btn.disabled = false;
       return;
     }
@@ -1424,7 +1570,10 @@ async function syncFromDrive() {
 
     let loaded = 0, skipped = 0;
     for (const driveFile of smtFiles) {
-      if (loadedFiles.find(f => f.name === driveFile.name)) { skipped++; continue; }
+      if (!forceRefresh && nextLoadedFiles.find(f => f.name === driveFile.name)) {
+        skipped++;
+        continue;
+      }
 
       status.textContent = `Downloading ${driveFile.name}…`;
 
@@ -1448,33 +1597,77 @@ async function syncFromDrive() {
 
       try {
         const data = await parseFile(file);
-        if (data.size === 0) { showToast('No data in ' + file.name, 'error'); continue; }
+        if (data.size === 0) {
+          showToast('No data in ' + file.name, 'error');
+          continue;
+        }
         for (const [date, intervals] of data.entries()) {
-          if (!readings.has(date)) readings.set(date, []);
-          const existing = new Set(readings.get(date).map(r => r.time));
+          if (!nextReadings.has(date)) nextReadings.set(date, []);
+          const existing = new Set(nextReadings.get(date).map(r => r.time));
           for (const r of intervals) {
-            if (!existing.has(r.time)) readings.get(date).push(r);
+            if (!existing.has(r.time)) nextReadings.get(date).push(r);
           }
         }
-        loadedFiles.push(file);
+        nextLoadedFiles.push(file);
         loaded++;
       } catch(err) {
         showToast('Parse error: ' + file.name, 'error');
       }
     }
 
-    if (readings.size > 0) renderAll();
+    if (loaded > 0) {
+      readings = nextReadings;
+      loadedFiles = nextLoadedFiles;
+      currentDayIndex = 0;
 
-    const msg = skipped > 0
-      ? `✓ ${loaded} new file(s) loaded, ${skipped} already present`
-      : `✓ ${loaded} file(s) loaded from Drive`;
-    status.className = 'drive-status ok';
-    status.textContent = msg;
-    if (loaded > 0) showToast(msg, 'success');
+      if (readings.size > 0) {
+        renderAll();
+      } else {
+        clearDashboard();
+      }
+
+      markSyncedNow();
+      updateLastSyncLabel();
+      cacheDashboardData();
+
+      let msg;
+      if (forceRefresh) {
+        msg = `✓ Refresh complete: ${loaded} file(s) loaded from Drive`;
+      } else {
+        msg = skipped > 0
+          ? `✓ ${loaded} new file(s) loaded, ${skipped} already present`
+          : `✓ ${loaded} file(s) loaded from Drive`;
+      }
+
+      status.className = 'drive-status ok';
+      status.textContent = msg;
+      if (source === 'manual' || source === 'auto') showToast(msg, 'success');
+    } else {
+      readings = previousReadings;
+      loadedFiles = previousLoadedFiles;
+      if (readings.size > 0) {
+        renderAll();
+        status.className = 'drive-status err';
+        status.textContent = forceRefresh
+          ? 'No valid data files were loaded — showing previously loaded data'
+          : 'No new valid data files were loaded — showing previously loaded data';
+      } else {
+        clearDashboard();
+        status.className = 'drive-status err';
+        status.textContent = forceRefresh
+          ? 'No valid data files were loaded from Drive'
+          : 'No new valid data files were loaded from Drive';
+      }
+    }
 
   } catch(err) {
+    readings = previousReadings;
+    loadedFiles = previousLoadedFiles;
+    if (readings.size > 0) renderAll();
     status.className = 'drive-status err';
-    status.textContent = 'Error: ' + err.message;
+    status.textContent = hadExistingData
+      ? 'Drive sync failed — showing previously loaded data'
+      : 'Error: ' + err.message;
     showToast('Drive sync failed: ' + err.message, 'error');
     console.error(err);
   }
