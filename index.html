@@ -351,7 +351,7 @@
     border-top: 1px solid var(--border);
   }
 
-  @keyframes fadeUp {
+    @keyframes fadeUp {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
@@ -422,9 +422,9 @@
       <div class="stat-sub" id="stat-peak-time">—</div>
     </div>
     <div class="stat-card proj-color">
-      <div class="stat-label">Projected Daily</div>
-      <div class="stat-value" id="stat-projected">—<span class="stat-unit">kWh</span></div>
-      <div class="stat-sub" id="stat-projected-sub">based on last 7 days</div>
+      <div class="stat-label">Weekly Avg</div>
+      <div class="stat-value" id="stat-weekly-avg">—<span class="stat-unit">kWh</span></div>
+      <div class="stat-sub" id="stat-weekly-avg-sub">avg per 7-day week</div>
     </div>
   </div>
 
@@ -511,7 +511,7 @@
     <div class="chart-panel">
       <div class="chart-header">
         <div class="chart-title">Hourly Consumption Table</div>
-        <div class="chart-note">Total kWh per hour for each day. Highlights your specific power usage patterns.</div>
+        <div class="chart-note">Total kWh per hour for each day · <span style="color:rgba(240,165,0,0.9)">amber = paid</span> · <span style="color:rgba(88,166,255,0.9)">blue = free night</span> · <span style="color:rgba(248,81,73,0.9)">red bg = high draw (&gt;1.5 kWh/hr)</span></div>
       </div>
       <div class="data-table-wrap">
         <table id="hourly-table">
@@ -538,6 +538,28 @@
         <div class="chart-note">Average kWh by day of week across all data</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-dow"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Week-over-Week Comparison</div>
+        <div class="chart-note">Each Sun–Sat week · positive % = higher consumption than prior week</div>
+      </div>
+      <div class="data-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Week of</th>
+              <th>Days</th>
+              <th>Total kWh</th>
+              <th>Daily Avg</th>
+              <th>Paid kWh</th>
+              <th>Free Night kWh</th>
+              <th>vs Prior Week</th>
+            </tr>
+          </thead>
+          <tbody id="weekly-compare-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -614,6 +636,12 @@
 
 </div>
 
+<div class="empty" id="empty-state" style="display:none">
+    <div class="empty-icon">📂</div>
+    <p>Drive sync will run automatically on load.<br>
+    Or tap <strong>Refresh from Google Drive</strong> above, or upload files manually.</p>
+  </div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -638,10 +666,10 @@ function getTodayKey() {
 
 function shouldAutoSync() {
   if (AUTO_SYNC_MODE === 'daily') {
-    return localStorage.getItem('lastSyncDate') !== getTodayKey();
+    return sessionStorage.getItem('lastSyncDate') !== getTodayKey();
   }
 
-  const last = localStorage.getItem('lastSyncTime');
+  const last = sessionStorage.getItem('lastSyncTime');
   if (!last) return true;
 
   const elapsed = Date.now() - parseInt(last, 10);
@@ -650,15 +678,15 @@ function shouldAutoSync() {
 }
 
 function markSyncedNow() {
-  localStorage.setItem('lastSyncTime', Date.now().toString());
-  localStorage.setItem('lastSyncDate', getTodayKey());
+  sessionStorage.setItem('lastSyncTime', Date.now().toString());
+  sessionStorage.setItem('lastSyncDate', getTodayKey());
 }
 
 function updateLastSyncLabel() {
   const label = document.getElementById('last-sync-label');
   if (!label) return;
 
-  const last = localStorage.getItem('lastSyncTime');
+  const last = sessionStorage.getItem('lastSyncTime');
   if (!last) {
     label.textContent = 'Last sync: never';
     return;
@@ -697,7 +725,7 @@ function cacheDashboardData() {
       readings: serializeReadingsMap(readings),
       loadedFiles: loadedFiles.map(f => ({ name: f.name || String(f), type: f.type || '', cached: true }))
     };
-    localStorage.setItem('energyDashboardCacheV1', JSON.stringify(payload));
+    sessionStorage.setItem('energyDashboardCacheV1', JSON.stringify(payload));
   } catch (err) {
     console.warn('Could not cache dashboard data', err);
   }
@@ -705,7 +733,7 @@ function cacheDashboardData() {
 
 function restoreDashboardData() {
   try {
-    const raw = localStorage.getItem('energyDashboardCacheV1');
+    const raw = sessionStorage.getItem('energyDashboardCacheV1');
     if (!raw) return false;
 
     const parsed = JSON.parse(raw);
@@ -739,6 +767,55 @@ function cloneReadingsMap(source) {
     cloned.set(date, intervals.map(r => ({ ...r })));
   }
   return cloned;
+}
+
+// ── FILE HANDLING ────────────────────────────────────────────────────────────
+// Upload zone removed — all data comes via Google Drive sync.
+// handleFiles() is still used internally by syncFromDrive.
+
+async function handleFiles(files) {
+  for (const file of files) {
+    if (loadedFiles.find(f => f.name === file.name)) continue;
+    try {
+      const data = await parseFile(file);
+      if (data.size === 0) { showToast('No data found in ' + file.name, 'error'); continue; }
+      for (const [date, intervals] of data.entries()) {
+        if (!readings.has(date)) readings.set(date, []);
+        const existing = new Set(readings.get(date).map(r => r.time));
+        for (const r of intervals) {
+          if (!existing.has(r.time)) readings.get(date).push(r);
+        }
+      }
+      loadedFiles.push(file);
+      showToast('Loaded ' + file.name, 'success');
+    } catch(err) {
+      showToast('Error reading ' + file.name + ': ' + err.message, 'error');
+      console.error(err);
+    }
+  }
+  if (readings.size > 0) renderAll();
+  renderChips();
+}
+
+function renderChips() {
+  // No-op: upload zone removed, chips display not needed
+}
+
+function removeFile(idx) {
+  const removed = loadedFiles.splice(idx, 1)[0];
+  readings.clear();
+  Object.keys(charts).forEach(id => destroyChart(id));
+  const remaining = [...loadedFiles];
+  loadedFiles = [];
+  if (remaining.length === 0) {
+    clearDashboard();
+    document.getElementById('empty-state') && (document.getElementById('empty-state').style.display = 'block');
+    renderChips();
+    showToast('Removed ' + (removed.name || 'file'), 'success');
+    return;
+  }
+  showToast('Removed ' + (removed.name || 'file'), 'success');
+  handleFiles(remaining);
 }
 
 async function fetchWeather() {
@@ -1056,9 +1133,12 @@ function renderAll() {
   renderDailyChart(sortedDays);
   renderDetailChart(sortedDays, currentDayIndex);
   renderDaySelect(sortedDays);
+  renderHourlyProfile(sortedDays);
+  renderDayNight(sortedDays);
   renderHourlyTable(sortedDays);
   renderWeekly(sortedDays);
   renderDOW(sortedDays);
+  renderWeeklyCompare(sortedDays);
   renderMonthly(sortedDays);
   renderTable(sortedDays);
   updateHeaderMeta(sortedDays);
@@ -1087,6 +1167,11 @@ function renderStats(days) {
   }
   const projected = last7Days.length > 0 ? (last7Total / last7Days.length) : 0;
 
+  // Weekly average: total kWh / number of complete 7-day weeks
+  // If < 7 days loaded, show daily avg × 7 as an estimate
+  const weeklyAvg = days.length >= 7 ? (totalKwh / days.length) * 7 : avg * 7;
+  const weekCount  = days.length >= 7 ? Math.round(days.length / 7 * 10) / 10 : null;
+
   document.getElementById('stat-total').innerHTML = totalKwh.toFixed(1) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-days').textContent = days.length;
   document.getElementById('stat-avg').innerHTML = avg.toFixed(1) + '<span class="stat-unit">kWh</span>';
@@ -1094,9 +1179,11 @@ function renderStats(days) {
   document.getElementById('stat-days-span').textContent = `total across ${days.length} day${days.length!==1?'s':''}`;
   document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])} – ${fmtDate(days[days.length-1])}` : fmtDate(days[0]);
   document.getElementById('stat-peak-time').textContent = `${peakDate} at ${peakTime}`;
-  
-  document.getElementById('stat-projected').innerHTML = projected.toFixed(1) + '<span class="stat-unit">kWh</span>';
-  document.getElementById('stat-projected-sub').textContent = `based on last ${last7Days.length} days`;
+
+  document.getElementById('stat-weekly-avg').innerHTML = weeklyAvg.toFixed(1) + '<span class="stat-unit">kWh</span>';
+  document.getElementById('stat-weekly-avg-sub').textContent = weekCount
+    ? `avg over ${weekCount} week${weekCount !== 1 ? 's' : ''}`
+    : `est. from ${days.length} day${days.length !== 1 ? 's' : ''} of data`;
 }
 
 function updateHeaderMeta(days) {
@@ -1256,6 +1343,88 @@ function renderHourlyTable(days) {
   tbody.innerHTML = rows.join('');
 }
 
+// Hourly profile chart (Average Load Profile)
+function renderHourlyProfile(days) {
+  const hourTotals = Array(24).fill(0).map(() => []);
+  for (const day of days) {
+    for (const r of readings.get(day)) {
+      const h = parseInt(r.time.split(':')[0]);
+      hourTotals[h].push(r.kwh);
+    }
+  }
+  const labels = Array.from({length:24}, (_,h) => {
+    const ampm = h < 12 ? 'am' : 'pm';
+    const hr = h === 0 ? 12 : h > 12 ? h-12 : h;
+    return `${hr}${ampm}`;
+  });
+  const avgs = hourTotals.map(arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0);
+  const maxs = hourTotals.map(arr => arr.length ? Math.max(...arr) : 0);
+
+  destroyChart('chart-hourly');
+  const ctx = document.getElementById('chart-hourly');
+  if (!ctx) return;
+  charts['chart-hourly'] = new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Avg kWh/hr',
+          data: avgs.map(v => +(v*4).toFixed(3)),
+          backgroundColor: avgs.map((_, h) => isFreeHour(h) ? 'rgba(88,166,255,0.7)' : 'rgba(240,165,0,0.65)'),
+          borderColor:     avgs.map((_, h) => isFreeHour(h) ? 'rgba(88,166,255,1)'   : 'rgba(240,165,0,1)'),
+          borderWidth: 1, borderRadius: 3, order: 2
+        },
+        {
+          label: 'Max kWh/hr',
+          data: maxs.map(v => +(v*4).toFixed(3)),
+          type: 'line',
+          borderColor: 'rgba(248,81,73,0.5)',
+          backgroundColor: 'transparent',
+          pointRadius: 2, borderWidth: 1.5, order: 1
+        }
+      ]
+    },
+    options: chartOptions({ yLabel: 'kWh/hr' })
+  });
+}
+
+// Day vs Free Night donut
+function renderDayNight(days) {
+  let dayKwh = 0, nightKwh = 0;
+  for (const day of days) {
+    for (const r of readings.get(day)) {
+      const h = parseInt(r.time.split(':')[0]);
+      if (isFreeHour(h)) nightKwh += r.kwh;
+      else dayKwh += r.kwh;
+    }
+  }
+  destroyChart('chart-daynight');
+  const ctx = document.getElementById('chart-daynight');
+  if (!ctx) return;
+  charts['chart-daynight'] = new Chart(ctx.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: [
+        'Day (paid): ' + dayKwh.toFixed(1) + ' kWh',
+        'Free Night: ' + nightKwh.toFixed(1) + ' kWh'
+      ],
+      datasets: [{
+        data: [dayKwh, nightKwh],
+        backgroundColor: ['rgba(240,165,0,0.75)', 'rgba(88,166,255,0.75)'],
+        borderColor:     ['rgba(240,165,0,1)',     'rgba(88,166,255,1)'],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#7d8590', font: { family: 'DM Mono', size: 11 }, boxWidth: 12 } }
+      },
+      cutout: '60%'
+    }
+  });
+}
+
 function renderWeekly(days) {
   const weeks = {};
   for (const day of days) {
@@ -1319,6 +1488,65 @@ function renderDOW(days) {
     options: chartOptions({ yLabel: 'Avg kWh' })
   });
 }
+
+// Week-over-week comparison table
+function renderWeeklyCompare(days) {
+  const weeks = {};
+  for (const day of days) {
+    const [y, m, d] = day.split('-').map(Number);
+    const dt  = new Date(y, m-1, d);
+    const dow = dt.getDay();
+    const sun = new Date(dt); sun.setDate(d - dow);
+    const wk  = sun.getFullYear() + '-' +
+                String(sun.getMonth()+1).padStart(2,'0') + '-' +
+                String(sun.getDate()).padStart(2,'0');
+    if (!weeks[wk]) weeks[wk] = { total:0, dayKwh:0, nightKwh:0, dayCount:0 };
+    weeks[wk].dayCount++;
+    (readings.get(day) || []).forEach(r => {
+      const h = parseInt(r.time.split(':')[0]);
+      weeks[wk].total += r.kwh;
+      if (isFreeHour(h)) weeks[wk].nightKwh += r.kwh;
+      else               weeks[wk].dayKwh   += r.kwh;
+    });
+  }
+
+  const wkKeys = Object.keys(weeks).sort();
+  const tbody  = document.getElementById('weekly-compare-body');
+  if (!tbody) return;
+  const rows = [];
+
+  wkKeys.forEach((wk, i) => {
+    const w    = weeks[wk];
+    const prev = i > 0 ? weeks[wkKeys[i-1]] : null;
+    const avg  = w.dayCount > 0 ? w.total / w.dayCount : 0;
+
+    let changeHtml = '<span style="color:var(--muted)">—</span>';
+    if (prev && prev.total > 0) {
+      const pct   = ((w.total - prev.total) / prev.total * 100);
+      const sign  = pct >= 0 ? '+' : '';
+      const color = pct > 5  ? 'var(--danger)' :
+                    pct < -5 ? 'var(--accent2)' : 'var(--muted)';
+      changeHtml  = '<span style="color:' + color + '">' + sign + pct.toFixed(1) + '%</span>';
+    }
+
+    const [y, m, d] = wk.split('-').map(Number);
+    const label = new Date(y, m-1, d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    const totalCls = w.total > 200 ? 'val-high' : w.total > 120 ? 'val-mid' : 'val-low';
+
+    rows.push('<tr>' +
+      '<td>' + label + '</td>' +
+      '<td style="color:var(--muted)">' + w.dayCount + '</td>' +
+      '<td class="' + totalCls + '">' + w.total.toFixed(1) + '</td>' +
+      '<td style="color:var(--muted)">' + avg.toFixed(1) + '</td>' +
+      '<td style="color:rgba(240,165,0,0.9)">' + w.dayKwh.toFixed(1) + '</td>' +
+      '<td style="color:rgba(88,166,255,0.9)">' + w.nightKwh.toFixed(1) + '</td>' +
+      '<td>' + changeHtml + '</td>' +
+    '</tr>');
+  });
+
+  tbody.innerHTML = rows.reverse().join('');
+}
+
 
 function renderMonthly(days) {
   const months = {};
