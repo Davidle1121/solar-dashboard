@@ -1,38 +1,43 @@
 export async function onRequest(context) {
-  const { request, env, next } = context;
-  const auth = request.headers.get('Authorization');
-  const pass = env.BASIC_PASS;
+  const auth = context.request.headers.get("Authorization");
+  const pass = context.env.BASIC_PASS;
 
-  const headerName = 'WWW' + String.fromCharCode(45) + 'Authenticate';
+  if (!pass) {
+    return new Response("Missing BASIC_PASS", { status: 500 });
+  }
 
-  if (!auth) {
-    return new Response('Authentication required', {
+  if (!auth || !auth.startsWith("Basic ")) {
+    return new Response("Authentication required", {
       status: 401,
-      headers: { [headerName]: 'Basic realm="Secure Energy Dashboard"' }
+      headers: {
+        "WWW-Authenticate": 'Basic realm="Secure Energy Dashboard"'
+      }
     });
   }
 
-  const spaceIndex = auth.indexOf(' ');
-  const scheme = auth.slice(0, spaceIndex);
-  const encoded = auth.slice(spaceIndex + 1);
-
-  if (!encoded || scheme !== 'Basic') {
-    return new Response('Invalid authentication', {
+  let decoded = "";
+  try {
+    decoded = atob(auth.slice(6));
+  } catch {
+    return new Response("Invalid authentication", {
       status: 401,
-      headers: { [headerName]: 'Basic realm="Secure Energy Dashboard"' }
+      headers: {
+        "WWW-Authenticate": 'Basic realm="Secure Energy Dashboard"'
+      }
     });
   }
 
-  const decoded = atob(encoded);
-  const colonIndex = decoded.indexOf(':');
-  const providedPass = decoded.slice(colonIndex + 1);
+  const colonIndex = decoded.indexOf(":");
+  const providedPass = colonIndex >= 0 ? decoded.slice(colonIndex + 1) : "";
 
   if (providedPass !== pass) {
-    return new Response('Invalid credentials', {
+    return new Response("Invalid credentials", {
       status: 401,
-      headers: { [headerName]: 'Basic realm="Secure Energy Dashboard"' }
+      headers: {
+        "WWW-Authenticate": 'Basic realm="Secure Energy Dashboard"'
+      }
     });
   }
 
-  return await next();
+  return context.next();
 }
