@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Home Energy Dashboard</title>
 <script>
-  const DRIVE_API_KEY   = 'REPLACE_ME_API_KEY';
+  const DRIVE_API_KEY   = 'AIzaSyA_dH35fk8RoqGcm-vDmIc8nUr1G1EQcAA';
   const DRIVE_FOLDER_ID = '1WGUPKuuMKYkvUDVpJl6elwfgUU-vV2t7';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -385,7 +385,7 @@
     <button class="drive-btn" id="drive-btn" onclick="syncFromDrive(true, 'manual')">
       <span class="drive-icon">☁️</span> Refresh from Google Drive
     </button>
-    <span class="drive-status" id="drive-status">Auto sync checks on load, then manual refresh when you want it</span>
+    <span class="drive-status" id="drive-status">Auto-sync checks on load, then manual refresh when you want it</span>
     <span class="drive-status" id="last-sync-label"></span>
   </div>
 
@@ -417,7 +417,7 @@
       <div class="stat-sub">from grid per day</div>
     </div>
     <div class="stat-card peak-color">
-      <div class="stat-label">Peak 15 min Draw</div>
+      <div class="stat-label">Peak 15-min Draw</div>
       <div class="stat-value" id="stat-peak">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub" id="stat-peak-time">—</div>
     </div>
@@ -435,7 +435,7 @@
         <div class="solar-banner-title">Solar &amp; Battery Data — Coming Soon</div>
         <div class="solar-banner-sub">
           Once your SIGEnergy system is live (est. late May 2026) and you have your first export,
-          this section will show your solar production, battery usage, grid draw, and self sufficiency rate.
+          this section will show your solar production, battery usage, grid draw, and self-sufficiency rate.
         </div>
       </div>
     </div>
@@ -461,7 +461,7 @@
         <div style="font-size:10px;color:var(--muted);margin-top:3px">kWh</div>
       </div>
       <div class="solar-stat">
-        <div class="solar-stat-label">🌿 Self Sufficiency</div>
+        <div class="solar-stat-label">🌿 Self-Sufficiency</div>
         <div class="solar-stat-value selfuse-v" id="sig-selfuse">—</div>
         <div style="font-size:10px;color:var(--muted);margin-top:3px">% from solar+battery</div>
       </div>
@@ -491,7 +491,7 @@
 
     <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">15 Minute Detail — <span id="detail-date-label" style="color:var(--accent)">Select day</span></div>
+        <div class="chart-title">15-Minute Detail — <span id="detail-date-label" style="color:var(--accent)">Select day</span></div>
         <div class="day-nav">
           <button onclick="shiftDay(-1)">← Prev</button>
           <select id="day-select" onchange="selectDay(this.value)"></select>
@@ -528,13 +528,13 @@
     <div class="chart-panel">
       <div class="chart-header">
         <div class="chart-title">Weekly Consumption Totals</div>
-        <div class="chart-note">kWh per week (Sun to Sat)</div>
+        <div class="chart-note">kWh per week (Sun–Sat)</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-weekly"></canvas></div>
     </div>
     <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">Day of Week Pattern</div>
+        <div class="chart-title">Day-of-Week Pattern</div>
         <div class="chart-note">Average kWh by day of week across all data</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-dow"></canvas></div>
@@ -597,7 +597,7 @@
               <th>Date</th>
               <th>Day</th>
               <th>Grid kWh</th>
-              <th>Peak 15 min</th>
+              <th>Peak 15-min</th>
               <th>Peak Time</th>
               <th>Intervals</th>
             </tr>
@@ -777,11 +777,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (restoredFromCache) {
       status.className = 'drive-status ok';
       status.textContent = AUTO_SYNC_MODE === 'daily'
-        ? 'Auto sync skipped   using cached data from today'
-        : `Auto sync skipped   using cached data (last sync was within ${AUTO_SYNC_INTERVAL_HOURS} hour${AUTO_SYNC_INTERVAL_HOURS !== 1 ? 's' : ''})`;
+        ? 'Auto-sync skipped — using cached data from today'
+        : `Auto-sync skipped — using cached data (last sync was within ${AUTO_SYNC_INTERVAL_HOURS} hour${AUTO_SYNC_INTERVAL_HOURS !== 1 ? 's' : ''})`;
     } else {
       status.className = 'drive-status syncing';
-      status.textContent = 'No cached data available   syncing from Drive…';
+      status.textContent = 'No cached data available — syncing from Drive…';
       await syncFromDrive(true, 'auto');
     }
   }
@@ -1092,7 +1092,7 @@ function renderStats(days) {
   document.getElementById('stat-avg').innerHTML = avg.toFixed(1) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-peak').innerHTML = peakKwh.toFixed(3) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-days-span').textContent = `total across ${days.length} day${days.length!==1?'s':''}`;
-  document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])}  ${fmtDate(days[days.length-1])}` : fmtDate(days[0]);
+  document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])} – ${fmtDate(days[days.length-1])}` : fmtDate(days[0]);
   document.getElementById('stat-peak-time').textContent = `${peakDate} at ${peakTime}`;
   
   document.getElementById('stat-projected').innerHTML = projected.toFixed(1) + '<span class="stat-unit">kWh</span>';
@@ -1102,7 +1102,7 @@ function renderStats(days) {
 function updateHeaderMeta(days) {
   const total = [...readings.values()].flat().reduce((s,r) => s+r.kwh, 0);
   document.getElementById('header-meta').textContent =
-    `${days.length} day${days.length!==1?'s':''} loaded    ${total.toFixed(1)} kWh total    SMT data`;
+    `${days.length} day${days.length!==1?'s':''} loaded  ·  ${total.toFixed(1)} kWh total  ·  SMT data`;
 }
 
 function renderDailyChart(days) {
