@@ -23,9 +23,7 @@
     --font-display: 'Fraunces', Georgia, serif;
     --font-mono: 'DM Mono', monospace;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
   body {
     background: var(--bg);
     color: var(--text);
@@ -34,7 +32,6 @@
     min-height: 100vh;
     overflow-x: hidden;
   }
-
   body::before {
     content: '';
     position: fixed;
@@ -46,9 +43,7 @@
     pointer-events: none;
     z-index: 0;
   }
-
   .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
-
   header {
     display: flex;
     align-items: flex-end;
@@ -72,10 +67,7 @@
     margin-top: 4px;
     letter-spacing: 0.05em;
   }
-
-  .header-right {
-    text-align: right;
-  }
+  .header-right { text-align: right; }
   .weather-widget {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -85,12 +77,8 @@
     align-items: center;
     gap: 10px;
   }
-  .weather-icon {
-    font-size: 24px;
-  }
-  .weather-info {
-    text-align: left;
-  }
+  .weather-icon { font-size: 24px; }
+  .weather-info { text-align: left; }
   .weather-temp {
     font-family: var(--font-display);
     font-size: 18px;
@@ -102,7 +90,26 @@
     color: var(--muted);
     margin-top: 4px;
   }
-
+  .auth-row {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .auth-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .auth-btn:hover { border-color: var(--danger); background: rgba(248,81,73,0.05); }
   .stats-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -125,10 +132,7 @@
   .stat-card.days-color .stat-value  { color: var(--accent2); }
   .stat-card.peak-color .stat-value  { color: var(--danger); }
   .stat-card.proj-color .stat-value  { color: #c084fc; }
-
-  .solar-section {
-    margin-bottom: 28px;
-  }
+  .solar-section { margin-bottom: 28px; }
   .solar-banner {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -163,7 +167,6 @@
   .solar-stat-value.solar-v   { color: var(--accent); }
   .solar-stat-value.battery-v { color: var(--accent2); }
   .solar-stat-value.selfuse-v { color: #c084fc; }
-
   .section-tabs {
     display: flex;
     gap: 4px;
@@ -187,7 +190,6 @@
   }
   .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
   .tab-btn:hover:not(.active) { color: var(--text); }
-
   .chart-panel {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -213,11 +215,9 @@
   .chart-note { font-size: 10px; color: var(--muted); }
   .chart-wrap { position: relative; }
   .chart-wrap canvas { max-height: 280px; }
-
   .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
   .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
   .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-
   .day-nav {
     display: flex;
     align-items: center;
@@ -246,7 +246,6 @@
     padding: 4px 8px;
     cursor: pointer;
   }
-
   .settings-bar {
     display: flex;
     align-items: center;
@@ -267,7 +266,6 @@
     border-radius: 4px;
     font-family: var(--font-mono);
   }
-
   .data-table-wrap { overflow-x: auto; margin-top: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
   th {
@@ -286,7 +284,6 @@
   .val-high { color: var(--danger); }
   .val-mid { color: var(--accent); }
   .val-low { color: var(--accent2); }
-
   .toast {
     position: fixed;
     bottom: 20px;
@@ -305,7 +302,6 @@
   .toast.show { transform: translateX(-50%) translateY(0); }
   .toast.error { border-color: var(--danger); color: var(--danger); }
   .toast.success { border-color: var(--accent2); color: var(--accent2); }
-
   .drive-bar {
     display: flex;
     align-items: center;
@@ -337,7 +333,6 @@
   .drive-status.syncing { color: var(--accent); }
   .drive-status.ok { color: var(--accent2); }
   .drive-status.err { color: var(--danger); }
-
   .empty {
     display: flex;
     flex-direction: column;
@@ -350,7 +345,8 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 28px 20px;
-    margin-bottom: 24px;
+    margin: 24px auto;
+    max-width: 1100px;
   }
   .empty-icon {
     font-size: 28px;
@@ -360,7 +356,6 @@
     font-size: 12px;
     line-height: 1.6;
   }
-
   .disclaimer {
     text-align: center;
     padding: 20px;
@@ -369,12 +364,10 @@
     color: var(--muted);
     border-top: 1px solid var(--border);
   }
-
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-
   @media (max-width: 600px) {
     .stats-row { grid-template-columns: 1fr 1fr; }
     .chart-wrap canvas { max-height: 220px; }
@@ -383,7 +376,6 @@
 </head>
 <body>
 <div class="app">
-
   <header>
     <div class="header-left">
       <h1>Home <span>Energy</span> Dashboard</h1>
@@ -396,6 +388,9 @@
           <div class="weather-temp" id="weather-temp">--°F</div>
           <div class="weather-loc">Katy, TX (77494)</div>
         </div>
+      </div>
+      <div class="auth-row">
+        <button class="auth-btn" onclick="logoutSite()">Log out</button>
       </div>
     </div>
   </header>
@@ -453,7 +448,7 @@
       <div class="solar-banner-text">
         <div class="solar-banner-title">Solar &amp; Battery Data — Coming Soon</div>
         <div class="solar-banner-sub">
-          Once your SIGEnergy system is live and you have your first export,
+          Once your SIGEnergy system is live (est. late May 2026) and you have your first export,
           this section will show your solar production, battery usage, grid draw, and self-sufficiency rate.
         </div>
       </div>
@@ -652,7 +647,6 @@
   <div class="disclaimer">
     Disclaimer: This dashboard is for entertainment purposes only.
   </div>
-
 </div>
 
 <div class="empty" id="empty-state" style="display:none">
@@ -669,28 +663,46 @@ let sigData   = new Map();
 let loadedFiles = [];
 let currentDayIndex = 0;
 let charts = {};
-
 let freeStartHour = 20;
 let freeEndHour = 6;
-
 const AUTO_SYNC_MODE = 'smart';
 const AUTO_SYNC_INTERVAL_HOURS = 6;
 
+async function requireAuth() {
+  try {
+    const res = await fetch('/api/session', { credentials: 'same-origin' });
+    const data = await res.json();
+    if (!data.authenticated) {
+      const next = encodeURIComponent(window.location.pathname || '/');
+      window.location.replace('/login.html?next=' + next);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    const next = encodeURIComponent(window.location.pathname || '/');
+    window.location.replace('/login.html?next=' + next);
+    return false;
+  }
+}
+
+async function logoutSite() {
+  try {
+    await fetch('/api/logout', { method: 'GET', credentials: 'same-origin' });
+  } catch (e) {}
+  window.location.href = '/login.html';
+}
+
 function getTodayKey() {
   const d = new Date();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${month}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function shouldAutoSync() {
   if (AUTO_SYNC_MODE === 'daily') {
     return sessionStorage.getItem('lastSyncDate') !== getTodayKey();
   }
-
   const last = sessionStorage.getItem('lastSyncTime');
   if (!last) return true;
-
   const elapsed = Date.now() - parseInt(last, 10);
   const intervalMs = AUTO_SYNC_INTERVAL_HOURS * 60 * 60 * 1000;
   return elapsed > intervalMs;
@@ -704,37 +716,26 @@ function markSyncedNow() {
 function updateLastSyncLabel() {
   const label = document.getElementById('last-sync-label');
   if (!label) return;
-
   const last = sessionStorage.getItem('lastSyncTime');
   if (!last) {
     label.textContent = 'Last sync: never';
     return;
   }
-
   const dt = new Date(parseInt(last, 10));
-  if (Number.isNaN(dt.getTime())) {
-    label.textContent = 'Last sync: unknown';
-    return;
-  }
-
-  label.textContent = `Last sync: ${dt.toLocaleString()}`;
+  label.textContent = Number.isNaN(dt.getTime()) ? 'Last sync: unknown' : `Last sync: ${dt.toLocaleString()}`;
 }
 
 function serializeReadingsMap(source) {
-  return Object.fromEntries(
-    [...source.entries()].map(([date, intervals]) => [date, intervals.map(r => ({ ...r }))])
-  );
+  return Object.fromEntries([...source.entries()].map(([date, intervals]) => [date, intervals.map(r => ({ ...r }))]));
 }
 
 function deserializeReadingsMap(source) {
   const restored = new Map();
   if (!source || typeof source !== 'object') return restored;
-
   for (const [date, intervals] of Object.entries(source)) {
     if (!Array.isArray(intervals)) continue;
     restored.set(date, intervals.map(r => ({ ...r })));
   }
-
   return restored;
 }
 
@@ -754,11 +755,9 @@ function restoreDashboardData() {
   try {
     const raw = sessionStorage.getItem('energyDashboardCacheV1');
     if (!raw) return false;
-
     const parsed = JSON.parse(raw);
     const restoredReadings = deserializeReadingsMap(parsed.readings);
     if (restoredReadings.size === 0) return false;
-
     readings = restoredReadings;
     loadedFiles = Array.isArray(parsed.loadedFiles) ? parsed.loadedFiles : [];
     currentDayIndex = 0;
@@ -792,26 +791,26 @@ async function fetchWeather() {
   try {
     const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.738&longitude=-95.823&current_weather=true&temperature_unit=fahrenheit');
     const data = await res.json();
-    const temp = data.current_weather.temperature;
-    const isDay = data.current_weather.is_day;
-    document.getElementById('weather-temp').textContent = Math.round(temp) + '°F';
-    document.getElementById('weather-icon').textContent = isDay ? '☀️' : '🌙';
+    document.getElementById('weather-temp').textContent = Math.round(data.current_weather.temperature) + '°F';
+    document.getElementById('weather-icon').textContent = data.current_weather.is_day ? '☀️' : '🌙';
   } catch(e) {
     document.getElementById('weather-temp').textContent = 'N/A';
-    console.error('Weather fetch failed');
   }
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  const ok = await requireAuth();
+  if (!ok) return;
+
   fetchWeather();
   const startSel = document.getElementById('free-start');
   const endSel = document.getElementById('free-end');
-  for (let i = 0; i < 24; i++) {
+  for(let i=0; i<24; i++) {
     const ampm = i < 12 ? 'am' : 'pm';
     const hr = i === 0 ? 12 : i > 12 ? i - 12 : i;
     const label = `${hr}:00 ${ampm}`;
-    startSel.innerHTML += `<option value="${i}" ${i === 20 ? 'selected' : ''}>${label}</option>`;
-    endSel.innerHTML += `<option value="${i}" ${i === 6 ? 'selected' : ''}>${label}</option>`;
+    startSel.innerHTML += `<option value="${i}" ${i===20?'selected':''}>${label}</option>`;
+    endSel.innerHTML += `<option value="${i}" ${i===6?'selected':''}>${label}</option>`;
   }
 
   updateLastSyncLabel();
@@ -835,8 +834,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 function updateFreeHours() {
-  freeStartHour = parseInt(document.getElementById('free-start').value, 10);
-  freeEndHour = parseInt(document.getElementById('free-end').value, 10);
+  freeStartHour = parseInt(document.getElementById('free-start').value);
+  freeEndHour = parseInt(document.getElementById('free-end').value);
   if (readings.size > 0) renderAll();
 }
 
@@ -849,19 +848,12 @@ async function parseFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
   if (ext === 'xml') return parseXML(await file.text());
   if (ext === 'xlsx') return parseXLSX(file);
-
   if (ext === 'csv' || ext === 'txt' || ext === '') {
-    const text = await file.text();
-    return parseCSV(text, file.name);
+    return parseCSV(await file.text(), file.name);
   }
-
-  try {
-    const text = await file.text();
-    if (text.includes('IntervalBlock') || text.includes('espi')) return parseXML(text);
-    return parseCSV(text, file.name);
-  } catch (e) {
-    throw new Error('Could not parse file: ' + file.name);
-  }
+  const text = await file.text();
+  if (text.includes('IntervalBlock') || text.includes('espi')) return parseXML(text);
+  return parseCSV(text, file.name);
 }
 
 function parseXML(text) {
@@ -869,7 +861,6 @@ function parseXML(text) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(text, 'application/xml');
   const ns = 'http://naesb.org/espi';
-
   const blocks = doc.getElementsByTagNameNS(ns, 'IntervalBlock');
   for (const block of blocks) {
     const intervalReadings = block.getElementsByTagNameNS(ns, 'IntervalReading');
@@ -878,8 +869,8 @@ function parseXML(text) {
       const startEl = ir.querySelector('timePeriod > start');
       const valEl = ir.querySelector('value');
       if (!startEl || !valEl) continue;
-      const epoch = parseInt(startEl.textContent, 10);
-      const wh = parseInt(valEl.textContent, 10);
+      const epoch = parseInt(startEl.textContent);
+      const wh = parseInt(valEl.textContent);
       const dt = new Date(epoch * 1000);
       const timeKey = epoch.toString();
       if (seenTimes.has(timeKey)) continue;
@@ -890,7 +881,7 @@ function parseXML(text) {
       result.get(readingDate).push({ time: timeStr, epoch, kwh: wh / 1000 });
     }
   }
-  for (const [, arr] of result) arr.sort((a, b) => a.epoch - b.epoch);
+  for (const [, arr] of result) arr.sort((a,b) => a.epoch - b.epoch);
   return result;
 }
 
@@ -907,9 +898,7 @@ async function parseXLSX(file) {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
         resolve(parseXLSXRows(rows, file.name));
-      } catch (err) {
-        reject(err);
-      }
+      } catch(err) { reject(err); }
     };
     reader.onerror = () => reject(new Error('File read error'));
     reader.readAsArrayBuffer(file);
@@ -918,15 +907,11 @@ async function parseXLSX(file) {
 
 function parseXLSXRows(rows, filename) {
   const result = new Map();
-  const header = rows[0] ? rows[0].map(h => String(h || '').replace(/['"]/g, '').trim().toLowerCase()) : [];
+  const header = rows[0] ? rows[0].map(h => String(h||'').replace(/['"]/g,'').trim().toLowerCase()) : [];
   const isVariantB = header.some(h => h === 'usage_date' || h === 'usage_kwh');
+  if (isVariantB) return parseCSV(rows.map(r => r.join(',')).join('\n'), filename);
 
-  if (isVariantB) {
-    const text = rows.map(r => r.join(',')).join('\n');
-    return parseCSV(text, filename);
-  }
-
-  const timeStartIdx = header.findIndex(h => h.includes('start'));
+  const timeStartIdx   = header.findIndex(h => h.includes('start'));
   const consumptionIdx = header.findIndex(h => h.includes('consumption'));
   if (timeStartIdx < 0 || consumptionIdx < 0) {
     throw new Error('XLSX columns not recognised. Found: ' + header.join(', '));
@@ -937,7 +922,7 @@ function parseXLSXRows(rows, filename) {
   const dateMatch = filename.match(/(\d{8})/);
   if (dateMatch) {
     const d = dateMatch[1];
-    fallbackDate = d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8);
+    fallbackDate = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8);
   }
 
   for (let i = 1; i < rows.length; i++) {
@@ -949,21 +934,21 @@ function parseXLSXRows(rows, filename) {
 
     const tMatch = timeRaw.match(/(\d+):(\d+)\s*(am|pm)/i);
     if (!tMatch) continue;
-    let h = parseInt(tMatch[1], 10);
-    const m = parseInt(tMatch[2], 10);
+    let h = parseInt(tMatch[1]);
+    const m = parseInt(tMatch[2]);
     const ampm = tMatch[3].toLowerCase();
     if (ampm === 'pm' && h !== 12) h += 12;
     if (ampm === 'am' && h === 12) h = 0;
-    const timeStr = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    const timeStr = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
 
     let dateStr = fallbackDate;
     if (dateColIdx >= 0 && row[dateColIdx]) {
       const raw = String(row[dateColIdx]);
       const dm = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/);
       if (dm) dateStr = dm[3] + '-' + dm[1] + '-' + dm[2];
-      else if (/^\d{4}-\d{2}-\d{2}/.test(raw)) dateStr = raw.slice(0, 10);
+      else if (/^\d{4}-\d{2}-\d{2}/.test(raw)) dateStr = raw.slice(0,10);
     }
-    if (!dateStr) dateStr = new Date().toISOString().slice(0, 10);
+    if (!dateStr) dateStr = new Date().toISOString().slice(0,10);
 
     if (!result.has(dateStr)) result.set(dateStr, []);
     result.get(dateStr).push({ time: timeStr, kwh });
@@ -973,8 +958,7 @@ function parseXLSXRows(rows, filename) {
 
 function splitCSVLine(line) {
   const result = [];
-  let cur = '';
-  let inQuote = false;
+  let cur = '', inQuote = false;
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (ch === '"' || ch === "'") { inQuote = !inQuote; continue; }
@@ -990,25 +974,21 @@ function parseCSV(text, filename) {
   if (lines.length < 2) return new Map();
 
   const header = splitCSVLine(lines[0]).map(h => h.toLowerCase());
-  const dateIdx = header.findIndex(h => h === 'usage_date');
+  const dateIdx  = header.findIndex(h => h === 'usage_date');
   const startIdx = header.findIndex(h => h === 'usage_start_time');
-  const kwhIdx = header.findIndex(h => h === 'usage_kwh');
-  const typeIdx = header.findIndex(h => h === 'consumption_surplusgeneration');
-
-  const safeDateIdx = dateIdx >= 0 ? dateIdx : header.findIndex(h => h.includes('date'));
+  const kwhIdx   = header.findIndex(h => h === 'usage_kwh');
+  const typeIdx  = header.findIndex(h => h === 'consumption_surplusgeneration');
+  const safeDateIdx  = dateIdx  >= 0 ? dateIdx  : header.findIndex(h => h.includes('date'));
   const safeStartIdx = startIdx >= 0 ? startIdx : header.findIndex(h => h.includes('start'));
-  const safeKwhIdx = kwhIdx >= 0 ? kwhIdx : header.findIndex(h => h.includes('kwh'));
-
+  const safeKwhIdx   = kwhIdx   >= 0 ? kwhIdx   : header.findIndex(h => h.includes('kwh'));
   if (safeStartIdx < 0 || safeKwhIdx < 0) {
     throw new Error('CSV columns not recognised. Found: ' + header.join(', '));
   }
 
   const result = new Map();
-
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) continue;
-
     const cells = splitCSVLine(line.replace(/^'/, ''));
     if (typeIdx >= 0 && cells[typeIdx] && cells[typeIdx].toLowerCase() !== 'consumption') continue;
 
@@ -1018,7 +998,7 @@ function parseCSV(text, filename) {
     const timeRaw = (cells[safeStartIdx] || '').trim();
     const tMatch = timeRaw.match(/^(\d{1,2}):(\d{2})/);
     if (!tMatch) continue;
-    const timeStr = String(parseInt(tMatch[1], 10)).padStart(2, '0') + ':' + tMatch[2];
+    const timeStr = String(parseInt(tMatch[1])).padStart(2,'0') + ':' + tMatch[2];
 
     let dateStr = null;
     if (safeDateIdx >= 0 && cells[safeDateIdx]) {
@@ -1029,15 +1009,14 @@ function parseCSV(text, filename) {
       const fm = filename.match(/(\d{8})/);
       if (fm) {
         const d = fm[1];
-        dateStr = d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8);
+        dateStr = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8);
       }
     }
-    if (!dateStr) dateStr = new Date().toISOString().slice(0, 10);
+    if (!dateStr) dateStr = new Date().toISOString().slice(0,10);
 
     if (!result.has(dateStr)) result.set(dateStr, []);
     result.get(dateStr).push({ time: timeStr, kwh });
   }
-
   return result;
 }
 
@@ -1076,7 +1055,7 @@ function to12hr(timeStr) {
   const [hh, mm] = timeStr.split(':').map(Number);
   const ampm = hh < 12 ? 'am' : 'pm';
   const hr = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
-  return mm === 0 ? `${hr}${ampm}` : `${hr}:${String(mm).padStart(2, '0')}${ampm}`;
+  return mm === 0 ? `${hr}${ampm}` : `${hr}:${String(mm).padStart(2,'0')}${ampm}`;
 }
 
 function fmtDate(dateStr) {
@@ -1117,7 +1096,7 @@ function renderStats(days) {
   let totalKwh = 0, peakKwh = 0, peakTime = '', peakDate = '';
   for (const day of days) {
     const intervals = readings.get(day);
-    const dayTotal = intervals.reduce((s, r) => s + r.kwh, 0);
+    const dayTotal = intervals.reduce((s,r) => s + r.kwh, 0);
     totalKwh += dayTotal;
     for (const r of intervals) {
       if (r.kwh > peakKwh) {
@@ -1138,7 +1117,6 @@ function renderStats(days) {
   document.getElementById('stat-days-span').textContent = `total across ${days.length} day${days.length !== 1 ? 's' : ''}`;
   document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])} – ${fmtDate(days[days.length - 1])}` : fmtDate(days[0]);
   document.getElementById('stat-peak-time').textContent = `${peakDate} at ${peakTime}`;
-
   document.getElementById('stat-weekly-avg').innerHTML = weeklyAvg.toFixed(1) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-weekly-avg-sub').textContent = weekCount
     ? `avg over ${weekCount} week${weekCount !== 1 ? 's' : ''}`
@@ -1146,7 +1124,7 @@ function renderStats(days) {
 }
 
 function updateHeaderMeta(days) {
-  const total = [...readings.values()].flat().reduce((s, r) => s + r.kwh, 0);
+  const total = [...readings.values()].flat().reduce((s,r) => s+r.kwh, 0);
   document.getElementById('header-meta').textContent =
     `${days.length} day${days.length !== 1 ? 's' : ''} loaded  ·  ${total.toFixed(1)} kWh total  ·  SMT data`;
 }
@@ -1155,11 +1133,10 @@ function renderDailyChart(days) {
   const labels = days.map(d => fmtDate(d));
   const freeData = [];
   const paidData = [];
-
   days.forEach(d => {
     let f = 0, p = 0;
     readings.get(d).forEach(r => {
-      const h = parseInt(r.time.split(':')[0], 10);
+      const h = parseInt(r.time.split(':')[0]);
       if (isFreeHour(h)) f += r.kwh; else p += r.kwh;
     });
     freeData.push(f);
@@ -1173,22 +1150,8 @@ function renderDailyChart(days) {
     data: {
       labels,
       datasets: [
-        {
-          label: 'Free kWh',
-          data: freeData,
-          backgroundColor: 'rgba(88,166,255,0.7)',
-          borderColor: 'rgba(88,166,255,1)',
-          borderWidth: 1,
-          stack: 'Stack 0',
-        },
-        {
-          label: 'Paid kWh',
-          data: paidData,
-          backgroundColor: 'rgba(240,165,0,0.75)',
-          borderColor: 'rgba(240,165,0,1)',
-          borderWidth: 1,
-          stack: 'Stack 0',
-        }
+        { label: 'Free kWh', data: freeData, backgroundColor: 'rgba(88,166,255,0.7)', borderColor: 'rgba(88,166,255,1)', borderWidth: 1, stack: 'Stack 0' },
+        { label: 'Paid kWh', data: paidData, backgroundColor: 'rgba(240,165,0,0.75)', borderColor: 'rgba(240,165,0,1)', borderWidth: 1, stack: 'Stack 0' }
       ]
     },
     options: chartOptions({
@@ -1213,7 +1176,7 @@ function renderDetailChart(days, idx) {
   document.getElementById('detail-date-label').textContent = fmtDate(day);
 
   const labels = intervals.map(r => {
-    const h = parseInt(r.time.split(':')[0], 10);
+    const h = parseInt(r.time.split(':')[0]);
     const min = r.time.split(':')[1];
     let label = to12hr(r.time);
     if (h === freeStartHour && min === '00') label = '🟢 ' + label;
@@ -1223,13 +1186,13 @@ function renderDetailChart(days, idx) {
 
   const data = intervals.map(r => r.kwh);
   const colors = intervals.map(r => {
-    const h = parseInt(r.time.split(':')[0], 10);
+    const h = parseInt(r.time.split(':')[0]);
     const isFree = isFreeHour(h);
     if (r.kwh >= 0.5) return 'rgba(248,81,73,0.85)';
     return isFree ? 'rgba(88,166,255,0.7)' : 'rgba(240,165,0,0.7)';
   });
   const borderColors = intervals.map(r => {
-    const h = parseInt(r.time.split(':')[0], 10);
+    const h = parseInt(r.time.split(':')[0]);
     const isFree = isFreeHour(h);
     if (r.kwh >= 0.5) return 'rgba(248,81,73,1)';
     return isFree ? 'rgba(88,166,255,1)' : 'rgba(240,165,0,1)';
@@ -1290,7 +1253,7 @@ function renderHourlyTable(days) {
   for (const day of [...days].reverse()) {
     const hourTotals = Array(24).fill(0);
     readings.get(day).forEach(r => {
-      const h = parseInt(r.time.split(':')[0], 10);
+      const h = parseInt(r.time.split(':')[0]);
       hourTotals[h] += r.kwh;
     });
     let rowHtml = `<td>${fmtDate(day)}</td>`;
@@ -1378,14 +1341,13 @@ function renderWeeklyCompare(days) {
     const dow = dt.getDay();
     const sun = new Date(dt);
     sun.setDate(d - dow);
-    const wk = sun.getFullYear() + '-' +
-      String(sun.getMonth() + 1).padStart(2, '0') + '-' +
-      String(sun.getDate()).padStart(2, '0');
-
-    if (!weeks[wk]) weeks[wk] = { total: 0, dayKwh: 0, nightKwh: 0, dayCount: 0 };
+    const wk  = sun.getFullYear() + '-' +
+                String(sun.getMonth() + 1).padStart(2,'0') + '-' +
+                String(sun.getDate()).padStart(2,'0');
+    if (!weeks[wk]) weeks[wk] = { total:0, dayKwh:0, nightKwh:0, dayCount:0 };
     weeks[wk].dayCount++;
     (readings.get(day) || []).forEach(r => {
-      const h = parseInt(r.time.split(':')[0], 10);
+      const h = parseInt(r.time.split(':')[0]);
       weeks[wk].total += r.kwh;
       if (isFreeHour(h)) weeks[wk].nightKwh += r.kwh;
       else weeks[wk].dayKwh += r.kwh;
@@ -1401,7 +1363,6 @@ function renderWeeklyCompare(days) {
     const w = weeks[wk];
     const prev = i > 0 ? weeks[wkKeys[i - 1]] : null;
     const avg = w.dayCount > 0 ? w.total / w.dayCount : 0;
-
     let changeHtml = '<span style="color:var(--muted)">—</span>';
     if (prev && prev.total > 0) {
       const pct = ((w.total - prev.total) / prev.total * 100);
@@ -1411,7 +1372,7 @@ function renderWeeklyCompare(days) {
     }
 
     const [y, m, d] = wk.split('-').map(Number);
-    const label = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const label = new Date(y, m - 1, d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
     const totalCls = w.total > 200 ? 'val-high' : w.total > 120 ? 'val-mid' : 'val-low';
 
     rows.push('<tr>' +
@@ -1436,7 +1397,7 @@ function renderMonthly(days) {
     const intervals = readings.get(day) || [];
     months[monthKey].dayCount++;
     for (const r of intervals) {
-      const h = parseInt(r.time.split(':')[0], 10);
+      const h = parseInt(r.time.split(':')[0]);
       months[monthKey].total += r.kwh;
       if (!isFreeHour(h)) months[monthKey].dayKwh += r.kwh;
       else months[monthKey].nightKwh += r.kwh;
@@ -1656,12 +1617,11 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
   const previousReadings = cloneReadingsMap(readings);
   const previousLoadedFiles = [...loadedFiles];
   const hadExistingData = previousReadings.size > 0;
-
   const nextReadings = forceRefresh ? new Map() : cloneReadingsMap(readings);
   const nextLoadedFiles = forceRefresh ? [] : [...loadedFiles];
 
   try {
-    const listRes = await fetch('/api/drive-list');
+    const listRes = await fetch('/api/drive-list', { credentials: 'same-origin' });
     if (!listRes.ok) throw new Error(`Drive API error: ${listRes.status} ${listRes.statusText}`);
     const listData = await listRes.json();
 
@@ -1690,9 +1650,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
 
     status.textContent = `Found ${smtFiles.length} file(s) — downloading…`;
 
-    let loaded = 0;
-    let skipped = 0;
-
+    let loaded = 0, skipped = 0;
     for (const driveFile of smtFiles) {
       if (!forceRefresh && nextLoadedFiles.find(f => f.name === driveFile.name)) {
         skipped++;
@@ -1706,7 +1664,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
         ? `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&exportCsv=1`
         : `/api/drive-file?id=${encodeURIComponent(driveFile.id)}`;
 
-      const fileRes = await fetch(downloadUrl);
+      const fileRes = await fetch(downloadUrl, { credentials: 'same-origin' });
       if (!fileRes.ok) {
         showToast(`Could not download ${driveFile.name}`, 'error');
         continue;
@@ -1807,35 +1765,30 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
   btn.disabled = false;
 }
 
-function parseSIG(text, filename) {
-  throw new Error('Sigenergy parser not yet implemented');
-}
-
 function renderSolarStats() {
   if (sigData.size === 0) return;
-
   let produced = 0, direct = 0, battery = 0, grid = 0;
   for (const [, d] of sigData) {
     produced += d.produced || 0;
-    direct   += d.direct   || 0;
-    battery  += d.battery  || 0;
-    grid     += d.grid     || 0;
+    direct += d.direct || 0;
+    battery += d.battery || 0;
+    grid += d.grid || 0;
   }
   const totalConsumption = direct + battery + grid;
   const selfuse = totalConsumption > 0 ? ((direct + battery) / totalConsumption * 100).toFixed(1) : '—';
 
   document.getElementById('sig-produced').textContent = produced.toFixed(1);
-  document.getElementById('sig-direct').textContent   = direct.toFixed(1);
-  document.getElementById('sig-battery').textContent  = battery.toFixed(1);
-  document.getElementById('sig-grid').textContent     = grid.toFixed(1);
-  document.getElementById('sig-selfuse').textContent  = selfuse + (selfuse !== '—' ? '%' : '');
+  document.getElementById('sig-direct').textContent = direct.toFixed(1);
+  document.getElementById('sig-battery').textContent = battery.toFixed(1);
+  document.getElementById('sig-grid').textContent = grid.toFixed(1);
+  document.getElementById('sig-selfuse').textContent = selfuse + (selfuse !== '—' ? '%' : '');
 
   document.getElementById('solar-banner').style.display = 'none';
   document.getElementById('solar-stats-row').style.display = 'grid';
 }
 
 let toastTimer;
-function showToast(msg, type = '') {
+function showToast(msg, type='') {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast show ' + type;
@@ -1843,6 +1796,5 @@ function showToast(msg, type = '') {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 </script>
-
 </body>
 </html>
