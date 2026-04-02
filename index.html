@@ -711,6 +711,7 @@ let sigData   = new Map();
 let loadedFiles = [];
 let currentDayIndex = 0;
 let charts = {};
+let dailyChartDays = [];
 let freeStartHour = 20;
 let freeEndHour = 6;
 const AUTO_SYNC_MODE = 'smart';
@@ -1155,10 +1156,12 @@ function formatAlertMessage(label, pct, threshold) {
 function formatComparisonCard(currentLabel, previousLabel, current, previous) {
   const result = buildComparison(current, previous);
   if (!result) return '—';
+  const sign = result.pct > 0 ? '+' : '';
+  const trendClass = result.pct > 0.1 ? 'stat-trend-up' : result.pct < -0.1 ? 'stat-trend-down' : 'stat-trend-flat';
   return `<div class="stat-compare-lines">
     <div class="stat-compare-line"><span>${currentLabel}:</span> ${current.toFixed(1)} kWh</div>
     <div class="stat-compare-line"><span>${previousLabel}:</span> ${previous.toFixed(1)} kWh</div>
-    <div>${result.html}</div>
+    <div class="${trendClass}">(${sign}${result.pct.toFixed(1)}%)</div>
   </div>`;
 }
 
@@ -1296,10 +1299,21 @@ function updateDataFreshness(days) {
 }
 
 function renderDailyChart(days) {
-  const labels = days.map(d => fmtDate(d));
+  if (!days || days.length === 0) return;
+  const latestDay = days[days.length - 1];
+  const latestDate = parseDateKey(latestDay);
+  const latestDow = latestDate.getDay();
+  const currentWeekStart = new Date(latestDate);
+  currentWeekStart.setDate(latestDate.getDate() - latestDow);
+  const previousWeekStart = new Date(currentWeekStart);
+  previousWeekStart.setDate(currentWeekStart.getDate() - 7);
+  const chartDays = days.filter(day => parseDateKey(day) >= previousWeekStart);
+  dailyChartDays = chartDays;
+
+  const labels = chartDays.map(d => fmtDate(d));
   const freeData = [];
   const paidData = [];
-  days.forEach(d => {
+  chartDays.forEach(d => {
     let f = 0, p = 0;
     readings.get(d).forEach(r => {
       const h = parseInt(r.time.split(':')[0]);
@@ -1325,7 +1339,8 @@ function renderDailyChart(days) {
       onClick: (_, elements) => {
         if (elements.length > 0) {
           const liveDays = [...readings.keys()].sort();
-          currentDayIndex = elements[0].index;
+          const selectedDay = dailyChartDays[elements[0].index];
+          currentDayIndex = Math.max(0, liveDays.indexOf(selectedDay));
           renderDetailChart(liveDays, currentDayIndex);
           renderDaySelect(liveDays);
         }
