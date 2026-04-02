@@ -67,6 +67,16 @@
     margin-top: 4px;
     letter-spacing: 0.05em;
   }
+  .freshness-badge {
+    margin-top: 8px;
+    display: inline-block;
+    font-size: 10px;
+    color: var(--accent2);
+    border: 1px solid rgba(63,185,80,0.35);
+    background: rgba(63,185,80,0.08);
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
   .header-right { text-align: right; }
   .weather-widget {
     background: var(--surface);
@@ -132,6 +142,14 @@
   .stat-card.days-color .stat-value  { color: var(--accent2); }
   .stat-card.peak-color .stat-value  { color: var(--danger); }
   .stat-card.proj-color .stat-value  { color: #c084fc; }
+  .stat-card.compare-color .stat-value { color: #79c0ff; }
+  .stat-card.daily-compare-color .stat-value { color: #ffb86b; }
+  .stat-card.month-compare-color .stat-value { color: #a5d6a7; }
+  .stat-trend-up { color: var(--danger); }
+  .stat-trend-down { color: var(--accent2); }
+  .stat-trend-flat { color: var(--muted); }
+  .mini-sparkline { margin-top: 8px; height: 34px; }
+  .mini-sparkline canvas { width: 100% !important; height: 34px !important; }
   .solar-section { margin-bottom: 28px; }
   .solar-banner {
     background: var(--surface);
@@ -380,6 +398,7 @@
     <div class="header-left">
       <h1>Home <span>Energy</span> Dashboard</h1>
       <div class="header-meta" id="header-meta">No data loaded</div>
+      <div class="freshness-badge" id="freshness-badge" style="display:none">Latest SMT day: —</div>
     </div>
     <div class="header-right">
       <div class="weather-widget" id="weather-widget">
@@ -416,9 +435,9 @@
 
   <div class="stats-row" id="stats-row" style="display:none">
     <div class="stat-card grid-color">
-      <div class="stat-label">Total Grid Usage</div>
+      <div class="stat-label">Current Week Grid Usage</div>
       <div class="stat-value" id="stat-total">—<span class="stat-unit">kWh</span></div>
-      <div class="stat-sub" id="stat-days-span">across — days</div>
+      <div class="stat-sub" id="stat-days-span">Sun–Sat window</div>
     </div>
     <div class="stat-card days-color">
       <div class="stat-label">Days of Data</div>
@@ -439,6 +458,24 @@
       <div class="stat-label">Weekly Avg</div>
       <div class="stat-value" id="stat-weekly-avg">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub" id="stat-weekly-avg-sub">avg per 7-day week</div>
+    </div>
+    <div class="stat-card compare-color">
+      <div class="stat-label">Week Avg (Curr vs Prev)</div>
+      <div class="stat-value" id="stat-week-compare">—</div>
+      <div class="stat-sub" id="stat-week-compare-sub">current week vs previous week</div>
+      <div class="mini-sparkline"><canvas id="spark-week"></canvas></div>
+    </div>
+    <div class="stat-card daily-compare-color">
+      <div class="stat-label">Daily Trend (Latest 2 Days)</div>
+      <div class="stat-value" id="stat-day-compare">—</div>
+      <div class="stat-sub" id="stat-day-compare-sub">latest day vs prior day</div>
+      <div class="mini-sparkline"><canvas id="spark-day"></canvas></div>
+    </div>
+    <div class="stat-card month-compare-color">
+      <div class="stat-label">Month Usage (Curr vs Prev)</div>
+      <div class="stat-value" id="stat-month-compare">—</div>
+      <div class="stat-sub" id="stat-month-compare-sub">current month vs previous month</div>
+      <div class="mini-sparkline"><canvas id="spark-month"></canvas></div>
     </div>
   </div>
 
@@ -667,6 +704,7 @@ let freeStartHour = 20;
 let freeEndHour = 6;
 const AUTO_SYNC_MODE = 'smart';
 const AUTO_SYNC_INTERVAL_HOURS = 6;
+const ALERT_THRESHOLDS = { weekPct: 10, dayPct: 15, monthPct: 10 };
 
 async function requireAuth() {
   try {
@@ -773,6 +811,8 @@ function clearDashboard() {
   document.getElementById('stats-row').style.display = 'none';
   document.getElementById('section-tabs').style.display = 'none';
   document.getElementById('header-meta').textContent = 'No data loaded';
+  const freshness = document.getElementById('freshness-badge');
+  if (freshness) freshness.style.display = 'none';
   ['tab-daily','tab-hourly','tab-weekly','tab-monthly','tab-table'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
@@ -1070,6 +1110,68 @@ function dayOfWeek(dateStr) {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long' });
 }
 
+function parseDateKey(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function toDateKey(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function formatMonthLabel(monthKey) {
+  const [y, m] = monthKey.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function buildComparison(current, previous) {
+  if (current === null || previous === null || previous <= 0) return null;
+  const pct = ((current - previous) / previous) * 100;
+  const trendClass = pct > 0.1 ? 'stat-trend-up' : pct < -0.1 ? 'stat-trend-down' : 'stat-trend-flat';
+  const sign = pct > 0 ? '+' : '';
+  return {
+    pct,
+    html: `<span class="${trendClass}">${current.toFixed(1)} vs ${previous.toFixed(1)} (${sign}${pct.toFixed(1)}%)</span>`
+  };
+}
+
+function formatComparison(current, previous) {
+  const result = buildComparison(current, previous);
+  return result ? result.html : '—';
+}
+
+function formatAlertMessage(label, pct, threshold) {
+  if (pct === null || Math.abs(pct) < threshold) return label;
+  const direction = pct > 0 ? 'higher' : 'lower';
+  return `⚠ ${Math.abs(pct).toFixed(1)}% ${direction} than prior period`;
+}
+
+function renderSparkline(id, values, color) {
+  destroyChart(id);
+  const canvas = document.getElementById(id);
+  if (!canvas || !Array.isArray(values) || values.length === 0) return;
+  charts[id] = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: values.map((_, i) => i + 1),
+      datasets: [{
+        data: values,
+        borderColor: color,
+        backgroundColor: 'rgba(0,0,0,0)',
+        pointRadius: 0,
+        borderWidth: 2,
+        tension: 0.35
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { x: { display: false }, y: { display: false } }
+    }
+  });
+}
+
 let _renderAllTimer = null;
 function renderAllDebounced() {
   clearTimeout(_renderAllTimer);
@@ -1098,14 +1200,20 @@ function renderAll() {
   renderMonthly(sortedDays);
   renderTable(sortedDays);
   updateHeaderMeta(sortedDays);
+  updateDataFreshness(sortedDays);
 }
 
 function renderStats(days) {
   let totalKwh = 0, peakKwh = 0, peakTime = '', peakDate = '';
+  const dayTotals = new Map();
+  const monthlyTotals = {};
   for (const day of days) {
     const intervals = readings.get(day);
     const dayTotal = intervals.reduce((s,r) => s + r.kwh, 0);
     totalKwh += dayTotal;
+    dayTotals.set(day, dayTotal);
+    const monthKey = day.slice(0, 7);
+    monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + dayTotal;
     for (const r of intervals) {
       if (r.kwh > peakKwh) {
         peakKwh = r.kwh;
@@ -1118,23 +1226,90 @@ function renderStats(days) {
   const weeklyAvg = days.length >= 7 ? (totalKwh / days.length) * 7 : avg * 7;
   const weekCount = days.length >= 7 ? Math.round(days.length / 7 * 10) / 10 : null;
 
-  document.getElementById('stat-total').innerHTML = totalKwh.toFixed(1) + '<span class="stat-unit">kWh</span>';
+  const latestDay = days[days.length - 1];
+  const latestDate = parseDateKey(latestDay);
+  const latestDow = latestDate.getDay();
+  const weekStart = new Date(latestDate);
+  weekStart.setDate(latestDate.getDate() - latestDow);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const currentWeekDays = days.filter(day => {
+    const dt = parseDateKey(day);
+    return dt >= weekStart && dt <= weekEnd;
+  });
+  const previousWeekStart = new Date(weekStart);
+  previousWeekStart.setDate(weekStart.getDate() - 7);
+  const previousWeekEnd = new Date(weekStart);
+  previousWeekEnd.setDate(weekStart.getDate() - 1);
+  const previousWeekDays = days.filter(day => {
+    const dt = parseDateKey(day);
+    return dt >= previousWeekStart && dt <= previousWeekEnd;
+  });
+  const currentWeekTotal = currentWeekDays.reduce((sum, day) => sum + (dayTotals.get(day) || 0), 0);
+  const currentWeekAvg = currentWeekDays.length ? currentWeekTotal / currentWeekDays.length : null;
+  const previousWeekAvg = previousWeekDays.length
+    ? previousWeekDays.reduce((sum, day) => sum + (dayTotals.get(day) || 0), 0) / previousWeekDays.length
+    : null;
+
+  const previousDay = days.length >= 1 ? days[days.length - 1] : null;
+  const previousPreviousDay = days.length >= 2 ? days[days.length - 2] : null;
+  const previousDayTotal = previousDay ? dayTotals.get(previousDay) : null;
+  const previousPreviousDayTotal = previousPreviousDay ? dayTotals.get(previousPreviousDay) : null;
+
+  const monthKeys = Object.keys(monthlyTotals).sort();
+  const currentMonthKey = latestDay.slice(0, 7);
+  const currentMonthTotal = monthlyTotals[currentMonthKey] ?? null;
+  const currentMonthIndex = monthKeys.indexOf(currentMonthKey);
+  const previousMonthKey = currentMonthIndex > 0 ? monthKeys[currentMonthIndex - 1] : null;
+  const previousMonthTotal = previousMonthKey ? monthlyTotals[previousMonthKey] : null;
+  const weekCmp = buildComparison(currentWeekAvg, previousWeekAvg);
+  const dayCmp = buildComparison(previousDayTotal, previousPreviousDayTotal);
+  const monthCmp = buildComparison(currentMonthTotal, previousMonthTotal);
+
+  document.getElementById('stat-total').innerHTML = currentWeekTotal.toFixed(1) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-days').textContent = days.length;
   document.getElementById('stat-avg').innerHTML = avg.toFixed(1) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-peak').innerHTML = peakKwh.toFixed(3) + '<span class="stat-unit">kWh</span>';
-  document.getElementById('stat-days-span').textContent = `total across ${days.length} day${days.length !== 1 ? 's' : ''}`;
+  document.getElementById('stat-days-span').textContent = `${fmtDate(currentWeekDays[0] || latestDay)} – ${fmtDate(currentWeekDays[currentWeekDays.length - 1] || latestDay)} (${currentWeekDays.length} day${currentWeekDays.length !== 1 ? 's' : ''})`;
   document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])} – ${fmtDate(days[days.length - 1])}` : fmtDate(days[0]);
   document.getElementById('stat-peak-time').textContent = `${peakDate} at ${peakTime}`;
   document.getElementById('stat-weekly-avg').innerHTML = weeklyAvg.toFixed(1) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-weekly-avg-sub').textContent = weekCount
     ? `avg over ${weekCount} week${weekCount !== 1 ? 's' : ''}`
     : `est. from ${days.length} day${days.length !== 1 ? 's' : ''} of data`;
+  document.getElementById('stat-week-compare').innerHTML = formatComparison(currentWeekAvg, previousWeekAvg);
+  document.getElementById('stat-week-compare-sub').textContent = previousWeekDays.length
+    ? formatAlertMessage(`${fmtDate(currentWeekDays[0] || latestDay)} week vs ${fmtDate(toDateKey(previousWeekStart))} week`, weekCmp ? weekCmp.pct : null, ALERT_THRESHOLDS.weekPct)
+    : 'need prior week data for comparison';
+  document.getElementById('stat-day-compare').innerHTML = formatComparison(previousDayTotal, previousPreviousDayTotal);
+  document.getElementById('stat-day-compare-sub').textContent = previousPreviousDay
+    ? formatAlertMessage(`${fmtDate(previousDay)} vs ${fmtDate(previousPreviousDay)} (SMT is typically 1-day delayed)`, dayCmp ? dayCmp.pct : null, ALERT_THRESHOLDS.dayPct)
+    : 'need 2 days of data for comparison';
+  document.getElementById('stat-month-compare').innerHTML = formatComparison(currentMonthTotal, previousMonthTotal);
+  document.getElementById('stat-month-compare-sub').textContent = previousMonthKey
+    ? formatAlertMessage(`${formatMonthLabel(currentMonthKey)} vs ${formatMonthLabel(previousMonthKey)}`, monthCmp ? monthCmp.pct : null, ALERT_THRESHOLDS.monthPct)
+    : 'need prior month data for comparison';
+
+  const weekSparkData = [...previousWeekDays, ...currentWeekDays].map(day => +(dayTotals.get(day) || 0).toFixed(2));
+  const daySparkData = days.slice(-7).map(day => +(dayTotals.get(day) || 0).toFixed(2));
+  const monthSparkData = monthKeys.map(k => +(monthlyTotals[k] || 0).toFixed(2));
+  renderSparkline('spark-week', weekSparkData, '#79c0ff');
+  renderSparkline('spark-day', daySparkData, '#ffb86b');
+  renderSparkline('spark-month', monthSparkData, '#a5d6a7');
 }
 
 function updateHeaderMeta(days) {
   const total = [...readings.values()].flat().reduce((s,r) => s+r.kwh, 0);
   document.getElementById('header-meta').textContent =
     `${days.length} day${days.length !== 1 ? 's' : ''} loaded  ·  ${total.toFixed(1)} kWh total  ·  SMT data`;
+}
+
+function updateDataFreshness(days) {
+  const badge = document.getElementById('freshness-badge');
+  if (!badge || !days || days.length === 0) return;
+  const latestDay = days[days.length - 1];
+  badge.style.display = 'inline-block';
+  badge.textContent = `Latest SMT day: ${fmtDate(latestDay)} (typically 1-day delayed)`;
 }
 
 function renderDailyChart(days) {
