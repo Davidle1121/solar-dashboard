@@ -4,10 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Home Energy Dashboard</title>
-<script>
-  const DRIVE_API_KEY   = 'AIzaSyA_dH35fk8RoqGcm-vDmIc8nUr1G1EQcAA';
-  const DRIVE_FOLDER_ID = '1WGUPKuuMKYkvUDVpJl6elwfgUU-vV2t7';
-</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
@@ -342,6 +338,29 @@
   .drive-status.ok { color: var(--accent2); }
   .drive-status.err { color: var(--danger); }
 
+  .empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    text-align: center;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 20px;
+    margin-bottom: 24px;
+  }
+  .empty-icon {
+    font-size: 28px;
+    margin-bottom: 10px;
+  }
+  .empty p {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
   .disclaimer {
     text-align: center;
     padding: 20px;
@@ -351,7 +370,7 @@
     border-top: 1px solid var(--border);
   }
 
-    @keyframes fadeUp {
+  @keyframes fadeUp {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
@@ -434,7 +453,7 @@
       <div class="solar-banner-text">
         <div class="solar-banner-title">Solar &amp; Battery Data — Coming Soon</div>
         <div class="solar-banner-sub">
-          Once your SIGEnergy system is live (est. late May 2026) and you have your first export,
+          Once your SIGEnergy system is live and you have your first export,
           this section will show your solar production, battery usage, grid draw, and self-sufficiency rate.
         </div>
       </div>
@@ -637,16 +656,16 @@
 </div>
 
 <div class="empty" id="empty-state" style="display:none">
-    <div class="empty-icon">📂</div>
-    <p>Drive sync will run automatically on load.<br>
-    Or tap <strong>Refresh from Google Drive</strong> above, or upload files manually.</p>
-  </div>
+  <div class="empty-icon">📂</div>
+  <p>Drive sync will run automatically on load.<br>
+  Or tap <strong>Refresh from Google Drive</strong> above.</p>
+</div>
 
 <div class="toast" id="toast"></div>
 
 <script>
 let readings = new Map();
-let sigData   = new Map(); 
+let sigData   = new Map();
 let loadedFiles = [];
 let currentDayIndex = 0;
 let charts = {};
@@ -654,7 +673,7 @@ let charts = {};
 let freeStartHour = 20;
 let freeEndHour = 6;
 
-const AUTO_SYNC_MODE = 'smart'; // 'smart' = every N hours, 'daily' = once per day
+const AUTO_SYNC_MODE = 'smart';
 const AUTO_SYNC_INTERVAL_HOURS = 6;
 
 function getTodayKey() {
@@ -769,55 +788,6 @@ function cloneReadingsMap(source) {
   return cloned;
 }
 
-// ── FILE HANDLING ────────────────────────────────────────────────────────────
-// Upload zone removed — all data comes via Google Drive sync.
-// handleFiles() is still used internally by syncFromDrive.
-
-async function handleFiles(files) {
-  for (const file of files) {
-    if (loadedFiles.find(f => f.name === file.name)) continue;
-    try {
-      const data = await parseFile(file);
-      if (data.size === 0) { showToast('No data found in ' + file.name, 'error'); continue; }
-      for (const [date, intervals] of data.entries()) {
-        if (!readings.has(date)) readings.set(date, []);
-        const existing = new Set(readings.get(date).map(r => r.time));
-        for (const r of intervals) {
-          if (!existing.has(r.time)) readings.get(date).push(r);
-        }
-      }
-      loadedFiles.push(file);
-      showToast('Loaded ' + file.name, 'success');
-    } catch(err) {
-      showToast('Error reading ' + file.name + ': ' + err.message, 'error');
-      console.error(err);
-    }
-  }
-  if (readings.size > 0) renderAll();
-  renderChips();
-}
-
-function renderChips() {
-  // No-op: upload zone removed, chips display not needed
-}
-
-function removeFile(idx) {
-  const removed = loadedFiles.splice(idx, 1)[0];
-  readings.clear();
-  Object.keys(charts).forEach(id => destroyChart(id));
-  const remaining = [...loadedFiles];
-  loadedFiles = [];
-  if (remaining.length === 0) {
-    clearDashboard();
-    document.getElementById('empty-state') && (document.getElementById('empty-state').style.display = 'block');
-    renderChips();
-    showToast('Removed ' + (removed.name || 'file'), 'success');
-    return;
-  }
-  showToast('Removed ' + (removed.name || 'file'), 'success');
-  handleFiles(remaining);
-}
-
 async function fetchWeather() {
   try {
     const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.738&longitude=-95.823&current_weather=true&temperature_unit=fahrenheit');
@@ -836,12 +806,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   fetchWeather();
   const startSel = document.getElementById('free-start');
   const endSel = document.getElementById('free-end');
-  for(let i=0; i<24; i++) {
+  for (let i = 0; i < 24; i++) {
     const ampm = i < 12 ? 'am' : 'pm';
     const hr = i === 0 ? 12 : i > 12 ? i - 12 : i;
     const label = `${hr}:00 ${ampm}`;
-    startSel.innerHTML += `<option value="${i}" ${i===20?'selected':''}>${label}</option>`;
-    endSel.innerHTML += `<option value="${i}" ${i===6?'selected':''}>${label}</option>`;
+    startSel.innerHTML += `<option value="${i}" ${i === 20 ? 'selected' : ''}>${label}</option>`;
+    endSel.innerHTML += `<option value="${i}" ${i === 6 ? 'selected' : ''}>${label}</option>`;
   }
 
   updateLastSyncLabel();
@@ -865,8 +835,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 function updateFreeHours() {
-  freeStartHour = parseInt(document.getElementById('free-start').value);
-  freeEndHour = parseInt(document.getElementById('free-end').value);
+  freeStartHour = parseInt(document.getElementById('free-start').value, 10);
+  freeEndHour = parseInt(document.getElementById('free-end').value, 10);
   if (readings.size > 0) renderAll();
 }
 
@@ -879,7 +849,7 @@ async function parseFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
   if (ext === 'xml') return parseXML(await file.text());
   if (ext === 'xlsx') return parseXLSX(file);
-  
+
   if (ext === 'csv' || ext === 'txt' || ext === '') {
     const text = await file.text();
     return parseCSV(text, file.name);
@@ -889,7 +859,7 @@ async function parseFile(file) {
     const text = await file.text();
     if (text.includes('IntervalBlock') || text.includes('espi')) return parseXML(text);
     return parseCSV(text, file.name);
-  } catch(e) {
+  } catch (e) {
     throw new Error('Could not parse file: ' + file.name);
   }
 }
@@ -902,20 +872,14 @@ function parseXML(text) {
 
   const blocks = doc.getElementsByTagNameNS(ns, 'IntervalBlock');
   for (const block of blocks) {
-    const blockStartEl = block.querySelector('interval > start');
-    if (!blockStartEl) continue;
-    const blockStartEpoch = parseInt(blockStartEl.textContent);
-    const blockDate = new Date(blockStartEpoch * 1000);
-    const dateStr = toLocalDateStr(blockDate);
-
     const intervalReadings = block.getElementsByTagNameNS(ns, 'IntervalReading');
     const seenTimes = new Set();
     for (const ir of intervalReadings) {
       const startEl = ir.querySelector('timePeriod > start');
       const valEl = ir.querySelector('value');
       if (!startEl || !valEl) continue;
-      const epoch = parseInt(startEl.textContent);
-      const wh = parseInt(valEl.textContent);
+      const epoch = parseInt(startEl.textContent, 10);
+      const wh = parseInt(valEl.textContent, 10);
       const dt = new Date(epoch * 1000);
       const timeKey = epoch.toString();
       if (seenTimes.has(timeKey)) continue;
@@ -926,7 +890,7 @@ function parseXML(text) {
       result.get(readingDate).push({ time: timeStr, epoch, kwh: wh / 1000 });
     }
   }
-  for (const [, arr] of result) arr.sort((a,b) => a.epoch - b.epoch);
+  for (const [, arr] of result) arr.sort((a, b) => a.epoch - b.epoch);
   return result;
 }
 
@@ -943,7 +907,9 @@ async function parseXLSX(file) {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
         resolve(parseXLSXRows(rows, file.name));
-      } catch(err) { reject(err); }
+      } catch (err) {
+        reject(err);
+      }
     };
     reader.onerror = () => reject(new Error('File read error'));
     reader.readAsArrayBuffer(file);
@@ -952,7 +918,7 @@ async function parseXLSX(file) {
 
 function parseXLSXRows(rows, filename) {
   const result = new Map();
-  const header = rows[0] ? rows[0].map(h => String(h||'').replace(/['"]/g,'').trim().toLowerCase()) : [];
+  const header = rows[0] ? rows[0].map(h => String(h || '').replace(/['"]/g, '').trim().toLowerCase()) : [];
   const isVariantB = header.some(h => h === 'usage_date' || h === 'usage_kwh');
 
   if (isVariantB) {
@@ -960,7 +926,7 @@ function parseXLSXRows(rows, filename) {
     return parseCSV(text, filename);
   }
 
-  const timeStartIdx   = header.findIndex(h => h.includes('start'));
+  const timeStartIdx = header.findIndex(h => h.includes('start'));
   const consumptionIdx = header.findIndex(h => h.includes('consumption'));
   if (timeStartIdx < 0 || consumptionIdx < 0) {
     throw new Error('XLSX columns not recognised. Found: ' + header.join(', '));
@@ -971,7 +937,7 @@ function parseXLSXRows(rows, filename) {
   const dateMatch = filename.match(/(\d{8})/);
   if (dateMatch) {
     const d = dateMatch[1];
-    fallbackDate = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8);
+    fallbackDate = d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8);
   }
 
   for (let i = 1; i < rows.length; i++) {
@@ -983,21 +949,21 @@ function parseXLSXRows(rows, filename) {
 
     const tMatch = timeRaw.match(/(\d+):(\d+)\s*(am|pm)/i);
     if (!tMatch) continue;
-    let h = parseInt(tMatch[1]);
-    const m = parseInt(tMatch[2]);
+    let h = parseInt(tMatch[1], 10);
+    const m = parseInt(tMatch[2], 10);
     const ampm = tMatch[3].toLowerCase();
     if (ampm === 'pm' && h !== 12) h += 12;
     if (ampm === 'am' && h === 12) h = 0;
-    const timeStr = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+    const timeStr = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 
     let dateStr = fallbackDate;
     if (dateColIdx >= 0 && row[dateColIdx]) {
       const raw = String(row[dateColIdx]);
       const dm = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/);
       if (dm) dateStr = dm[3] + '-' + dm[1] + '-' + dm[2];
-      else if (raw.match(/^\d{4}-\d{2}-\d{2}/)) dateStr = raw.slice(0,10);
+      else if (/^\d{4}-\d{2}-\d{2}/.test(raw)) dateStr = raw.slice(0, 10);
     }
-    if (!dateStr) dateStr = new Date().toISOString().slice(0,10);
+    if (!dateStr) dateStr = new Date().toISOString().slice(0, 10);
 
     if (!result.has(dateStr)) result.set(dateStr, []);
     result.get(dateStr).push({ time: timeStr, kwh });
@@ -1007,7 +973,8 @@ function parseXLSXRows(rows, filename) {
 
 function splitCSVLine(line) {
   const result = [];
-  let cur = '', inQuote = false;
+  let cur = '';
+  let inQuote = false;
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (ch === '"' || ch === "'") { inQuote = !inQuote; continue; }
@@ -1023,14 +990,14 @@ function parseCSV(text, filename) {
   if (lines.length < 2) return new Map();
 
   const header = splitCSVLine(lines[0]).map(h => h.toLowerCase());
-  const dateIdx  = header.findIndex(h => h === 'usage_date');
+  const dateIdx = header.findIndex(h => h === 'usage_date');
   const startIdx = header.findIndex(h => h === 'usage_start_time');
-  const kwhIdx   = header.findIndex(h => h === 'usage_kwh');
-  const typeIdx  = header.findIndex(h => h === 'consumption_surplusgeneration');
+  const kwhIdx = header.findIndex(h => h === 'usage_kwh');
+  const typeIdx = header.findIndex(h => h === 'consumption_surplusgeneration');
 
-  const safeDateIdx  = dateIdx  >= 0 ? dateIdx  : header.findIndex(h => h.includes('date'));
+  const safeDateIdx = dateIdx >= 0 ? dateIdx : header.findIndex(h => h.includes('date'));
   const safeStartIdx = startIdx >= 0 ? startIdx : header.findIndex(h => h.includes('start'));
-  const safeKwhIdx   = kwhIdx   >= 0 ? kwhIdx   : header.findIndex(h => h.includes('kwh'));
+  const safeKwhIdx = kwhIdx >= 0 ? kwhIdx : header.findIndex(h => h.includes('kwh'));
 
   if (safeStartIdx < 0 || safeKwhIdx < 0) {
     throw new Error('CSV columns not recognised. Found: ' + header.join(', '));
@@ -1051,7 +1018,7 @@ function parseCSV(text, filename) {
     const timeRaw = (cells[safeStartIdx] || '').trim();
     const tMatch = timeRaw.match(/^(\d{1,2}):(\d{2})/);
     if (!tMatch) continue;
-    const timeStr = String(parseInt(tMatch[1])).padStart(2,'0') + ':' + tMatch[2];
+    const timeStr = String(parseInt(tMatch[1], 10)).padStart(2, '0') + ':' + tMatch[2];
 
     let dateStr = null;
     if (safeDateIdx >= 0 && cells[safeDateIdx]) {
@@ -1060,12 +1027,15 @@ function parseCSV(text, filename) {
     }
     if (!dateStr) {
       const fm = filename.match(/(\d{8})/);
-      if (fm) { const d = fm[1]; dateStr = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8); }
+      if (fm) {
+        const d = fm[1];
+        dateStr = d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8);
+      }
     }
-    if (!dateStr) dateStr = new Date().toISOString().slice(0,10);
+    if (!dateStr) dateStr = new Date().toISOString().slice(0, 10);
 
     if (!result.has(dateStr)) result.set(dateStr, []);
-    result.get(dateStr).push({ time: timeStr, kwh: kwh });
+    result.get(dateStr).push({ time: timeStr, kwh });
   }
 
   return result;
@@ -1085,8 +1055,8 @@ function toLocalTimeStr(dt) {
 
 function isDST(dt) {
   const year = dt.getUTCFullYear();
-  const dstStart = getNthSundayUTC(year, 2, 2); 
-  const dstEnd = getNthSundayUTC(year, 10, 1);  
+  const dstStart = getNthSundayUTC(year, 2, 2);
+  const dstEnd = getNthSundayUTC(year, 10, 1);
   return dt >= dstStart && dt < dstEnd;
 }
 
@@ -1099,27 +1069,28 @@ function getNthSundayUTC(year, month, n) {
     if (sundays === n) return d;
     d = new Date(d.getTime() + 86400000);
   }
-  return d; 
+  return d;
 }
 
 function to12hr(timeStr) {
   const [hh, mm] = timeStr.split(':').map(Number);
   const ampm = hh < 12 ? 'am' : 'pm';
-  const hr   = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
-  return mm === 0 ? `${hr}${ampm}` : `${hr}:${String(mm).padStart(2,'0')}${ampm}`;
+  const hr = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+  return mm === 0 ? `${hr}${ampm}` : `${hr}:${String(mm).padStart(2, '0')}${ampm}`;
 }
 
 function fmtDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m-1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 function dayOfWeek(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m-1, d).toLocaleDateString('en-US', { weekday: 'long' });
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long' });
 }
 
 function renderAll() {
+  document.getElementById('empty-state').style.display = 'none';
   document.getElementById('stats-row').style.display = 'grid';
   document.getElementById('section-tabs').style.display = 'flex';
   ['tab-daily','tab-hourly','tab-weekly','tab-monthly','tab-table'].forEach(id => {
@@ -1133,8 +1104,6 @@ function renderAll() {
   renderDailyChart(sortedDays);
   renderDetailChart(sortedDays, currentDayIndex);
   renderDaySelect(sortedDays);
-  renderHourlyProfile(sortedDays);
-  renderDayNight(sortedDays);
   renderHourlyTable(sortedDays);
   renderWeekly(sortedDays);
   renderDOW(sortedDays);
@@ -1148,7 +1117,7 @@ function renderStats(days) {
   let totalKwh = 0, peakKwh = 0, peakTime = '', peakDate = '';
   for (const day of days) {
     const intervals = readings.get(day);
-    const dayTotal = intervals.reduce((s,r) => s + r.kwh, 0);
+    const dayTotal = intervals.reduce((s, r) => s + r.kwh, 0);
     totalKwh += dayTotal;
     for (const r of intervals) {
       if (r.kwh > peakKwh) {
@@ -1159,25 +1128,15 @@ function renderStats(days) {
     }
   }
   const avg = totalKwh / days.length;
-  
-  const last7Days = days.slice(-7);
-  let last7Total = 0;
-  for (const d of last7Days) {
-    last7Total += readings.get(d).reduce((s,r) => s+r.kwh, 0);
-  }
-  const projected = last7Days.length > 0 ? (last7Total / last7Days.length) : 0;
-
-  // Weekly average: total kWh / number of complete 7-day weeks
-  // If < 7 days loaded, show daily avg × 7 as an estimate
   const weeklyAvg = days.length >= 7 ? (totalKwh / days.length) * 7 : avg * 7;
-  const weekCount  = days.length >= 7 ? Math.round(days.length / 7 * 10) / 10 : null;
+  const weekCount = days.length >= 7 ? Math.round(days.length / 7 * 10) / 10 : null;
 
   document.getElementById('stat-total').innerHTML = totalKwh.toFixed(1) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-days').textContent = days.length;
   document.getElementById('stat-avg').innerHTML = avg.toFixed(1) + '<span class="stat-unit">kWh</span>';
   document.getElementById('stat-peak').innerHTML = peakKwh.toFixed(3) + '<span class="stat-unit">kWh</span>';
-  document.getElementById('stat-days-span').textContent = `total across ${days.length} day${days.length!==1?'s':''}`;
-  document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])} – ${fmtDate(days[days.length-1])}` : fmtDate(days[0]);
+  document.getElementById('stat-days-span').textContent = `total across ${days.length} day${days.length !== 1 ? 's' : ''}`;
+  document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])} – ${fmtDate(days[days.length - 1])}` : fmtDate(days[0]);
   document.getElementById('stat-peak-time').textContent = `${peakDate} at ${peakTime}`;
 
   document.getElementById('stat-weekly-avg').innerHTML = weeklyAvg.toFixed(1) + '<span class="stat-unit">kWh</span>';
@@ -1187,20 +1146,20 @@ function renderStats(days) {
 }
 
 function updateHeaderMeta(days) {
-  const total = [...readings.values()].flat().reduce((s,r) => s+r.kwh, 0);
+  const total = [...readings.values()].flat().reduce((s, r) => s + r.kwh, 0);
   document.getElementById('header-meta').textContent =
-    `${days.length} day${days.length!==1?'s':''} loaded  ·  ${total.toFixed(1)} kWh total  ·  SMT data`;
+    `${days.length} day${days.length !== 1 ? 's' : ''} loaded  ·  ${total.toFixed(1)} kWh total  ·  SMT data`;
 }
 
 function renderDailyChart(days) {
   const labels = days.map(d => fmtDate(d));
   const freeData = [];
   const paidData = [];
-  
+
   days.forEach(d => {
     let f = 0, p = 0;
     readings.get(d).forEach(r => {
-      const h = parseInt(r.time.split(':')[0]);
+      const h = parseInt(r.time.split(':')[0], 10);
       if (isFreeHour(h)) f += r.kwh; else p += r.kwh;
     });
     freeData.push(f);
@@ -1232,14 +1191,17 @@ function renderDailyChart(days) {
         }
       ]
     },
-    options: chartOptions({ yLabel: 'kWh', onClick: (_, elements) => {
-      if (elements.length > 0) {
-        const liveDays = [...readings.keys()].sort();
-        currentDayIndex = elements[0].index;
-        renderDetailChart(liveDays, currentDayIndex);
-        renderDaySelect(liveDays);
+    options: chartOptions({
+      yLabel: 'kWh',
+      onClick: (_, elements) => {
+        if (elements.length > 0) {
+          const liveDays = [...readings.keys()].sort();
+          currentDayIndex = elements[0].index;
+          renderDetailChart(liveDays, currentDayIndex);
+          renderDaySelect(liveDays);
+        }
       }
-    }})
+    })
   });
 }
 
@@ -1251,23 +1213,23 @@ function renderDetailChart(days, idx) {
   document.getElementById('detail-date-label').textContent = fmtDate(day);
 
   const labels = intervals.map(r => {
-    const h = parseInt(r.time.split(':')[0]);
+    const h = parseInt(r.time.split(':')[0], 10);
     const min = r.time.split(':')[1];
     let label = to12hr(r.time);
-    if (h === freeStartHour && min === "00") label = "🟢 " + label;
-    if (h === freeEndHour && min === "00") label = "🔴 " + label;
+    if (h === freeStartHour && min === '00') label = '🟢 ' + label;
+    if (h === freeEndHour && min === '00') label = '🔴 ' + label;
     return label;
   });
-  
+
   const data = intervals.map(r => r.kwh);
   const colors = intervals.map(r => {
-    const h = parseInt(r.time.split(':')[0]);
+    const h = parseInt(r.time.split(':')[0], 10);
     const isFree = isFreeHour(h);
     if (r.kwh >= 0.5) return 'rgba(248,81,73,0.85)';
     return isFree ? 'rgba(88,166,255,0.7)' : 'rgba(240,165,0,0.7)';
   });
   const borderColors = intervals.map(r => {
-    const h = parseInt(r.time.split(':')[0]);
+    const h = parseInt(r.time.split(':')[0], 10);
     const isFree = isFreeHour(h);
     if (r.kwh >= 0.5) return 'rgba(248,81,73,1)';
     return isFree ? 'rgba(88,166,255,1)' : 'rgba(240,165,0,1)';
@@ -1304,7 +1266,7 @@ function renderDetailChart(days, idx) {
           titleFont: { family: 'DM Mono', size: 11 },
           bodyFont: { family: 'DM Mono', size: 11 },
           callbacks: {
-            label: ctx => ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y*4).toFixed(2)} kWh/hr)`,
+            label: ctx => ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y * 4).toFixed(2)} kWh/hr)`,
             title: items => items.length ? [items[0].label] : []
           }
         }
@@ -1316,7 +1278,7 @@ function renderDetailChart(days, idx) {
 function renderHourlyTable(days) {
   const thead = document.getElementById('hourly-table-head');
   let headHtml = '<th>Date</th>';
-  for(let i=0; i<24; i++) {
+  for (let i = 0; i < 24; i++) {
     const hr = i === 0 ? 12 : i > 12 ? i - 12 : i;
     const ampm = i < 12 ? 'am' : 'pm';
     headHtml += `<th>${hr}${ampm}</th>`;
@@ -1328,7 +1290,7 @@ function renderHourlyTable(days) {
   for (const day of [...days].reverse()) {
     const hourTotals = Array(24).fill(0);
     readings.get(day).forEach(r => {
-      const h = parseInt(r.time.split(':')[0]);
+      const h = parseInt(r.time.split(':')[0], 10);
       hourTotals[h] += r.kwh;
     });
     let rowHtml = `<td>${fmtDate(day)}</td>`;
@@ -1343,98 +1305,17 @@ function renderHourlyTable(days) {
   tbody.innerHTML = rows.join('');
 }
 
-// Hourly profile chart (Average Load Profile)
-function renderHourlyProfile(days) {
-  const hourTotals = Array(24).fill(0).map(() => []);
-  for (const day of days) {
-    for (const r of readings.get(day)) {
-      const h = parseInt(r.time.split(':')[0]);
-      hourTotals[h].push(r.kwh);
-    }
-  }
-  const labels = Array.from({length:24}, (_,h) => {
-    const ampm = h < 12 ? 'am' : 'pm';
-    const hr = h === 0 ? 12 : h > 12 ? h-12 : h;
-    return `${hr}${ampm}`;
-  });
-  const avgs = hourTotals.map(arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0);
-  const maxs = hourTotals.map(arr => arr.length ? Math.max(...arr) : 0);
-
-  destroyChart('chart-hourly');
-  const ctx = document.getElementById('chart-hourly');
-  if (!ctx) return;
-  charts['chart-hourly'] = new Chart(ctx.getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Avg kWh/hr',
-          data: avgs.map(v => +(v*4).toFixed(3)),
-          backgroundColor: avgs.map((_, h) => isFreeHour(h) ? 'rgba(88,166,255,0.7)' : 'rgba(240,165,0,0.65)'),
-          borderColor:     avgs.map((_, h) => isFreeHour(h) ? 'rgba(88,166,255,1)'   : 'rgba(240,165,0,1)'),
-          borderWidth: 1, borderRadius: 3, order: 2
-        },
-        {
-          label: 'Max kWh/hr',
-          data: maxs.map(v => +(v*4).toFixed(3)),
-          type: 'line',
-          borderColor: 'rgba(248,81,73,0.5)',
-          backgroundColor: 'transparent',
-          pointRadius: 2, borderWidth: 1.5, order: 1
-        }
-      ]
-    },
-    options: chartOptions({ yLabel: 'kWh/hr' })
-  });
-}
-
-// Day vs Free Night donut
-function renderDayNight(days) {
-  let dayKwh = 0, nightKwh = 0;
-  for (const day of days) {
-    for (const r of readings.get(day)) {
-      const h = parseInt(r.time.split(':')[0]);
-      if (isFreeHour(h)) nightKwh += r.kwh;
-      else dayKwh += r.kwh;
-    }
-  }
-  destroyChart('chart-daynight');
-  const ctx = document.getElementById('chart-daynight');
-  if (!ctx) return;
-  charts['chart-daynight'] = new Chart(ctx.getContext('2d'), {
-    type: 'doughnut',
-    data: {
-      labels: [
-        'Day (paid): ' + dayKwh.toFixed(1) + ' kWh',
-        'Free Night: ' + nightKwh.toFixed(1) + ' kWh'
-      ],
-      datasets: [{
-        data: [dayKwh, nightKwh],
-        backgroundColor: ['rgba(240,165,0,0.75)', 'rgba(88,166,255,0.75)'],
-        borderColor:     ['rgba(240,165,0,1)',     'rgba(88,166,255,1)'],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      plugins: {
-        legend: { position: 'bottom', labels: { color: '#7d8590', font: { family: 'DM Mono', size: 11 }, boxWidth: 12 } }
-      },
-      cutout: '60%'
-    }
-  });
-}
-
 function renderWeekly(days) {
   const weeks = {};
   for (const day of days) {
     const [y, m, d] = day.split('-').map(Number);
-    const dt = new Date(y, m-1, d);
-    const dow = dt.getDay(); 
-    const weekStart = new Date(dt); weekStart.setDate(d - dow);
-    const wk = weekStart.getFullYear() + '-' + String(weekStart.getMonth()+1).padStart(2,'0') + '-' + String(weekStart.getDate()).padStart(2,'0');
+    const dt = new Date(y, m - 1, d);
+    const dow = dt.getDay();
+    const weekStart = new Date(dt);
+    weekStart.setDate(d - dow);
+    const wk = weekStart.getFullYear() + '-' + String(weekStart.getMonth() + 1).padStart(2, '0') + '-' + String(weekStart.getDate()).padStart(2, '0');
     if (!weeks[wk]) weeks[wk] = 0;
-    weeks[wk] += readings.get(day).reduce((s,r) => s+r.kwh, 0);
+    weeks[wk] += readings.get(day).reduce((s, r) => s + r.kwh, 0);
   }
   const wkKeys = Object.keys(weeks).sort();
   const labels = wkKeys.map(d => 'Wk of ' + fmtDate(d));
@@ -1463,12 +1344,12 @@ function renderDOW(days) {
   const dowBuckets = Array(7).fill(null).map(() => []);
   for (const day of days) {
     const [y, m, d] = day.split('-').map(Number);
-    const dow = new Date(y, m-1, d).getDay();
-    const total = readings.get(day).reduce((s,r) => s+r.kwh, 0);
+    const dow = new Date(y, m - 1, d).getDay();
+    const total = readings.get(day).reduce((s, r) => s + r.kwh, 0);
     dowBuckets[dow].push(total);
   }
   const dowLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const avgs = dowBuckets.map(arr => arr.length ? +(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2) : null);
+  const avgs = dowBuckets.map(arr => arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : null);
 
   destroyChart('chart-dow');
   const ctx = document.getElementById('chart-dow').getContext('2d');
@@ -1479,8 +1360,8 @@ function renderDOW(days) {
       datasets: [{
         label: 'Avg kWh',
         data: avgs,
-        backgroundColor: avgs.map((v,i) => i===0||i===6 ? 'rgba(240,165,0,0.65)' : 'rgba(88,166,255,0.55)'),
-        borderColor: avgs.map((v,i) => i===0||i===6 ? 'rgba(240,165,0,1)' : 'rgba(88,166,255,0.8)'),
+        backgroundColor: avgs.map((v, i) => i === 0 || i === 6 ? 'rgba(240,165,0,0.65)' : 'rgba(88,166,255,0.55)'),
+        borderColor: avgs.map((v, i) => i === 0 || i === 6 ? 'rgba(240,165,0,1)' : 'rgba(88,166,255,0.8)'),
         borderWidth: 1,
         borderRadius: 4
       }]
@@ -1489,48 +1370,48 @@ function renderDOW(days) {
   });
 }
 
-// Week-over-week comparison table
 function renderWeeklyCompare(days) {
   const weeks = {};
   for (const day of days) {
     const [y, m, d] = day.split('-').map(Number);
-    const dt  = new Date(y, m-1, d);
+    const dt  = new Date(y, m - 1, d);
     const dow = dt.getDay();
-    const sun = new Date(dt); sun.setDate(d - dow);
-    const wk  = sun.getFullYear() + '-' +
-                String(sun.getMonth()+1).padStart(2,'0') + '-' +
-                String(sun.getDate()).padStart(2,'0');
-    if (!weeks[wk]) weeks[wk] = { total:0, dayKwh:0, nightKwh:0, dayCount:0 };
+    const sun = new Date(dt);
+    sun.setDate(d - dow);
+    const wk = sun.getFullYear() + '-' +
+      String(sun.getMonth() + 1).padStart(2, '0') + '-' +
+      String(sun.getDate()).padStart(2, '0');
+
+    if (!weeks[wk]) weeks[wk] = { total: 0, dayKwh: 0, nightKwh: 0, dayCount: 0 };
     weeks[wk].dayCount++;
     (readings.get(day) || []).forEach(r => {
-      const h = parseInt(r.time.split(':')[0]);
+      const h = parseInt(r.time.split(':')[0], 10);
       weeks[wk].total += r.kwh;
       if (isFreeHour(h)) weeks[wk].nightKwh += r.kwh;
-      else               weeks[wk].dayKwh   += r.kwh;
+      else weeks[wk].dayKwh += r.kwh;
     });
   }
 
   const wkKeys = Object.keys(weeks).sort();
-  const tbody  = document.getElementById('weekly-compare-body');
+  const tbody = document.getElementById('weekly-compare-body');
   if (!tbody) return;
   const rows = [];
 
   wkKeys.forEach((wk, i) => {
-    const w    = weeks[wk];
-    const prev = i > 0 ? weeks[wkKeys[i-1]] : null;
-    const avg  = w.dayCount > 0 ? w.total / w.dayCount : 0;
+    const w = weeks[wk];
+    const prev = i > 0 ? weeks[wkKeys[i - 1]] : null;
+    const avg = w.dayCount > 0 ? w.total / w.dayCount : 0;
 
     let changeHtml = '<span style="color:var(--muted)">—</span>';
     if (prev && prev.total > 0) {
-      const pct   = ((w.total - prev.total) / prev.total * 100);
-      const sign  = pct >= 0 ? '+' : '';
-      const color = pct > 5  ? 'var(--danger)' :
-                    pct < -5 ? 'var(--accent2)' : 'var(--muted)';
-      changeHtml  = '<span style="color:' + color + '">' + sign + pct.toFixed(1) + '%</span>';
+      const pct = ((w.total - prev.total) / prev.total * 100);
+      const sign = pct >= 0 ? '+' : '';
+      const color = pct > 5 ? 'var(--danger)' : pct < -5 ? 'var(--accent2)' : 'var(--muted)';
+      changeHtml = '<span style="color:' + color + '">' + sign + pct.toFixed(1) + '%</span>';
     }
 
     const [y, m, d] = wk.split('-').map(Number);
-    const label = new Date(y, m-1, d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    const label = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const totalCls = w.total > 200 ? 'val-high' : w.total > 120 ? 'val-mid' : 'val-low';
 
     rows.push('<tr>' +
@@ -1547,7 +1428,6 @@ function renderWeeklyCompare(days) {
   tbody.innerHTML = rows.reverse().join('');
 }
 
-
 function renderMonthly(days) {
   const months = {};
   for (const day of days) {
@@ -1556,7 +1436,7 @@ function renderMonthly(days) {
     const intervals = readings.get(day) || [];
     months[monthKey].dayCount++;
     for (const r of intervals) {
-      const h = parseInt(r.time.split(':')[0]);
+      const h = parseInt(r.time.split(':')[0], 10);
       months[monthKey].total += r.kwh;
       if (!isFreeHour(h)) months[monthKey].dayKwh += r.kwh;
       else months[monthKey].nightKwh += r.kwh;
@@ -1623,15 +1503,28 @@ function renderMonthly(days) {
           labels: { color: '#7d8590', font: { family: 'DM Mono', size: 11 }, boxWidth: 12 }
         },
         tooltip: {
-          backgroundColor: '#1c2430', borderColor: '#21262d', borderWidth: 1,
-          titleColor: '#e6edf3', bodyColor: '#7d8590',
+          backgroundColor: '#1c2430',
+          borderColor: '#21262d',
+          borderWidth: 1,
+          titleColor: '#e6edf3',
+          bodyColor: '#7d8590',
           titleFont: { family: 'DM Mono', size: 11 },
           bodyFont:  { family: 'DM Mono', size: 11 },
         }
       },
       scales: {
-        x: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } } },
-        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } }, beginAtZero: true, title: { display: true, text: 'kWh', color: '#7d8590', font: { family: 'DM Mono', size: 10 } } }
+        x: {
+          stacked: true,
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } }
+        },
+        y: {
+          stacked: true,
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } },
+          beginAtZero: true,
+          title: { display: true, text: 'kWh', color: '#7d8590', font: { family: 'DM Mono', size: 10 } }
+        }
       }
     }
   });
@@ -1658,14 +1551,13 @@ function renderMonthly(days) {
   tbody.innerHTML = rows.join('');
 }
 
-
 function renderTable(days) {
   const tbody = document.getElementById('table-body');
   const rows = [];
   for (const day of [...days].reverse()) {
     const intervals = readings.get(day);
     if (!intervals || intervals.length === 0) continue;
-    const total = intervals.reduce((s,r) => s+r.kwh, 0);
+    const total = intervals.reduce((s, r) => s + r.kwh, 0);
     const peak = Math.max(...intervals.map(r => r.kwh));
     const peakInterval = intervals.find(r => r.kwh === peak);
     const cls = total > 30 ? 'val-high' : total > 20 ? 'val-mid' : 'val-low';
@@ -1701,21 +1593,24 @@ function selectDay(dateStr) {
 
 function shiftDay(dir) {
   const days = [...readings.keys()].sort();
-  currentDayIndex = Math.max(0, Math.min(days.length-1, currentDayIndex + dir));
+  currentDayIndex = Math.max(0, Math.min(days.length - 1, currentDayIndex + dir));
   renderDetailChart(days, currentDayIndex);
   document.getElementById('day-select').value = days[currentDayIndex];
 }
 
 function showTab(name, btn) {
   ['daily','hourly','weekly','monthly','table'].forEach(t => {
-    document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
+    document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
   });
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
 }
 
 function destroyChart(id) {
-  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  if (charts[id]) {
+    charts[id].destroy();
+    delete charts[id];
+  }
 }
 
 function chartOptions({ yLabel = '', onClick = null } = {}) {
@@ -1766,8 +1661,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
   const nextLoadedFiles = forceRefresh ? [] : [...loadedFiles];
 
   try {
-    const listUrl = `https://www.googleapis.com/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,modifiedTime)&key=${DRIVE_API_KEY}&orderBy=name&pageSize=1000`;
-    const listRes = await fetch(listUrl);
+    const listRes = await fetch('/api/drive-list');
     if (!listRes.ok) throw new Error(`Drive API error: ${listRes.status} ${listRes.statusText}`);
     const listData = await listRes.json();
 
@@ -1796,7 +1690,9 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
 
     status.textContent = `Found ${smtFiles.length} file(s) — downloading…`;
 
-    let loaded = 0, skipped = 0;
+    let loaded = 0;
+    let skipped = 0;
+
     for (const driveFile of smtFiles) {
       if (!forceRefresh && nextLoadedFiles.find(f => f.name === driveFile.name)) {
         skipped++;
@@ -1805,12 +1701,10 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
 
       status.textContent = `Downloading ${driveFile.name}…`;
 
-      let downloadUrl;
-      if (driveFile.mimeType === 'application/vnd.google-apps.spreadsheet') {
-        downloadUrl = `https://www.googleapis.com/drive/v3/files/${driveFile.id}/export?mimeType=text/csv&key=${DRIVE_API_KEY}`;
-      } else {
-        downloadUrl = `https://www.googleapis.com/drive/v3/files/${driveFile.id}?alt=media&key=${DRIVE_API_KEY}`;
-      }
+      const isGoogleSheet = driveFile.mimeType === 'application/vnd.google-apps.spreadsheet';
+      const downloadUrl = isGoogleSheet
+        ? `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&exportCsv=1`
+        : `/api/drive-file?id=${encodeURIComponent(driveFile.id)}`;
 
       const fileRes = await fetch(downloadUrl);
       if (!fileRes.ok) {
@@ -1820,7 +1714,11 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
 
       const blob = await fileRes.blob();
       const ext = driveFile.name.split('.').pop().toLowerCase();
-      const mimeMap = { xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv', xml: 'application/xml' };
+      const mimeMap = {
+        xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        csv: 'text/csv',
+        xml: 'application/xml'
+      };
       const file = new File([blob], driveFile.name, { type: mimeMap[ext] || 'application/octet-stream' });
 
       try {
@@ -1838,7 +1736,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
         }
         nextLoadedFiles.push(file);
         loaded++;
-      } catch(err) {
+      } catch (err) {
         showToast('Parse error: ' + file.name, 'error');
       }
     }
@@ -1881,6 +1779,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
           : 'No new valid data files were loaded — showing previously loaded data';
       } else {
         clearDashboard();
+        document.getElementById('empty-state').style.display = 'flex';
         status.className = 'drive-status err';
         status.textContent = forceRefresh
           ? 'No valid data files were loaded from Drive'
@@ -1888,10 +1787,15 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       }
     }
 
-  } catch(err) {
+  } catch (err) {
     readings = previousReadings;
     loadedFiles = previousLoadedFiles;
-    if (readings.size > 0) renderAll();
+    if (readings.size > 0) {
+      renderAll();
+    } else {
+      clearDashboard();
+      document.getElementById('empty-state').style.display = 'flex';
+    }
     status.className = 'drive-status err';
     status.textContent = hadExistingData
       ? 'Drive sync failed — showing previously loaded data'
@@ -1931,7 +1835,7 @@ function renderSolarStats() {
 }
 
 let toastTimer;
-function showToast(msg, type='') {
+function showToast(msg, type = '') {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast show ' + type;
