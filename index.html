@@ -6,7 +6,6 @@
 <title>Home Energy Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.complete.min.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -136,6 +135,7 @@
     border-radius: 10px;
     padding: 16px;
     animation: fadeUp 0.4s ease both;
+    cursor: grab;
   }
   .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
   .stat-value { font-family: var(--font-display); font-size: clamp(20px, 3vw, 28px); font-weight: 700; line-height: 1; }
@@ -152,6 +152,7 @@
   .stat-card.dragging {
     opacity: 0.6;
     border-color: var(--accent3);
+    cursor: grabbing;
   }
   .stat-card.drop-ghost {
     border-color: var(--accent3);
@@ -725,7 +726,7 @@ const AUTO_SYNC_INTERVAL_HOURS = 6;
 const ALERT_THRESHOLDS = { weekPct: 10, dayPct: 15, monthPct: 10 };
 const STATS_CARD_ORDER_KEY = 'dashboardStatsOrderV1';
 const MAX_STATS_CARDS = 10;
-let statsSortable = null;
+let draggingStatCard = null;
 
 async function requireAuth() {
   try {
@@ -869,6 +870,56 @@ function saveStatsCardOrder(statsRow) {
   localStorage.setItem(STATS_CARD_ORDER_KEY, JSON.stringify(order));
 }
 
+function swapStatCards(cardA, cardB) {
+  if (!cardA || !cardB || cardA === cardB) return;
+  const parent = cardA.parentNode;
+  if (!parent || parent !== cardB.parentNode) return;
+
+  const aNext = cardA.nextSibling === cardB ? cardA : cardA.nextSibling;
+  parent.insertBefore(cardA, cardB);
+  parent.insertBefore(cardB, aNext);
+}
+
+function clearStatCardDropStates(statsRow) {
+  statsRow.querySelectorAll('.stat-card.drop-ghost').forEach(card => card.classList.remove('drop-ghost'));
+}
+
+function onStatCardDragStart(event) {
+  draggingStatCard = event.currentTarget;
+  draggingStatCard.classList.add('dragging');
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', draggingStatCard.dataset.cardId || '');
+}
+
+function onStatCardDragOver(event) {
+  if (!draggingStatCard) return;
+  const target = event.currentTarget;
+  if (target === draggingStatCard) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  target.classList.add('drop-ghost');
+}
+
+function onStatCardDragLeave(event) {
+  event.currentTarget.classList.remove('drop-ghost');
+}
+
+function onStatCardDrop(event) {
+  event.preventDefault();
+  const target = event.currentTarget;
+  target.classList.remove('drop-ghost');
+  if (!draggingStatCard || target === draggingStatCard) return;
+  swapStatCards(draggingStatCard, target);
+  saveStatsCardOrder(target.parentNode);
+}
+
+function onStatCardDragEnd(event) {
+  const statsRow = document.getElementById('stats-row');
+  if (statsRow) clearStatCardDropStates(statsRow);
+  event.currentTarget.classList.remove('dragging');
+  draggingStatCard = null;
+}
+
 function initStatsCardLayout() {
   const statsRow = document.getElementById('stats-row');
   if (!statsRow) return;
@@ -876,18 +927,15 @@ function initStatsCardLayout() {
   const cards = Array.from(statsRow.querySelectorAll('.stat-card'));
   cards.slice(MAX_STATS_CARDS).forEach(card => card.remove());
   applySavedStatsCardOrder(statsRow);
-
-  if (!window.Sortable || statsSortable) return;
-  statsSortable = new Sortable(statsRow, {
-    animation: 150,
-    draggable: '.stat-card',
-    ghostClass: 'drop-ghost',
-    chosenClass: 'dragging',
-    swap: true,
-    swapClass: 'drop-ghost',
-    swapThreshold: 0.65,
-    invertSwap: true,
-    onEnd: () => saveStatsCardOrder(statsRow)
+  statsRow.querySelectorAll('.stat-card').forEach((card) => {
+    card.draggable = true;
+    if (card.dataset.dragInit === 'true') return;
+    card.dataset.dragInit = 'true';
+    card.addEventListener('dragstart', onStatCardDragStart);
+    card.addEventListener('dragover', onStatCardDragOver);
+    card.addEventListener('dragleave', onStatCardDragLeave);
+    card.addEventListener('drop', onStatCardDrop);
+    card.addEventListener('dragend', onStatCardDragEnd);
   });
 }
 
