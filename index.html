@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Home Energy Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -699,9 +699,9 @@ function getTodayKey() {
 
 function shouldAutoSync() {
   if (AUTO_SYNC_MODE === 'daily') {
-    return sessionStorage.getItem('lastSyncDate') !== getTodayKey();
+    return localStorage.getItem('lastSyncDate') !== getTodayKey();
   }
-  const last = sessionStorage.getItem('lastSyncTime');
+  const last = localStorage.getItem('lastSyncTime');
   if (!last) return true;
   const elapsed = Date.now() - parseInt(last, 10);
   const intervalMs = AUTO_SYNC_INTERVAL_HOURS * 60 * 60 * 1000;
@@ -709,14 +709,14 @@ function shouldAutoSync() {
 }
 
 function markSyncedNow() {
-  sessionStorage.setItem('lastSyncTime', Date.now().toString());
-  sessionStorage.setItem('lastSyncDate', getTodayKey());
+  localStorage.setItem('lastSyncTime', Date.now().toString());
+  localStorage.setItem('lastSyncDate', getTodayKey());
 }
 
 function updateLastSyncLabel() {
   const label = document.getElementById('last-sync-label');
   if (!label) return;
-  const last = sessionStorage.getItem('lastSyncTime');
+  const last = localStorage.getItem('lastSyncTime');
   if (!last) {
     label.textContent = 'Last sync: never';
     return;
@@ -1034,8 +1034,10 @@ function toLocalTimeStr(dt) {
 
 function isDST(dt) {
   const year = dt.getUTCFullYear();
-  const dstStart = getNthSundayUTC(year, 2, 2);
-  const dstEnd = getNthSundayUTC(year, 10, 1);
+  // DST starts 2nd Sunday of March at 2:00 AM CST (UTC-6) = 8:00 AM UTC
+  const dstStart = new Date(getNthSundayUTC(year, 2, 2).getTime() + 8 * 3600000);
+  // DST ends 1st Sunday of November at 2:00 AM CDT (UTC-5) = 7:00 AM UTC
+  const dstEnd = new Date(getNthSundayUTC(year, 10, 1).getTime() + 7 * 3600000);
   return dt >= dstStart && dt < dstEnd;
 }
 
@@ -1066,6 +1068,12 @@ function fmtDate(dateStr) {
 function dayOfWeek(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long' });
+}
+
+let _renderAllTimer = null;
+function renderAllDebounced() {
+  clearTimeout(_renderAllTimer);
+  _renderAllTimer = setTimeout(() => renderAll(), 50);
 }
 
 function renderAll() {
@@ -1705,7 +1713,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       currentDayIndex = 0;
 
       if (readings.size > 0) {
-        renderAll();
+        renderAllDebounced();
       } else {
         clearDashboard();
       }
@@ -1730,7 +1738,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       readings = previousReadings;
       loadedFiles = previousLoadedFiles;
       if (readings.size > 0) {
-        renderAll();
+        renderAllDebounced();
         status.className = 'drive-status err';
         status.textContent = forceRefresh
           ? 'No valid data files were loaded — showing previously loaded data'
@@ -1749,7 +1757,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
     readings = previousReadings;
     loadedFiles = previousLoadedFiles;
     if (readings.size > 0) {
-      renderAll();
+      renderAllDebounced();
     } else {
       clearDashboard();
       document.getElementById('empty-state').style.display = 'flex';
