@@ -542,7 +542,7 @@
     <div class="chart-panel">
       <div class="chart-header">
         <div class="chart-title">Daily Grid Consumption</div>
-        <div class="chart-note">Total kWh separated by Free and Paid periods</div>
+        <div class="chart-note">Previous week vs current week, side-by-side by day (stacked Free + Paid)</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
       <div class="legend">
@@ -711,6 +711,8 @@ let sigData   = new Map();
 let loadedFiles = [];
 let currentDayIndex = 0;
 let charts = {};
+let dailyChartDays = [];
+let dailyChartLookup = { previous: Array(7).fill(null), current: Array(7).fill(null) };
 let freeStartHour = 20;
 let freeEndHour = 6;
 const AUTO_SYNC_MODE = 'smart';
@@ -1155,10 +1157,12 @@ function formatAlertMessage(label, pct, threshold) {
 function formatComparisonCard(currentLabel, previousLabel, current, previous) {
   const result = buildComparison(current, previous);
   if (!result) return '—';
+  const sign = result.pct > 0 ? '+' : '';
+  const trendClass = result.pct > 0.1 ? 'stat-trend-up' : result.pct < -0.1 ? 'stat-trend-down' : 'stat-trend-flat';
   return `<div class="stat-compare-lines">
     <div class="stat-compare-line"><span>${currentLabel}:</span> ${current.toFixed(1)} kWh</div>
     <div class="stat-compare-line"><span>${previousLabel}:</span> ${previous.toFixed(1)} kWh</div>
-    <div>${result.html}</div>
+    <div class="${trendClass}">(${sign}${result.pct.toFixed(1)}%)</div>
   </div>`;
 }
 
@@ -1296,41 +1300,93 @@ function updateDataFreshness(days) {
 }
 
 function renderDailyChart(days) {
-  const labels = days.map(d => fmtDate(d));
-  const freeData = [];
-  const paidData = [];
-  days.forEach(d => {
+  if (!days || days.length === 0) return;
+  const latestDay = days[days.length - 1];
+  const latestDate = parseDateKey(latestDay);
+  const latestDow = latestDate.getDay();
+  const currentWeekStart = new Date(latestDate);
+  currentWeekStart.setDate(latestDate.getDate() - latestDow);
+  const previousWeekStart = new Date(currentWeekStart);
+  previousWeekStart.setDate(currentWeekStart.getDate() - 7);
+  const chartDays = days.filter(day => parseDateKey(day) >= previousWeekStart);
+  dailyChartDays = chartDays;
+  dailyChartLookup = { previous: Array(7).fill(null), current: Array(7).fill(null) };
+
+  const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const prevWeekFree = Array(7).fill(0);
+  const prevWeekPaid = Array(7).fill(0);
+  const currWeekFree = Array(7).fill(0);
+  const currWeekPaid = Array(7).fill(0);
+
+  chartDays.forEach(d => {
+    const dt = parseDateKey(d);
+    const dow = dt.getDay();
+    const isCurrentWeek = dt >= currentWeekStart;
     let f = 0, p = 0;
     readings.get(d).forEach(r => {
       const h = parseInt(r.time.split(':')[0]);
       if (isFreeHour(h)) f += r.kwh; else p += r.kwh;
     });
-    freeData.push(f);
-    paidData.push(p);
+    if (isCurrentWeek) {
+      currWeekFree[dow] = f;
+      currWeekPaid[dow] = p;
+      dailyChartLookup.current[dow] = d;
+    } else {
+      prevWeekFree[dow] = f;
+      prevWeekPaid[dow] = p;
+      dailyChartLookup.previous[dow] = d;
+    }
   });
 
   destroyChart('chart-daily');
   const ctx = document.getElementById('chart-daily').getContext('2d');
+  const baseOptions = chartOptions({
+    yLabel: 'kWh',
+    onClick: (_, elements) => {
+      if (elements.length > 0) {
+        const liveDays = [...readings.keys()].sort();
+        const selectedDataset = elements[0].datasetIndex;
+        const selectedDow = elements[0].index;
+        const weekBucket = selectedDataset <= 1 ? 'previous' : 'current';
+        const selectedDay = dailyChartLookup[weekBucket][selectedDow];
+        if (!selectedDay) return;
+        currentDayIndex = Math.max(0, liveDays.indexOf(selectedDay));
+        renderDetailChart(liveDays, currentDayIndex);
+        renderDaySelect(liveDays);
+      }
+    }
+  });
   charts['chart-daily'] = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [
-        { label: 'Free kWh', data: freeData, backgroundColor: 'rgba(88,166,255,0.7)', borderColor: 'rgba(88,166,255,1)', borderWidth: 1, stack: 'Stack 0' },
-        { label: 'Paid kWh', data: paidData, backgroundColor: 'rgba(240,165,0,0.75)', borderColor: 'rgba(240,165,0,1)', borderWidth: 1, stack: 'Stack 0' }
+        { label: 'Previous Week · Free kWh', data: prevWeekFree, backgroundColor: 'rgba(88,166,255,0.45)', borderColor: 'rgba(88,166,255,0.8)', borderWidth: 1, stack: 'Previous Week' },
+        { label: 'Previous Week · Paid kWh', data: prevWeekPaid, backgroundColor: 'rgba(240,165,0,0.45)', borderColor: 'rgba(240,165,0,0.8)', borderWidth: 1, stack: 'Previous Week' },
+        { label: 'Current Week · Free kWh', data: currWeekFree, backgroundColor: 'rgba(88,166,255,0.8)', borderColor: 'rgba(88,166,255,1)', borderWidth: 1, stack: 'Current Week' },
+        { label: 'Current Week · Paid kWh', data: currWeekPaid, backgroundColor: 'rgba(240,165,0,0.85)', borderColor: 'rgba(240,165,0,1)', borderWidth: 1, stack: 'Current Week' }
       ]
     },
-    options: chartOptions({
-      yLabel: 'kWh',
-      onClick: (_, elements) => {
-        if (elements.length > 0) {
-          const liveDays = [...readings.keys()].sort();
-          currentDayIndex = elements[0].index;
-          renderDetailChart(liveDays, currentDayIndex);
-          renderDaySelect(liveDays);
+    options: {
+      ...baseOptions,
+      plugins: {
+        ...baseOptions.plugins,
+        tooltip: {
+          ...baseOptions.plugins.tooltip,
+          callbacks: {
+            title: items => {
+              if (!items.length) return '';
+              const item = items[0];
+              const weekBucket = item.datasetIndex <= 1 ? 'previous' : 'current';
+              const selectedDay = dailyChartLookup[weekBucket][item.dataIndex];
+              if (!selectedDay) return labels[item.dataIndex];
+              const prefix = weekBucket === 'current' ? 'Current week' : 'Previous week';
+              return `${prefix} · ${fmtDate(selectedDay)}`;
+            }
+          }
         }
       }
-    })
+    }
   });
 }
 
