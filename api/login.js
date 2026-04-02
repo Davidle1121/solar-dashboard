@@ -26,7 +26,7 @@ export default async function handler(req, res) {
         'HttpOnly',
         'SameSite=Lax',
         isProd ? 'Secure' : '',
-        'Max-Age=2592000' // 30 days
+        'Max-Age=2592000'
       ].filter(Boolean).join('; ')
     );
 
