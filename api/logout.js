@@ -1,17 +1,7 @@
-export default async function handler(req, res) {
-  const isProd = process.env.NODE_ENV === 'production';
+import { buildLogoutSetCookie } from './_auth.js';
 
-  res.setHeader(
-    'Set-Cookie',
-    [
-      'site_auth=',
-      'Path=/',
-      'HttpOnly',
-      'SameSite=Lax',
-      isProd ? 'Secure' : '',
-      'Max-Age=0'
-    ].filter(Boolean).join('; ')
-  );
+export default async function handler(req, res) {
+  res.setHeader('Set-Cookie', buildLogoutSetCookie());
 
   return res.status(200).json({ ok: true });
 }

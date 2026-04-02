@@ -113,7 +113,9 @@
 
     function getNextPath() {
       const params = new URLSearchParams(window.location.search);
-      return params.get('next') || '/';
+      const next = params.get('next') || '/';
+      if (!next.startsWith('/') || next.startsWith('//')) return '/';
+      return next;
     }
 
     form.addEventListener('submit', async (e) => {
