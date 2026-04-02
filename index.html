@@ -122,9 +122,12 @@
   .auth-btn:hover { border-color: var(--danger); background: rgba(248,81,73,0.05); }
   .stats-row {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(5, 200px);
+    justify-content: center;
     gap: 12px;
     margin-bottom: 28px;
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
   .stat-card {
     background: var(--surface);
@@ -132,6 +135,7 @@
     border-radius: 10px;
     padding: 16px;
     animation: fadeUp 0.4s ease both;
+    cursor: grab;
   }
   .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
   .stat-value { font-family: var(--font-display); font-size: clamp(20px, 3vw, 28px); font-weight: 700; line-height: 1; }
@@ -145,6 +149,15 @@
   .stat-card.compare-color .stat-value { color: #79c0ff; }
   .stat-card.daily-compare-color .stat-value { color: #ffb86b; }
   .stat-card.month-compare-color .stat-value { color: #a5d6a7; }
+  .stat-card.dragging {
+    opacity: 0.6;
+    border-color: var(--accent3);
+    cursor: grabbing;
+  }
+  .stat-card.drop-ghost {
+    border-color: var(--accent3);
+    box-shadow: 0 0 0 1px rgba(88,166,255,0.4) inset;
+  }
   .stat-trend-up { color: var(--danger); }
   .stat-trend-down { color: var(--accent2); }
   .stat-trend-flat { color: var(--muted); }
@@ -391,14 +404,7 @@
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  @media (max-width: 1100px) {
-    .stats-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  }
-  @media (max-width: 820px) {
-    .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
   @media (max-width: 480px) {
-    .stats-row { grid-template-columns: 1fr; }
     .stat-card { padding: 14px; }
     .stat-value { font-size: clamp(18px, 7vw, 26px); }
     .stat-compare-line { font-size: 10px; }
@@ -448,42 +454,42 @@
   </div>
 
   <div class="stats-row" id="stats-row" style="display:none">
-    <div class="stat-card grid-color">
+    <div class="stat-card grid-color" data-card-id="current-week-grid-usage">
       <div class="stat-label">Current Week Grid Usage</div>
       <div class="stat-value" id="stat-total">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub" id="stat-days-span">Sun–Sat window</div>
     </div>
-    <div class="stat-card days-color">
+    <div class="stat-card days-color" data-card-id="days-of-data">
       <div class="stat-label">Days of Data</div>
       <div class="stat-value" id="stat-days">—</div>
       <div class="stat-sub" id="stat-date-range">—</div>
     </div>
-    <div class="stat-card solar-color">
+    <div class="stat-card solar-color" data-card-id="daily-average">
       <div class="stat-label">Daily Average</div>
       <div class="stat-value" id="stat-avg">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub">from grid per day</div>
     </div>
-    <div class="stat-card peak-color">
+    <div class="stat-card peak-color" data-card-id="peak-draw">
       <div class="stat-label">Peak 15-min Draw</div>
       <div class="stat-value" id="stat-peak">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub" id="stat-peak-time">—</div>
     </div>
-    <div class="stat-card proj-color">
+    <div class="stat-card proj-color" data-card-id="weekly-average">
       <div class="stat-label">Weekly Avg</div>
       <div class="stat-value" id="stat-weekly-avg">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub" id="stat-weekly-avg-sub">avg per 7-day week</div>
     </div>
-    <div class="stat-card compare-color">
+    <div class="stat-card compare-color" data-card-id="week-compare">
       <div class="stat-label">Week Avg (Curr vs Prev)</div>
       <div class="stat-value" id="stat-week-compare">—</div>
       <div class="stat-sub" id="stat-week-compare-sub">current week vs previous week</div>
     </div>
-    <div class="stat-card daily-compare-color">
+    <div class="stat-card daily-compare-color" data-card-id="daily-trend">
       <div class="stat-label">Daily Trend (Latest 2 Days)</div>
       <div class="stat-value" id="stat-day-compare">—</div>
       <div class="stat-sub" id="stat-day-compare-sub">latest day vs prior day</div>
     </div>
-    <div class="stat-card month-compare-color">
+    <div class="stat-card month-compare-color" data-card-id="month-compare">
       <div class="stat-label">Month Usage (Curr vs Prev)</div>
       <div class="stat-value" id="stat-month-compare">—</div>
       <div class="stat-sub" id="stat-month-compare-sub">current month vs previous month</div>
@@ -718,6 +724,9 @@ let freeEndHour = 6;
 const AUTO_SYNC_MODE = 'smart';
 const AUTO_SYNC_INTERVAL_HOURS = 6;
 const ALERT_THRESHOLDS = { weekPct: 10, dayPct: 15, monthPct: 10 };
+const STATS_CARD_ORDER_KEY = 'dashboardStatsOrderV1';
+const MAX_STATS_CARDS = 10;
+let draggingStatCard = null;
 
 async function requireAuth() {
   try {
@@ -832,6 +841,104 @@ function clearDashboard() {
   });
 }
 
+function applySavedStatsCardOrder(statsRow) {
+  const cards = Array.from(statsRow.querySelectorAll('.stat-card'));
+  const cardById = new Map(cards.map(card => [card.dataset.cardId, card]));
+  const raw = localStorage.getItem(STATS_CARD_ORDER_KEY);
+  if (!raw) return;
+
+  try {
+    const savedOrder = JSON.parse(raw);
+    if (!Array.isArray(savedOrder)) return;
+
+    const seen = new Set();
+    savedOrder.forEach((cardId) => {
+      if (!cardById.has(cardId) || seen.has(cardId)) return;
+      seen.add(cardId);
+      statsRow.appendChild(cardById.get(cardId));
+    });
+    cards.forEach((card) => {
+      if (!seen.has(card.dataset.cardId)) statsRow.appendChild(card);
+    });
+  } catch (err) {
+    console.warn('Could not restore stat card order', err);
+  }
+}
+
+function saveStatsCardOrder(statsRow) {
+  const order = Array.from(statsRow.querySelectorAll('.stat-card')).map(card => card.dataset.cardId);
+  localStorage.setItem(STATS_CARD_ORDER_KEY, JSON.stringify(order));
+}
+
+function swapStatCards(cardA, cardB) {
+  if (!cardA || !cardB || cardA === cardB) return;
+  const parent = cardA.parentNode;
+  if (!parent || parent !== cardB.parentNode) return;
+
+  const aNext = cardA.nextSibling === cardB ? cardA : cardA.nextSibling;
+  parent.insertBefore(cardA, cardB);
+  parent.insertBefore(cardB, aNext);
+}
+
+function clearStatCardDropStates(statsRow) {
+  statsRow.querySelectorAll('.stat-card.drop-ghost').forEach(card => card.classList.remove('drop-ghost'));
+}
+
+function onStatCardDragStart(event) {
+  draggingStatCard = event.currentTarget;
+  draggingStatCard.classList.add('dragging');
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', draggingStatCard.dataset.cardId || '');
+}
+
+function onStatCardDragOver(event) {
+  if (!draggingStatCard) return;
+  const target = event.currentTarget;
+  if (target === draggingStatCard) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  target.classList.add('drop-ghost');
+}
+
+function onStatCardDragLeave(event) {
+  event.currentTarget.classList.remove('drop-ghost');
+}
+
+function onStatCardDrop(event) {
+  event.preventDefault();
+  const target = event.currentTarget;
+  target.classList.remove('drop-ghost');
+  if (!draggingStatCard || target === draggingStatCard) return;
+  swapStatCards(draggingStatCard, target);
+  saveStatsCardOrder(target.parentNode);
+}
+
+function onStatCardDragEnd(event) {
+  const statsRow = document.getElementById('stats-row');
+  if (statsRow) clearStatCardDropStates(statsRow);
+  event.currentTarget.classList.remove('dragging');
+  draggingStatCard = null;
+}
+
+function initStatsCardLayout() {
+  const statsRow = document.getElementById('stats-row');
+  if (!statsRow) return;
+
+  const cards = Array.from(statsRow.querySelectorAll('.stat-card'));
+  cards.slice(MAX_STATS_CARDS).forEach(card => card.remove());
+  applySavedStatsCardOrder(statsRow);
+  statsRow.querySelectorAll('.stat-card').forEach((card) => {
+    card.draggable = true;
+    if (card.dataset.dragInit === 'true') return;
+    card.dataset.dragInit = 'true';
+    card.addEventListener('dragstart', onStatCardDragStart);
+    card.addEventListener('dragover', onStatCardDragOver);
+    card.addEventListener('dragleave', onStatCardDragLeave);
+    card.addEventListener('drop', onStatCardDrop);
+    card.addEventListener('dragend', onStatCardDragEnd);
+  });
+}
+
 function cloneReadingsMap(source) {
   const cloned = new Map();
   for (const [date, intervals] of source.entries()) {
@@ -865,6 +972,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     startSel.innerHTML += `<option value="${i}" ${i===20?'selected':''}>${label}</option>`;
     endSel.innerHTML += `<option value="${i}" ${i===6?'selected':''}>${label}</option>`;
   }
+
+  initStatsCardLayout();
 
   updateLastSyncLabel();
   const restoredFromCache = restoreDashboardData();
