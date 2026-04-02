@@ -122,7 +122,7 @@
   .auth-btn:hover { border-color: var(--danger); background: rgba(248,81,73,0.05); }
   .stats-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 28px;
   }
@@ -148,8 +148,13 @@
   .stat-trend-up { color: var(--danger); }
   .stat-trend-down { color: var(--accent2); }
   .stat-trend-flat { color: var(--muted); }
-  .mini-sparkline { margin-top: 8px; height: 34px; }
-  .mini-sparkline canvas { width: 100% !important; height: 34px !important; }
+  .stat-compare-lines {
+    display: grid;
+    gap: 2px;
+    margin-top: 2px;
+  }
+  .stat-compare-line { font-size: 11px; color: var(--text); }
+  .stat-compare-line span { color: var(--muted); }
   .solar-section { margin-bottom: 28px; }
   .solar-banner {
     background: var(--surface);
@@ -390,6 +395,12 @@
     .stats-row { grid-template-columns: 1fr 1fr; }
     .chart-wrap canvas { max-height: 220px; }
   }
+  @media (max-width: 1050px) {
+    .stats-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 760px) {
+    .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
 </style>
 </head>
 <body>
@@ -463,19 +474,16 @@
       <div class="stat-label">Week Avg (Curr vs Prev)</div>
       <div class="stat-value" id="stat-week-compare">—</div>
       <div class="stat-sub" id="stat-week-compare-sub">current week vs previous week</div>
-      <div class="mini-sparkline"><canvas id="spark-week"></canvas></div>
     </div>
     <div class="stat-card daily-compare-color">
       <div class="stat-label">Daily Trend (Latest 2 Days)</div>
       <div class="stat-value" id="stat-day-compare">—</div>
       <div class="stat-sub" id="stat-day-compare-sub">latest day vs prior day</div>
-      <div class="mini-sparkline"><canvas id="spark-day"></canvas></div>
     </div>
     <div class="stat-card month-compare-color">
       <div class="stat-label">Month Usage (Curr vs Prev)</div>
       <div class="stat-value" id="stat-month-compare">—</div>
       <div class="stat-sub" id="stat-month-compare-sub">current month vs previous month</div>
-      <div class="mini-sparkline"><canvas id="spark-month"></canvas></div>
     </div>
   </div>
 
@@ -1135,41 +1143,20 @@ function buildComparison(current, previous) {
   };
 }
 
-function formatComparison(current, previous) {
-  const result = buildComparison(current, previous);
-  return result ? result.html : '—';
-}
-
 function formatAlertMessage(label, pct, threshold) {
   if (pct === null || Math.abs(pct) < threshold) return label;
   const direction = pct > 0 ? 'higher' : 'lower';
   return `⚠ ${Math.abs(pct).toFixed(1)}% ${direction} than prior period`;
 }
 
-function renderSparkline(id, values, color) {
-  destroyChart(id);
-  const canvas = document.getElementById(id);
-  if (!canvas || !Array.isArray(values) || values.length === 0) return;
-  charts[id] = new Chart(canvas.getContext('2d'), {
-    type: 'line',
-    data: {
-      labels: values.map((_, i) => i + 1),
-      datasets: [{
-        data: values,
-        borderColor: color,
-        backgroundColor: 'rgba(0,0,0,0)',
-        pointRadius: 0,
-        borderWidth: 2,
-        tension: 0.35
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: { x: { display: false }, y: { display: false } }
-    }
-  });
+function formatComparisonCard(currentLabel, previousLabel, current, previous) {
+  const result = buildComparison(current, previous);
+  if (!result) return '—';
+  return `<div class="stat-compare-lines">
+    <div class="stat-compare-line"><span>${currentLabel}:</span> ${current.toFixed(1)} kWh</div>
+    <div class="stat-compare-line"><span>${previousLabel}:</span> ${previous.toFixed(1)} kWh</div>
+    <div>${result.html}</div>
+  </div>`;
 }
 
 let _renderAllTimer = null;
@@ -1277,25 +1264,18 @@ function renderStats(days) {
   document.getElementById('stat-weekly-avg-sub').textContent = weekCount
     ? `avg over ${weekCount} week${weekCount !== 1 ? 's' : ''}`
     : `est. from ${days.length} day${days.length !== 1 ? 's' : ''} of data`;
-  document.getElementById('stat-week-compare').innerHTML = formatComparison(currentWeekAvg, previousWeekAvg);
+  document.getElementById('stat-week-compare').innerHTML = formatComparisonCard('Current week', 'Previous week', currentWeekAvg, previousWeekAvg);
   document.getElementById('stat-week-compare-sub').textContent = previousWeekDays.length
     ? formatAlertMessage(`${fmtDate(currentWeekDays[0] || latestDay)} week vs ${fmtDate(toDateKey(previousWeekStart))} week`, weekCmp ? weekCmp.pct : null, ALERT_THRESHOLDS.weekPct)
     : 'need prior week data for comparison';
-  document.getElementById('stat-day-compare').innerHTML = formatComparison(previousDayTotal, previousPreviousDayTotal);
+  document.getElementById('stat-day-compare').innerHTML = formatComparisonCard('Latest day', 'Day before', previousDayTotal, previousPreviousDayTotal);
   document.getElementById('stat-day-compare-sub').textContent = previousPreviousDay
     ? formatAlertMessage(`${fmtDate(previousDay)} vs ${fmtDate(previousPreviousDay)} (SMT is typically 1-day delayed)`, dayCmp ? dayCmp.pct : null, ALERT_THRESHOLDS.dayPct)
     : 'need 2 days of data for comparison';
-  document.getElementById('stat-month-compare').innerHTML = formatComparison(currentMonthTotal, previousMonthTotal);
+  document.getElementById('stat-month-compare').innerHTML = formatComparisonCard('Current month', 'Previous month', currentMonthTotal, previousMonthTotal);
   document.getElementById('stat-month-compare-sub').textContent = previousMonthKey
     ? formatAlertMessage(`${formatMonthLabel(currentMonthKey)} vs ${formatMonthLabel(previousMonthKey)}`, monthCmp ? monthCmp.pct : null, ALERT_THRESHOLDS.monthPct)
     : 'need prior month data for comparison';
-
-  const weekSparkData = [...previousWeekDays, ...currentWeekDays].map(day => +(dayTotals.get(day) || 0).toFixed(2));
-  const daySparkData = days.slice(-7).map(day => +(dayTotals.get(day) || 0).toFixed(2));
-  const monthSparkData = monthKeys.map(k => +(monthlyTotals[k] || 0).toFixed(2));
-  renderSparkline('spark-week', weekSparkData, '#79c0ff');
-  renderSparkline('spark-day', daySparkData, '#ffb86b');
-  renderSparkline('spark-month', monthSparkData, '#a5d6a7');
 }
 
 function updateHeaderMeta(days) {
