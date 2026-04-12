@@ -404,6 +404,13 @@
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+  @media (max-width: 768px) {
+    .stats-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      justify-content: stretch;
+      overflow-x: visible;
+    }
+  }
   @media (max-width: 480px) {
     .stat-card { padding: 14px; }
     .stat-value { font-size: clamp(18px, 7vw, 26px); }
@@ -540,8 +547,8 @@
     <button class="tab-btn active" onclick="showTab('daily',this)">Daily View</button>
     <button class="tab-btn" onclick="showTab('hourly',this)">Hourly Profile Table</button>
     <button class="tab-btn" onclick="showTab('weekly',this)">Weekly</button>
-    <button class="tab-btn" onclick="showTab('monthly',this)">Monthly</button>
-    <button class="tab-btn" onclick="showTab('table',this)">Data Table</button>
+    <!-- <button class="tab-btn" onclick="showTab('monthly',this)">Monthly</button> -->
+    <!-- <button class="tab-btn" onclick="showTab('table',this)">Data Table</button> -->
   </div>
 
   <div id="tab-daily">
@@ -631,6 +638,7 @@
     </div>
   </div>
 
+  <!--
   <div id="tab-monthly" style="display:none">
     <div class="chart-panel">
       <div class="chart-header">
@@ -673,7 +681,9 @@
       </div>
     </div>
   </div>
+  -->
 
+  <!--
   <div id="tab-table" style="display:none">
     <div class="chart-panel">
       <div class="chart-header">
@@ -697,6 +707,7 @@
       </div>
     </div>
   </div>
+  -->
 
   <div class="disclaimer">
     Disclaimer: This dashboard is for entertainment purposes only.
@@ -721,6 +732,7 @@ let dailyChartDays = [];
 let dailyChartLookup = { previous: Array(7).fill(null), current: Array(7).fill(null) };
 let freeStartHour = 20;
 let freeEndHour = 6;
+let monthSummaries = new Map();
 const AUTO_SYNC_MODE = 'smart';
 const AUTO_SYNC_INTERVAL_HOURS = 6;
 const ALERT_THRESHOLDS = { weekPct: 10, dayPct: 15, monthPct: 10 };
@@ -1285,8 +1297,9 @@ function renderAll() {
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('stats-row').style.display = 'grid';
   document.getElementById('section-tabs').style.display = 'flex';
-  ['tab-daily','tab-hourly','tab-weekly','tab-monthly','tab-table'].forEach(id => {
-    document.getElementById(id).style.display = id === 'tab-daily' ? 'block' : 'none';
+  ['tab-daily','tab-hourly','tab-weekly'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = id === 'tab-daily' ? 'block' : 'none';
   });
 
   const sortedDays = [...readings.keys()].sort();
@@ -1300,8 +1313,6 @@ function renderAll() {
   renderWeekly(sortedDays);
   renderDOW(sortedDays);
   renderWeeklyCompare(sortedDays);
-  renderMonthly(sortedDays);
-  renderTable(sortedDays);
   updateHeaderMeta(sortedDays);
   updateDataFreshness(sortedDays);
 }
@@ -1359,12 +1370,15 @@ function renderStats(days) {
   const previousDayTotal = previousDay ? dayTotals.get(previousDay) : null;
   const previousPreviousDayTotal = previousPreviousDay ? dayTotals.get(previousPreviousDay) : null;
 
-  const monthKeys = Object.keys(monthlyTotals).sort();
   const currentMonthKey = latestDay.slice(0, 7);
   const currentMonthTotal = monthlyTotals[currentMonthKey] ?? null;
-  const currentMonthIndex = monthKeys.indexOf(currentMonthKey);
-  const previousMonthKey = currentMonthIndex > 0 ? monthKeys[currentMonthIndex - 1] : null;
-  const previousMonthTotal = previousMonthKey ? monthlyTotals[previousMonthKey] : null;
+  const currentMonthDate = parseDateKey(`${currentMonthKey}-01`);
+  const previousMonthDate = new Date(currentMonthDate);
+  previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
+  const previousMonthKey = `${previousMonthDate.getFullYear()}-${String(previousMonthDate.getMonth() + 1).padStart(2, '0')}`;
+  const previousMonthTotal = monthSummaries.has(previousMonthKey)
+    ? monthSummaries.get(previousMonthKey)
+    : (monthlyTotals[previousMonthKey] ?? null);
   const weekCmp = buildComparison(currentWeekAvg, previousWeekAvg);
   const dayCmp = buildComparison(previousDayTotal, previousPreviousDayTotal);
   const monthCmp = buildComparison(currentMonthTotal, previousMonthTotal);
@@ -1891,8 +1905,9 @@ function shiftDay(dir) {
 }
 
 function showTab(name, btn) {
-  ['daily','hourly','weekly','monthly','table'].forEach(t => {
-    document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
+  ['daily','hourly','weekly'].forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.style.display = t === name ? 'block' : 'none';
   });
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
@@ -1938,6 +1953,27 @@ function chartOptions({ yLabel = '', onClick = null } = {}) {
   };
 }
 
+function getMonthKeyFromDate(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function inferFileMonthKey(fileMeta) {
+  const dateKey = inferFileDateKey(fileMeta);
+  if (dateKey) return dateKey.slice(0, 7);
+  return null;
+}
+
+function inferFileDateKey(fileMeta) {
+  const name = String(fileMeta?.name || '');
+  const isoMatch = name.match(/(20\d{2})[-_]?([01]\d)[-_]?([0-3]\d)/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  if (fileMeta?.modifiedTime) {
+    const mod = String(fileMeta.modifiedTime).slice(0, 10);
+    if (/^20\d{2}-[01]\d-[0-3]\d$/.test(mod)) return mod;
+  }
+  return null;
+}
+
 async function syncFromDrive(forceRefresh = false, source = 'manual') {
   const btn = document.getElementById('drive-btn');
   const status = document.getElementById('drive-status');
@@ -1947,6 +1983,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
 
   const previousReadings = cloneReadingsMap(readings);
   const previousLoadedFiles = [...loadedFiles];
+  const previousMonthSummariesState = new Map(monthSummaries);
   const hadExistingData = previousReadings.size > 0;
   const nextReadings = forceRefresh ? new Map() : cloneReadingsMap(readings);
   const nextLoadedFiles = forceRefresh ? [] : [...loadedFiles];
@@ -1970,6 +2007,30 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       return name.endsWith('.xlsx') || name.endsWith('.csv') || name.endsWith('.xml');
     });
 
+    const inferredDateKeys = smtFiles
+      .map(inferFileDateKey)
+      .filter(Boolean)
+      .sort();
+    const anchorDateKey = inferredDateKeys.length > 0 ? inferredDateKeys[inferredDateKeys.length - 1] : getTodayKey();
+    const anchorDate = parseDateKey(anchorDateKey);
+    const currentMonthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
+    const previousMonthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth() - 1, 1);
+    const currentMonthKey = getMonthKeyFromDate(currentMonthStart);
+    const previousMonthKey = getMonthKeyFromDate(previousMonthStart);
+    const weekStart = new Date(anchorDate);
+    weekStart.setDate(anchorDate.getDate() - anchorDate.getDay());
+    const previousWeekStart = new Date(weekStart);
+    previousWeekStart.setDate(weekStart.getDate() - 7);
+    const compareWindowStart = previousWeekStart < currentMonthStart ? previousWeekStart : currentMonthStart;
+    const compareWindowStartKey = toDateKey(compareWindowStart);
+
+    const scopedFiles = smtFiles.filter(file => {
+      const monthKey = inferFileMonthKey(file);
+      if (!monthKey) return true;
+      return monthKey === currentMonthKey || monthKey === previousMonthKey;
+    });
+    const monthlyIntervals = new Map();
+
     if (smtFiles.length === 0) {
       status.className = 'drive-status err';
       status.textContent = hadExistingData
@@ -1978,11 +2039,26 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       btn.disabled = false;
       return;
     }
+    if (scopedFiles.length === 0) {
+      readings = previousReadings;
+      loadedFiles = previousLoadedFiles;
+      monthSummaries = previousMonthSummariesState;
+      if (readings.size > 0) {
+        renderAllDebounced();
+      } else {
+        clearDashboard();
+        document.getElementById('empty-state').style.display = 'flex';
+      }
+      status.className = 'drive-status err';
+      status.textContent = 'No files matched the active month window — showing previously loaded data';
+      btn.disabled = false;
+      return;
+    }
 
-    status.textContent = `Found ${smtFiles.length} file(s) — downloading…`;
+    status.textContent = `Found ${scopedFiles.length} file(s) in active window — downloading…`;
 
     let loaded = 0, skipped = 0;
-    for (const driveFile of smtFiles) {
+    for (const driveFile of scopedFiles) {
       if (!forceRefresh && nextLoadedFiles.find(f => f.name === driveFile.name)) {
         skipped++;
         continue;
@@ -2017,10 +2093,22 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
           continue;
         }
         for (const [date, intervals] of data.entries()) {
-          if (!nextReadings.has(date)) nextReadings.set(date, []);
-          const existing = new Set(nextReadings.get(date).map(r => r.time));
+          const monthKey = date.slice(0, 7);
+
+          if (!monthlyIntervals.has(monthKey)) monthlyIntervals.set(monthKey, new Map());
+          const monthlyByDate = monthlyIntervals.get(monthKey);
+          if (!monthlyByDate.has(date)) monthlyByDate.set(date, new Map());
+          const monthlyByTime = monthlyByDate.get(date);
           for (const r of intervals) {
-            if (!existing.has(r.time)) nextReadings.get(date).push(r);
+            if (!monthlyByTime.has(r.time)) monthlyByTime.set(r.time, r.kwh);
+          }
+
+          if (date >= compareWindowStartKey) {
+            if (!nextReadings.has(date)) nextReadings.set(date, []);
+            const existing = new Set(nextReadings.get(date).map(r => r.time));
+            for (const r of intervals) {
+              if (!existing.has(r.time)) nextReadings.get(date).push(r);
+            }
           }
         }
         nextLoadedFiles.push(file);
@@ -2028,6 +2116,14 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       } catch (err) {
         showToast('Parse error: ' + file.name, 'error');
       }
+    }
+
+    monthSummaries = new Map();
+    for (const [monthKey, byDate] of monthlyIntervals.entries()) {
+      const monthTotal = [...byDate.values()].reduce((sum, byTime) => {
+        return sum + [...byTime.values()].reduce((sub, kwh) => sub + kwh, 0);
+      }, 0);
+      monthSummaries.set(monthKey, monthTotal);
     }
 
     if (loaded > 0) {
@@ -2060,6 +2156,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
     } else {
       readings = previousReadings;
       loadedFiles = previousLoadedFiles;
+      monthSummaries = previousMonthSummariesState;
       if (readings.size > 0) {
         renderAllDebounced();
         status.className = 'drive-status err';
@@ -2079,6 +2176,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
   } catch (err) {
     readings = previousReadings;
     loadedFiles = previousLoadedFiles;
+    monthSummaries = previousMonthSummariesState;
     if (readings.size > 0) {
       renderAllDebounced();
     } else {
