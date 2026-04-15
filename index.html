@@ -24,6 +24,9 @@
     --font-mono: 'DM Mono', monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    overscroll-behavior-x: none;
+  }
   body {
     background: var(--bg);
     color: var(--text);
@@ -31,6 +34,7 @@
     font-size: 13px;
     min-height: 100vh;
     overflow-x: hidden;
+    overscroll-behavior-y: none;
   }
   body::before {
     content: '';
@@ -578,6 +582,7 @@
         <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Free Period Draw</div>
         <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Paid Period Draw</div>
         <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>Spike (&gt;0.5 kWh)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#c084fc"></div>Likely EV Charging</div>
       </div>
     </div>
   </div>
@@ -730,7 +735,7 @@ let currentDayIndex = 0;
 let charts = {};
 let dailyChartDays = [];
 let dailyChartLookup = { previous: Array(7).fill(null), current: Array(7).fill(null) };
-let freeStartHour = 20;
+let freeStartHour = 21;
 let freeEndHour = 6;
 let monthSummaries = new Map();
 const AUTO_SYNC_MODE = 'smart';
@@ -981,7 +986,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const ampm = i < 12 ? 'am' : 'pm';
     const hr = i === 0 ? 12 : i > 12 ? i - 12 : i;
     const label = `${hr}:00 ${ampm}`;
-    startSel.innerHTML += `<option value="${i}" ${i===20?'selected':''}>${label}</option>`;
+    startSel.innerHTML += `<option value="${i}" ${i===21?'selected':''}>${label}</option>`;
     endSel.innerHTML += `<option value="${i}" ${i===6?'selected':''}>${label}</option>`;
   }
 
@@ -1519,26 +1524,30 @@ function renderDetailChart(days, idx) {
   const day = days[safeIdx];
   const intervals = readings.get(day) || [];
   document.getElementById('detail-date-label').textContent = fmtDate(day);
+  const evMeta = detectLikelyEvSessions(intervals);
 
-  const labels = intervals.map(r => {
+  const labels = intervals.map((r, idx2) => {
     const h = parseInt(r.time.split(':')[0]);
     const min = r.time.split(':')[1];
     let label = to12hr(r.time);
     if (h === freeStartHour && min === '00') label = '🟢 ' + label;
     if (h === freeEndHour && min === '00') label = '🔴 ' + label;
+    if (evMeta.sessionStarts.has(idx2)) label = '⚡ ' + label;
     return label;
   });
 
   const data = intervals.map(r => r.kwh);
-  const colors = intervals.map(r => {
+  const colors = intervals.map((r, idx2) => {
     const h = parseInt(r.time.split(':')[0]);
     const isFree = isFreeHour(h);
+    if (evMeta.evFlags[idx2]) return 'rgba(192,132,252,0.85)';
     if (r.kwh >= 0.5) return 'rgba(248,81,73,0.85)';
     return isFree ? 'rgba(88,166,255,0.7)' : 'rgba(240,165,0,0.7)';
   });
-  const borderColors = intervals.map(r => {
+  const borderColors = intervals.map((r, idx2) => {
     const h = parseInt(r.time.split(':')[0]);
     const isFree = isFreeHour(h);
+    if (evMeta.evFlags[idx2]) return 'rgba(192,132,252,1)';
     if (r.kwh >= 0.5) return 'rgba(248,81,73,1)';
     return isFree ? 'rgba(88,166,255,1)' : 'rgba(240,165,0,1)';
   });
@@ -1574,13 +1583,73 @@ function renderDetailChart(days, idx) {
           titleFont: { family: 'DM Mono', size: 11 },
           bodyFont: { family: 'DM Mono', size: 11 },
           callbacks: {
-            label: ctx => ` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y * 4).toFixed(2)} kWh/hr)`,
+            label: ctx => {
+              const parts = [` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y * 4).toFixed(2)} kWh/hr)`];
+              if (evMeta.evFlags[ctx.dataIndex]) parts.push(' ⚡ likely EV charging interval');
+              return parts;
+            },
             title: items => items.length ? [items[0].label] : []
           }
         }
       }
     }
   });
+}
+
+function detectLikelyEvSessions(intervals) {
+  const strongKwh = 2.0;
+  const minStrongConsecutive = 2;
+  const rollingWindowIntervals = 4;
+  const rollingWindowKwh = 6.5;
+  const mergeGapIntervals = 2;
+  const minSessionKwh = 4.5;
+  const ranges = [];
+
+  for (let i = 0; i < intervals.length; i++) {
+    if ((intervals[i]?.kwh ?? 0) < strongKwh) continue;
+    let j = i;
+    while (j + 1 < intervals.length && (intervals[j + 1]?.kwh ?? 0) >= strongKwh) j++;
+    if (j - i + 1 >= minStrongConsecutive) ranges.push({ start: i, end: j });
+    i = j;
+  }
+
+  for (let i = 0; i + rollingWindowIntervals - 1 < intervals.length; i++) {
+    let sum = 0;
+    for (let j = i; j < i + rollingWindowIntervals; j++) sum += intervals[j]?.kwh || 0;
+    if (sum >= rollingWindowKwh) ranges.push({ start: i, end: i + rollingWindowIntervals - 1 });
+  }
+
+  ranges.sort((a, b) => a.start - b.start || a.end - b.end);
+  const merged = [];
+  for (const range of ranges) {
+    if (!merged.length) {
+      merged.push({ ...range });
+      continue;
+    }
+    const prev = merged[merged.length - 1];
+    if (range.start <= prev.end + mergeGapIntervals) {
+      prev.end = Math.max(prev.end, range.end);
+    } else {
+      merged.push({ ...range });
+    }
+  }
+
+  const evFlags = Array(intervals.length).fill(false);
+  const sessionStarts = new Set();
+  for (const range of merged) {
+    let sessionTotal = 0;
+    let sessionPeak = 0;
+    for (let i = range.start; i <= range.end && i < intervals.length; i++) {
+      const val = intervals[i]?.kwh || 0;
+      sessionTotal += val;
+      if (val > sessionPeak) sessionPeak = val;
+    }
+    if (sessionTotal < minSessionKwh || sessionPeak < strongKwh) continue;
+
+    sessionStarts.add(range.start);
+    for (let i = range.start; i <= range.end && i < evFlags.length; i++) evFlags[i] = true;
+  }
+  return { evFlags, sessionStarts, sessions: merged };
 }
 
 function renderHourlyTable(days) {
