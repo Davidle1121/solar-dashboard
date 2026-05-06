@@ -408,15 +408,203 @@
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+
+  .chatbot-toggle {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 50;
+    border: 1px solid rgba(88,166,255,0.55);
+    background: linear-gradient(135deg, rgba(88,166,255,0.22), rgba(240,165,0,0.18)), var(--surface);
+    color: var(--text);
+    border-radius: 999px;
+    min-width: 58px;
+    height: 58px;
+    padding: 0 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    box-shadow: 0 14px 36px rgba(0,0,0,0.38);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .chatbot-toggle:hover { border-color: var(--accent3); }
+  .chatbot-toggle-icon { font-size: 22px; line-height: 1; }
+  .chatbot-panel {
+    position: fixed;
+    right: 18px;
+    bottom: 88px;
+    width: min(420px, calc(100vw - 32px));
+    height: min(680px, calc(100vh - 118px));
+    z-index: 49;
+    display: none;
+    flex-direction: column;
+    background: rgba(13,17,23,0.98);
+    border: 1px solid rgba(88,166,255,0.35);
+    border-radius: 18px;
+    box-shadow: 0 22px 56px rgba(0,0,0,0.48);
+    overflow: hidden;
+  }
+  .chatbot-panel.open { display: flex; }
+  .chatbot-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(88,166,255,0.12), rgba(240,165,0,0.06));
+  }
+  .chatbot-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--text);
+    line-height: 1.1;
+  }
+  .chatbot-subtitle {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.45;
+  }
+  .chatbot-close {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    border-radius: 999px;
+    width: 34px;
+    height: 34px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .chatbot-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chat-message {
+    max-width: 92%;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 11px 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .chat-message.bot {
+    align-self: flex-start;
+    background: var(--surface);
+    color: var(--text);
+  }
+  .chat-message.user {
+    align-self: flex-end;
+    border-color: rgba(88,166,255,0.45);
+    background: rgba(88,166,255,0.12);
+    color: var(--text);
+  }
+  .chat-message.warn { border-color: rgba(240,165,0,0.5); }
+  .chat-message.err { border-color: rgba(248,81,73,0.55); }
+  .chat-suggestions {
+    padding: 0 14px 10px;
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chat-suggestion {
+    flex: 0 0 auto;
+    border: 1px solid rgba(88,166,255,0.28);
+    background: rgba(88,166,255,0.08);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 7px 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .chatbot-form {
+    border-top: 1px solid var(--border);
+    padding: 12px;
+    display: flex;
+    gap: 8px;
+    background: var(--surface);
+  }
+  .chatbot-input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 11px 12px;
+  }
+  .chatbot-send {
+    border: 1px solid rgba(63,185,80,0.45);
+    background: rgba(63,185,80,0.12);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 0 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .chatbot-send:disabled { opacity: 0.55; cursor: wait; }
+
   @media (max-width: 768px) {
     .stats-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       justify-content: stretch;
       overflow-x: visible;
     }
+    .chatbot-panel {
+      right: 14px;
+      bottom: 84px;
+      width: min(460px, calc(100vw - 28px));
+      height: min(640px, calc(100vh - 108px));
+    }
+  }
+  @media (max-height: 620px) {
+    .chatbot-panel {
+      top: 8px;
+      bottom: 76px;
+      height: auto;
+    }
+    .chatbot-header { padding: 12px 14px; }
+    .chatbot-subtitle { display: none; }
   }
   @media (max-width: 480px) {
     .stat-card { padding: 14px; }
+
+    .chatbot-toggle {
+      right: 12px;
+      bottom: 12px;
+      height: 54px;
+      min-width: 54px;
+      padding: 0 14px;
+    }
+    .chatbot-toggle-label { display: none; }
+    .chatbot-panel {
+      inset: auto 8px 76px 8px;
+      width: auto;
+      height: min(620px, calc(100vh - 88px));
+      border-radius: 16px;
+    }
+    .chatbot-header { padding: 14px; }
+    .chatbot-title { font-size: 17px; }
+    .chat-message { max-width: 96%; }
+    .chatbot-form { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+
     .stat-value { font-size: clamp(18px, 7vw, 26px); }
     .stat-compare-line { font-size: 10px; }
     .chart-wrap canvas { max-height: 220px; }
@@ -727,6 +915,33 @@
 
 <div class="toast" id="toast"></div>
 
+
+<button class="chatbot-toggle" id="chatbot-toggle" type="button" aria-label="Open energy assistant" aria-expanded="false" onclick="toggleChatbot()">
+  <span class="chatbot-toggle-icon">💬</span>
+  <span class="chatbot-toggle-label">Ask data</span>
+</button>
+
+<section class="chatbot-panel" id="chatbot-panel" aria-label="Energy data assistant">
+  <div class="chatbot-header">
+    <div>
+      <div class="chatbot-title">Energy Assistant</div>
+      <div class="chatbot-subtitle">Grounded calculations from loaded dashboard data + Open-Meteo weather. No AI guesses.</div>
+    </div>
+    <button class="chatbot-close" type="button" aria-label="Close energy assistant" onclick="toggleChatbot(false)">×</button>
+  </div>
+  <div class="chatbot-messages" id="chatbot-messages" aria-live="polite"></div>
+  <div class="chat-suggestions" id="chat-suggestions">
+    <button class="chat-suggestion" type="button" data-question="What was my total usage last month?">Last month</button>
+    <button class="chat-suggestion" type="button" data-question="When do I usually charge my Tesla?">Tesla/EV</button>
+    <button class="chat-suggestion" type="button" data-question="How does this week compare to last week?">Week compare</button>
+    <button class="chat-suggestion" type="button" data-question="What should I expect to use today?">Today forecast</button>
+  </div>
+  <form class="chatbot-form" id="chatbot-form">
+    <input class="chatbot-input" id="chatbot-input" type="text" autocomplete="off" placeholder="Ask about usage, Tesla spikes, forecasts, weather…" maxlength="220">
+    <button class="chatbot-send" id="chatbot-send" type="submit">Ask</button>
+  </form>
+</section>
+
 <script>
 let readings = new Map();
 let sigData   = new Map();
@@ -820,6 +1035,7 @@ function cacheDashboardData() {
   try {
     const payload = {
       readings: serializeReadingsMap(readings),
+      monthSummaries: Object.fromEntries(monthSummaries.entries()),
       loadedFiles: loadedFiles.map(f => ({ name: f.name || String(f), type: f.type || '', cached: true }))
     };
     sessionStorage.setItem('energyDashboardCacheV1', JSON.stringify(payload));
@@ -836,6 +1052,9 @@ function restoreDashboardData() {
     const restoredReadings = deserializeReadingsMap(parsed.readings);
     if (restoredReadings.size === 0) return false;
     readings = restoredReadings;
+    monthSummaries = parsed.monthSummaries && typeof parsed.monthSummaries === 'object'
+      ? new Map(Object.entries(parsed.monthSummaries).map(([key, value]) => [key, Number(value)]).filter(([, value]) => Number.isFinite(value)))
+      : new Map();
     loadedFiles = Array.isArray(parsed.loadedFiles) ? parsed.loadedFiles : [];
     currentDayIndex = 0;
     renderAll();
@@ -973,6 +1192,628 @@ async function fetchWeather() {
   } catch(e) {
     document.getElementById('weather-temp').textContent = 'N/A';
   }
+}
+
+
+const CHATBOT_WEATHER_LAT = 29.738;
+const CHATBOT_WEATHER_LON = -95.823;
+const CHATBOT_WEATHER_TZ = 'America/Chicago';
+const CHATBOT_WEATHER_CACHE_KEY = 'energyWeatherCacheV1';
+const CHATBOT_WEATHER_CACHE_MS = 12 * 60 * 60 * 1000;
+const DOW_LABELS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DOW_LABELS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const WEATHER_CODES = {
+  0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+  45: 'Fog', 48: 'Depositing rime fog', 51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
+  56: 'Light freezing drizzle', 57: 'Dense freezing drizzle', 61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
+  66: 'Light freezing rain', 67: 'Heavy freezing rain', 71: 'Slight snow', 73: 'Moderate snow', 75: 'Heavy snow',
+  77: 'Snow grains', 80: 'Slight rain showers', 81: 'Moderate rain showers', 82: 'Violent rain showers',
+  85: 'Slight snow showers', 86: 'Heavy snow showers', 95: 'Thunderstorm', 96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail'
+};
+let chatbotInitialized = false;
+
+function toggleChatbot(forceOpen) {
+  const panel = document.getElementById('chatbot-panel');
+  const toggle = document.getElementById('chatbot-toggle');
+  if (!panel || !toggle) return;
+  const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !panel.classList.contains('open');
+  panel.classList.toggle('open', shouldOpen);
+  toggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+  if (shouldOpen) {
+    initChatbot();
+    setTimeout(() => document.getElementById('chatbot-input')?.focus(), 50);
+  }
+}
+
+function initChatbot() {
+  if (chatbotInitialized) return;
+  chatbotInitialized = true;
+  addChatMessage('bot', 'Hi — I can answer grounded questions from the currently loaded dashboard data. I can calculate totals, weekly comparisons, same-weekday forecasts, likely Tesla/EV charging windows from large spikes, and weather context from Open-Meteo. If the data is thin or missing, I will say so.');
+  const form = document.getElementById('chatbot-form');
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const input = document.getElementById('chatbot-input');
+    const question = input.value.trim();
+    if (!question) return;
+    input.value = '';
+    await askChatbot(question);
+  });
+  document.querySelectorAll('.chat-suggestion').forEach((btn) => {
+    btn.addEventListener('click', async () => askChatbot(btn.dataset.question || btn.textContent.trim()));
+  });
+}
+
+async function askChatbot(question) {
+  addChatMessage('user', question);
+  const send = document.getElementById('chatbot-send');
+  if (send) send.disabled = true;
+  const thinkingId = addChatMessage('bot', 'Calculating from loaded data…');
+  try {
+    const answer = await answerEnergyQuestion(question);
+    updateChatMessage(thinkingId, answer.text, answer.tone || '');
+  } catch (err) {
+    console.error(err);
+    updateChatMessage(thinkingId, 'I hit an error while calculating that answer. Nothing was guessed. Try refreshing the dashboard data and asking again.', 'err');
+  } finally {
+    if (send) send.disabled = false;
+  }
+}
+
+function addChatMessage(role, text, tone = '') {
+  const box = document.getElementById('chatbot-messages');
+  if (!box) return null;
+  const id = `chat-msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const msg = document.createElement('div');
+  msg.id = id;
+  msg.className = `chat-message ${role} ${tone}`.trim();
+  msg.textContent = text;
+  box.appendChild(msg);
+  box.scrollTop = box.scrollHeight;
+  return id;
+}
+
+function updateChatMessage(id, text, tone = '') {
+  const msg = document.getElementById(id);
+  if (!msg) return;
+  msg.className = `chat-message bot ${tone}`.trim();
+  msg.textContent = text;
+  const box = document.getElementById('chatbot-messages');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
+async function answerEnergyQuestion(question) {
+  const q = normalizeQuestion(question);
+  const intent = detectQuestionIntent(q);
+  if (readings.size === 0) {
+    return {
+      tone: 'warn',
+      text: 'I do not have loaded dashboard data yet. Sync from Google Drive first, then I can answer using the available readings. I will not estimate without data.'
+    };
+  }
+
+  if (intent === 'solar_battery_missing') {
+    return {
+      tone: 'warn',
+      text: 'I do not have solar production or battery data loaded yet. I can still answer grid-usage and weather questions, but I cannot analyze solar production or battery behavior until that data is imported into the dashboard.'
+    };
+  }
+
+  if (intent === 'weather') return answerWeatherImpactQuestion(question);
+  if (intent === 'previous_month_total') return answerPreviousMonthTotal();
+  if (intent === 'ev_charging') return answerLikelyEvCharging();
+  if (intent === 'week_comparison') return answerWeekComparison();
+  if (intent === 'usage_forecast') return answerUsageForecast(q.includes('tomorrow') ? 1 : 0);
+  if (intent === 'peak_usage') return answerPeakUsage();
+  if (intent === 'weekday_average') return answerWeekdayAverages();
+
+  return {
+    tone: 'warn',
+    text: 'I do not have a supported calculation for that question yet, so I will not make up an answer. Try asking naturally about: last month total, Tesla/EV charging windows, last week vs current week, expected usage today/tomorrow, peak usage, weekday averages, or weather impact for a specific date.'
+  };
+}
+
+function normalizeQuestion(question) {
+  return String(question || '')
+    .toLowerCase()
+    .replace(/[’']/g, '')
+    .replace(/[^a-z0-9/\-\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function hasAny(text, patterns) {
+  return patterns.some(pattern => typeof pattern === 'string' ? text.includes(pattern) : pattern.test(text));
+}
+
+function detectQuestionIntent(q) {
+  const asksEnergy = hasAny(q, ['usage', 'use', 'used', 'kwh', 'electric', 'electricity', 'energy', 'power', 'draw', 'bill', 'consume', 'consumption']);
+  const asksPlainForecast = q.includes('forecast') && !asksEnergy && !hasAny(q, ['expect', 'expected', 'estimate', 'predict', 'prediction', 'project', 'projection']);
+  const asksWeather = hasAny(q, [
+    'weather', 'temperature', 'temp', 'outside', 'cloud', 'cloudy', 'rain', 'raining', 'sunny', 'hot', 'cold', 'humidity', 'humid', 'storm', 'heat', 'cool'
+  ]) || asksPlainForecast;
+  const asksMonth = hasAny(q, ['last month', 'previous month', 'past month', /\bmonth\b/]);
+  const asksTotal = hasAny(q, ['total', 'how much', 'sum', 'all together', 'overall']);
+  const asksEv = hasAny(q, ['tesla', 'ev', 'car', 'vehicle', 'charger', 'charging', 'charge', 'plug in', 'plugged in', 'large spike', 'big spike', 'spikes', 'overnight load']);
+  const asksCompare = hasAny(q, ['compare', 'compared', 'versus', ' vs ', 'higher', 'lower', 'more than', 'less than', 'difference', 'stack up']);
+  const asksThisWeek = hasAny(q, ['this week', 'current week', 'week so far', 'so far this week']);
+  const asksLastWeek = hasAny(q, ['last week', 'previous week', 'prior week']);
+  const asksForecast = hasAny(q, ['expected', 'expect', 'forecast', 'estimate', 'predict', 'prediction', 'project', 'projection', 'baseline', 'normal', 'typical', 'should i expect']);
+  const asksTodayTomorrow = hasAny(q, ['today', 'tomorrow']);
+  const asksPeak = hasAny(q, ['highest', 'peak', 'max', 'maximum', 'biggest', 'largest', 'most', 'worst']);
+  const asksWeekday = hasAny(q, ['weekday', 'day of week', 'which day', 'what day', 'mondays', 'tuesdays', 'wednesdays', 'thursdays', 'fridays', 'saturdays', 'sundays']);
+  const asksSolarBattery = hasAny(q, ['solar', 'battery', 'batteries', 'production', 'produced', 'inverter']);
+
+  if (asksSolarBattery && sigData.size === 0) return 'solar_battery_missing';
+  if (asksWeather && (asksEnergy || parseQuestionDate(q) || asksTodayTomorrow || q.includes('yesterday'))) return 'weather';
+  if (asksEv) return 'ev_charging';
+  if (asksLastWeek && (asksThisWeek || asksCompare || q.includes('how did'))) return 'week_comparison';
+  if (asksThisWeek && asksCompare) return 'week_comparison';
+  if (asksForecast && asksTodayTomorrow) return 'usage_forecast';
+  if (asksTodayTomorrow && hasAny(q, ['what should i use', 'how much will i use', 'how much am i going to use', 'normal usage', 'typical usage'])) return 'usage_forecast';
+  if (asksMonth && (asksTotal || asksEnergy)) return 'previous_month_total';
+  if (asksWeekday && (asksEnergy || q.includes('average') || q.includes('avg') || asksPeak)) return 'weekday_average';
+  if (asksPeak && asksEnergy) return 'peak_usage';
+  if (asksWeather) return 'weather';
+  return 'unknown';
+}
+
+function getLoadedDays() {
+  return [...readings.keys()].sort();
+}
+
+function getDayTotal(day) {
+  return (readings.get(day) || []).reduce((sum, r) => sum + (Number(r.kwh) || 0), 0);
+}
+
+function getDailyTotals(days = getLoadedDays()) {
+  return days.map(day => ({ day, total: getDayTotal(day), intervals: readings.get(day) || [] }));
+}
+
+function addDays(dt, days) {
+  const next = new Date(dt);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function startOfWeek(dt) {
+  const d = new Date(dt);
+  d.setDate(d.getDate() - d.getDay());
+  return d;
+}
+
+function daysInMonth(year, monthIndex) {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+function monthKeyFromDate(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function fmtKwh(val, digits = 1) {
+  return `${Number(val || 0).toFixed(digits)} kWh`;
+}
+
+function timeToMinutes(time) {
+  const [hour, minute] = String(time || '').split(':').map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return hour * 60 + minute;
+}
+
+function minutesToTimeLabel(totalMinutes) {
+  const normalized = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
+  const hour = Math.floor(normalized / 60);
+  const minute = normalized % 60;
+  return to12hr(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+}
+
+function pctChange(current, previous) {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return null;
+  return ((current - previous) / previous) * 100;
+}
+
+function describePct(pct) {
+  if (pct === null) return 'not comparable';
+  if (Math.abs(pct) < 0.1) return 'about the same';
+  return `${Math.abs(pct).toFixed(1)}% ${pct > 0 ? 'higher' : 'lower'}`;
+}
+
+function answerPreviousMonthTotal() {
+  const days = getLoadedDays();
+  const today = new Date();
+  const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const key = monthKeyFromDate(prevMonth);
+  const expectedCount = daysInMonth(prevMonth.getFullYear(), prevMonth.getMonth());
+  const monthDays = days.filter(day => day.startsWith(key));
+  const loadedTotal = monthDays.reduce((sum, day) => sum + getDayTotal(day), 0);
+  const summaryTotal = monthSummaries.has(key) ? monthSummaries.get(key) : null;
+  const total = summaryTotal ?? loadedTotal;
+  const complete = monthDays.length === expectedCount;
+  const estimate = monthDays.length ? (loadedTotal / monthDays.length) * expectedCount : null;
+
+  if (!monthDays.length && summaryTotal === null) {
+    return {
+      tone: 'warn',
+      text: `I do not have loaded daily data for ${formatMonthLabel(key)}, so I cannot give a grounded last-month total. Loaded range: ${fmtDate(days[0])} – ${fmtDate(days[days.length - 1])}.`
+    };
+  }
+
+  return {
+    tone: complete ? '' : 'warn',
+    text: [
+      `Last month (${formatMonthLabel(key)}) total: ${fmtKwh(total)}.`,
+      `Data used: ${monthDays.length} of ${expectedCount} calendar days loaded${summaryTotal !== null ? ', plus the dashboard monthly summary' : ''}.`,
+      complete
+        ? 'Confidence: High — this appears to include every day in the month.'
+        : `Confidence: Medium/Low — the loaded daily data is incomplete. A rough full-month estimate from the loaded days would be ${estimate === null ? 'unavailable' : fmtKwh(estimate)}.`
+    ].join('\n')
+  };
+}
+
+function answerWeekComparison() {
+  const days = getLoadedDays();
+  const latest = parseDateKey(days[days.length - 1]);
+  const curStart = startOfWeek(latest);
+  const curEnd = latest;
+  const prevStart = addDays(curStart, -7);
+  const prevEnd = addDays(curStart, -1);
+  const currentDays = days.filter(day => {
+    const d = parseDateKey(day);
+    return d >= curStart && d <= curEnd;
+  });
+  const previousDays = days.filter(day => {
+    const d = parseDateKey(day);
+    return d >= prevStart && d <= prevEnd;
+  });
+  const currentTotal = currentDays.reduce((sum, day) => sum + getDayTotal(day), 0);
+  const previousFullTotal = previousDays.reduce((sum, day) => sum + getDayTotal(day), 0);
+  const sameDayCountEnd = addDays(prevStart, Math.max(0, currentDays.length - 1));
+  const previousComparableDays = previousDays.filter(day => parseDateKey(day) <= sameDayCountEnd);
+  const previousComparableTotal = previousComparableDays.reduce((sum, day) => sum + getDayTotal(day), 0);
+  const fairPct = previousComparableDays.length ? pctChange(currentTotal, previousComparableTotal) : null;
+
+  return {
+    tone: previousDays.length === 7 && currentDays.length ? '' : 'warn',
+    text: [
+      `Current week so far (${fmtDate(toDateKey(curStart))} – ${fmtDate(toDateKey(curEnd))}): ${fmtKwh(currentTotal)} across ${currentDays.length} loaded day${currentDays.length !== 1 ? 's' : ''}.`,
+      `Last full week (${fmtDate(toDateKey(prevStart))} – ${fmtDate(toDateKey(prevEnd))}): ${fmtKwh(previousFullTotal)} across ${previousDays.length} loaded day${previousDays.length !== 1 ? 's' : ''}.`,
+      previousComparableDays.length
+        ? `Fair same-day-count comparison: ${fmtKwh(currentTotal)} vs ${fmtKwh(previousComparableTotal)} for the same part of last week, which is ${describePct(fairPct)}.`
+        : 'Fair same-day-count comparison is not available because I do not have matching prior-week days loaded.',
+      `Latest loaded day: ${fmtDate(days[days.length - 1])}. Confidence: ${previousDays.length === 7 && currentDays.length ? 'High for the loaded days; current week is partial by definition.' : 'Medium/Low because one of the week windows is incomplete.'}`
+    ].join('\n')
+  };
+}
+
+function answerUsageForecast(offsetDays) {
+  const target = addDays(new Date(), offsetDays);
+  const targetKey = toDateKey(target);
+  const targetDow = target.getDay();
+  const days = getLoadedDays();
+  const lookbackStartKey = toDateKey(addDays(target, -42));
+  const sameDow = getDailyTotals(days)
+    .filter(d => {
+      const dt = parseDateKey(d.day);
+      return d.day < targetKey && d.day >= lookbackStartKey && dt.getDay() === targetDow;
+    })
+    .slice(-6);
+  const recent = getDailyTotals(days.filter(day => day < targetKey)).slice(-14);
+
+  if (!sameDow.length && !recent.length) {
+    return { tone: 'warn', text: `I do not have enough historical data before ${fmtDate(targetKey)} to estimate usage. Nothing was guessed.` };
+  }
+
+  const sameDowAvg = sameDow.length ? sameDow.reduce((s, d) => s + d.total, 0) / sameDow.length : null;
+  const recentAvg = recent.length ? recent.reduce((s, d) => s + d.total, 0) / recent.length : null;
+  const blended = sameDowAvg !== null && recentAvg !== null ? (sameDowAvg * 0.7 + recentAvg * 0.3) : (sameDowAvg ?? recentAvg);
+  const sampleTotals = sameDow.map(d => d.total);
+  const min = sampleTotals.length ? Math.min(...sampleTotals) : null;
+  const max = sampleTotals.length ? Math.max(...sampleTotals) : null;
+  const confidence = sameDow.length >= 4 ? 'Medium' : sameDow.length >= 2 ? 'Low/Medium' : 'Low';
+
+  return {
+    tone: confidence === 'Medium' ? '' : 'warn',
+    text: [
+      `Estimated usage for ${offsetDays === 0 ? 'today' : 'tomorrow'} (${fmtDate(targetKey)}, ${DOW_LABELS_FULL[targetDow]}): ${fmtKwh(blended)}.`,
+      `Method: ${sameDow.length ? `average of the last ${sameDow.length} matching ${DOW_LABELS_FULL[targetDow]}${sameDow.length !== 1 ? 's' : ''}` : 'recent daily average'}${recentAvg !== null ? ' with a small recent-trend adjustment' : ''}.`,
+      min !== null ? `Matching weekday range: ${fmtKwh(min)} – ${fmtKwh(max)}.` : 'Matching weekday range: not available.',
+      `Data used: ${sameDow.map(d => `${d.day} (${fmtKwh(d.total)})`).join(', ') || `${recent.length} recent loaded day(s)`}.`,
+      `Confidence: ${confidence} — this is a forecast and does not know weather changes, Tesla charging plans, thermostat settings, or unusual activity.`
+    ].join('\n')
+  };
+}
+
+function answerLikelyEvCharging() {
+  const sessions = [];
+  for (const day of getLoadedDays()) {
+    const intervals = readings.get(day) || [];
+    const meta = detectLikelyEvSessions(intervals);
+    for (const range of meta.sessions || []) {
+      let total = 0;
+      let peak = 0;
+      for (let i = range.start; i <= range.end && i < intervals.length; i++) {
+        const val = intervals[i]?.kwh || 0;
+        total += val;
+        peak = Math.max(peak, val);
+      }
+      if (total < 4.5 || peak < 2.0) continue;
+      const start = intervals[range.start]?.time || 'unknown';
+      const end = intervals[Math.min(range.end, intervals.length - 1)]?.time || 'unknown';
+      const startMinutes = timeToMinutes(start);
+      let endMinutes = timeToMinutes(end);
+      if (startMinutes !== null && endMinutes !== null && endMinutes < startMinutes) endMinutes += 1440;
+      sessions.push({ day, start, end, startMinutes, endMinutes, total, peak });
+    }
+  }
+
+  if (!sessions.length) {
+    return {
+      tone: 'warn',
+      text: 'I do not see enough sustained large usage spikes to identify a likely Tesla/EV charging window. This does not mean no charging happened — only that the currently loaded whole-home data does not show a strong recurring EV-like pattern.'
+    };
+  }
+
+  const hourBuckets = new Map();
+  for (const s of sessions) {
+    const key = Number.isFinite(s.startMinutes) ? Math.floor(s.startMinutes / 60) : -1;
+    hourBuckets.set(key, (hourBuckets.get(key) || 0) + 1);
+  }
+  const [topHour, topCount] = [...hourBuckets.entries()].sort((a, b) => b[1] - a[1])[0];
+  const topSessions = sessions.filter(s => (Number.isFinite(s.startMinutes) ? Math.floor(s.startMinutes / 60) : -1) === topHour);
+  const timedTopSessions = topSessions.filter(s => Number.isFinite(s.startMinutes) && Number.isFinite(s.endMinutes));
+  const avgStart = timedTopSessions.length ? timedTopSessions.reduce((sum, s) => sum + s.startMinutes, 0) / timedTopSessions.length : null;
+  const avgEnd = timedTopSessions.length ? timedTopSessions.reduce((sum, s) => sum + s.endMinutes, 0) / timedTopSessions.length : null;
+  const avgSessionKwh = sessions.reduce((sum, s) => sum + s.total, 0) / sessions.length;
+  const examples = sessions.slice(-5).map(s => `${s.day} ${to12hr(s.start)}–${to12hr(s.end)} (${fmtKwh(s.total)})`).join(', ');
+  const windowLabel = avgStart !== null && avgEnd !== null
+    ? `${minutesToTimeLabel(avgStart)}–${minutesToTimeLabel(avgEnd)}`
+    : (topHour >= 0 ? `starting around ${to12hr(String(topHour).padStart(2, '0') + ':00')}` : 'unknown');
+
+  return {
+    tone: 'warn',
+    text: [
+      `Likely Tesla/EV charging window: ${windowLabel}.`,
+      `I found ${sessions.length} likely charging session${sessions.length !== 1 ? 's' : ''}; ${topCount} started in the ${topHour >= 0 ? to12hr(String(topHour).padStart(2, '0') + ':00') : 'unknown'} hour.`,
+      `Average likely session energy: ${fmtKwh(avgSessionKwh)}.`,
+      `Recent examples: ${examples}.`,
+      'Confidence: Medium — this is inferred from sustained large whole-home usage spikes, not confirmed Tesla charger data. Other large loads could be included.'
+    ].join('\n')
+  };
+}
+
+function answerPeakUsage() {
+  const totals = getDailyTotals();
+  const topDay = totals.slice().sort((a, b) => b.total - a.total)[0];
+  let peak = { day: null, time: null, kwh: 0 };
+  for (const day of getLoadedDays()) {
+    for (const r of readings.get(day) || []) {
+      if ((r.kwh || 0) > peak.kwh) peak = { day, time: r.time, kwh: r.kwh };
+    }
+  }
+  return {
+    text: [`Highest loaded day: ${topDay.day} (${fmtDate(topDay.day)}) at ${fmtKwh(topDay.total)}.`, `Highest interval: ${peak.day} at ${peak.time}, ${fmtKwh(peak.kwh, 3)} for that interval.`, 'Confidence: High for the currently loaded data.'].join('\n')
+  };
+}
+
+function answerWeekdayAverages() {
+  const buckets = Array(7).fill(null).map(() => []);
+  for (const d of getDailyTotals()) buckets[parseDateKey(d.day).getDay()].push(d.total);
+  const rows = buckets.map((arr, idx) => {
+    if (!arr.length) return `${DOW_LABELS_SHORT[idx]}: no data`;
+    return `${DOW_LABELS_SHORT[idx]}: ${fmtKwh(arr.reduce((a,b)=>a+b,0)/arr.length)} avg (${arr.length} day${arr.length !== 1 ? 's' : ''})`;
+  });
+  return { text: [`Day-of-week averages from loaded data:`, ...rows, 'Confidence depends on sample size per weekday.'].join('\n') };
+}
+
+function parseQuestionDate(question) {
+  const q = question.toLowerCase();
+  const now = new Date();
+  if (q.includes('today')) return toDateKey(now);
+  if (q.includes('yesterday')) return toDateKey(addDays(now, -1));
+  if (q.includes('tomorrow')) return toDateKey(addDays(now, 1));
+  const iso = q.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+  const slash = q.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(20\d{2}))?\b/);
+  if (slash) return `${slash[3] || now.getFullYear()}-${slash[1].padStart(2, '0')}-${slash[2].padStart(2, '0')}`;
+  const months = 'january february march april may june july august september october november december jan feb mar apr jun jul aug sep sept oct nov dec'.split(' ');
+  const monthPattern = new RegExp(`\\b(${months.join('|')})\\s+(\\d{1,2})(?:,?\\s+(20\\d{2}))?\\b`, 'i');
+  const named = question.match(monthPattern);
+  if (named) {
+    const raw = named[1].toLowerCase();
+    const monthMap = { jan:0,january:0,feb:1,february:1,mar:2,march:2,apr:3,april:3,may:4,jun:5,june:5,jul:6,july:6,aug:7,august:7,sep:8,sept:8,september:8,oct:9,october:9,nov:10,november:10,dec:11,december:11 };
+    return `${named[3] || now.getFullYear()}-${String(monthMap[raw] + 1).padStart(2, '0')}-${String(Number(named[2])).padStart(2, '0')}`;
+  }
+  return null;
+}
+
+async function answerWeatherImpactQuestion(question) {
+  const dateKey = parseQuestionDate(question);
+  if (!dateKey) {
+    return { tone: 'warn', text: 'Please include a specific date, or say today/tomorrow/yesterday. Example: “What was the weather on 2026-04-15 and how did it affect my usage?”' };
+  }
+  const usage = readings.has(dateKey) ? getDayTotal(dateKey) : null;
+  let weather;
+  try {
+    weather = await getWeatherForDate(dateKey);
+  } catch (err) {
+    const usageLine = usage === null ? 'I also do not have loaded electrical usage for that date.' : `Your loaded grid usage that day was ${fmtKwh(usage)}.`;
+    return {
+      tone: 'warn',
+      text: `I could not retrieve weather for ${fmtDate(dateKey)} from Open-Meteo (${err.message}). ${usageLine} I will not estimate weather impact without weather data.`
+    };
+  }
+  const similar = await getSimilarWeatherUsage(dateKey, weather);
+  const lines = [
+    `Weather for ${fmtDate(dateKey)} near Katy, TX: ${weather.summary}.`,
+  ];
+  if (usage === null) {
+    const q = question.toLowerCase();
+    const today = parseDateKey(getTodayKey());
+    const requested = parseDateKey(dateKey);
+    const offset = Math.round((requested - today) / (1000 * 60 * 60 * 24));
+    lines.push('I do not have loaded electrical usage for that date, so I can report the weather but cannot calculate actual usage impact.');
+    if (offset >= 0 && offset <= 1 && (q.includes('usage') || q.includes('expected') || q.includes('forecast') || q.includes('estimate'))) {
+      const forecast = answerUsageForecast(offset);
+      lines.push('Baseline usage estimate from energy history:');
+      lines.push(forecast.text);
+    }
+    lines.push('Confidence: High for weather lookup if Open-Meteo returned data; usage impact is unavailable without actual loaded usage for the date.');
+    return { tone: 'warn', text: lines.join('\n') };
+  }
+
+  const allTotals = getDailyTotals().filter(d => d.day !== dateKey);
+  const avg = allTotals.length ? allTotals.reduce((sum, d) => sum + d.total, 0) / allTotals.length : null;
+  const pct = avg ? pctChange(usage, avg) : null;
+  lines.push(`Your loaded grid usage that day: ${fmtKwh(usage)}${avg ? `, which is ${describePct(pct)} than your average loaded day (${fmtKwh(avg)}).` : '.'}`);
+  if (similar.length >= 2) {
+    const simAvg = similar.reduce((sum, d) => sum + d.total, 0) / similar.length;
+    lines.push(`Similar-weather days in the loaded data averaged ${fmtKwh(simAvg)} across ${similar.length} day${similar.length !== 1 ? 's' : ''}. This date was ${describePct(pctChange(usage, simAvg))} than that similar-weather baseline.`);
+  } else {
+    lines.push('I do not have enough similar-weather days loaded to build a strong weather-adjusted baseline.');
+  }
+  lines.push(buildWeatherInterpretation(weather, usage, avg));
+  lines.push('Confidence: Medium — weather/usage impact is correlation only. I cannot directly see HVAC, appliances, Tesla charging, thermostat settings, or occupancy.');
+  return { tone: similar.length >= 2 ? '' : 'warn', text: lines.join('\n') };
+}
+
+function buildWeatherInterpretation(weather, usage, avg) {
+  const high = weather.tempMax;
+  const cloud = weather.cloudAvg;
+  const parts = [];
+  if (Number.isFinite(high) && high >= 90) parts.push('high temperature is consistent with increased cooling load');
+  if (Number.isFinite(high) && high <= 50) parts.push('low temperatures may contribute to heating-related load if electric heat was used');
+  if (Number.isFinite(cloud) && cloud >= 65) parts.push('high cloud cover could reduce solar production once solar data is available');
+  if (weather.precipSum > 0.05) parts.push('rain/cloudy conditions may reduce solar output and change household usage patterns');
+  if (!parts.length) parts.push('the weather does not stand out strongly from the variables I checked');
+  const usageNote = avg && usage > avg * 1.15 ? ' Usage was elevated versus your loaded average.' : avg && usage < avg * 0.85 ? ' Usage was lower than your loaded average.' : '';
+  return `Interpretation: ${parts.join('; ')}.${usageNote}`;
+}
+
+async function getSimilarWeatherUsage(targetDateKey, weather) {
+  if (!Number.isFinite(weather.tempMax)) return [];
+  const candidates = getDailyTotals()
+    .filter(d => d.day !== targetDateKey)
+    .filter(d => Math.abs(parseDateKey(d.day) - parseDateKey(targetDateKey)) <= 1000 * 60 * 60 * 24 * 45)
+    .slice(-18);
+  const enriched = await Promise.all(candidates.map(async (d) => {
+    try {
+      return { ...d, weather: await getWeatherForDate(d.day) };
+    } catch (err) {
+      return { ...d, weather: null };
+    }
+  }));
+  return enriched
+    .filter(d => d.weather && Number.isFinite(d.weather.tempMax) && Math.abs(d.weather.tempMax - weather.tempMax) <= 5)
+    .slice(-10);
+}
+
+function readWeatherCache(dateKey) {
+  try {
+    const cache = JSON.parse(localStorage.getItem(CHATBOT_WEATHER_CACHE_KEY) || '{}');
+    const rec = cache[dateKey];
+    if (!rec) return null;
+    if (Date.now() - rec.cachedAt > CHATBOT_WEATHER_CACHE_MS && dateKey >= getTodayKey()) return null;
+    return rec.data;
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeWeatherCache(dateKey, data) {
+  try {
+    const cache = JSON.parse(localStorage.getItem(CHATBOT_WEATHER_CACHE_KEY) || '{}');
+    cache[dateKey] = { cachedAt: Date.now(), data };
+    const entries = Object.entries(cache).sort((a, b) => (a[1]?.cachedAt || 0) - (b[1]?.cachedAt || 0));
+    while (entries.length > 80) {
+      const [oldestKey] = entries.shift();
+      delete cache[oldestKey];
+    }
+    localStorage.setItem(CHATBOT_WEATHER_CACHE_KEY, JSON.stringify(cache));
+  } catch (err) {
+    console.warn('Could not cache weather', err);
+  }
+}
+
+async function getWeatherForDate(dateKey) {
+  const cached = readWeatherCache(dateKey);
+  if (cached) return cached;
+
+  const today = parseDateKey(getTodayKey());
+  const requested = parseDateKey(dateKey);
+  const daysFromToday = Math.round((requested - today) / (1000 * 60 * 60 * 24));
+  const forecastEndpoint = 'https://api.open-meteo.com/v1/forecast';
+  const archiveEndpoint = 'https://archive-api.open-meteo.com/v1/archive';
+  const endpoints = daysFromToday >= -7
+    ? [forecastEndpoint, archiveEndpoint]
+    : [archiveEndpoint, forecastEndpoint];
+  let lastError = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      const params = new URLSearchParams({
+        latitude: CHATBOT_WEATHER_LAT,
+        longitude: CHATBOT_WEATHER_LON,
+        start_date: dateKey,
+        end_date: dateKey,
+        temperature_unit: 'fahrenheit',
+        precipitation_unit: 'inch',
+        timezone: CHATBOT_WEATHER_TZ,
+        daily: 'temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,weather_code,shortwave_radiation_sum,sunshine_duration',
+        hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,cloud_cover,shortwave_radiation'
+      });
+      const res = await fetch(`${endpoint}?${params.toString()}`);
+      if (!res.ok) throw new Error(`Weather API ${res.status}`);
+      const data = await res.json();
+      const normalized = normalizeWeather(dateKey, data);
+      normalized.source = endpoint.includes('archive') ? 'Open-Meteo archive' : 'Open-Meteo forecast';
+      writeWeatherCache(dateKey, normalized);
+      return normalized;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error('Weather API unavailable');
+}
+
+function avgNumber(arr) {
+  const nums = (arr || []).map(Number).filter(Number.isFinite);
+  return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+}
+
+function normalizeWeather(dateKey, data) {
+  const daily = data.daily || {};
+  const hourly = data.hourly || {};
+  const tempMax = Number(daily.temperature_2m_max?.[0]);
+  const tempMin = Number(daily.temperature_2m_min?.[0]);
+  const tempMean = Number(daily.temperature_2m_mean?.[0]);
+  const precipSum = Number(daily.precipitation_sum?.[0] || 0);
+  const code = Number(daily.weather_code?.[0]);
+  const cloudAvg = avgNumber(hourly.cloud_cover);
+  const humidityAvg = avgNumber(hourly.relative_humidity_2m);
+  const apparentAvg = avgNumber(hourly.apparent_temperature);
+  const shortwaveSum = Number(daily.shortwave_radiation_sum?.[0]);
+  const sunshineHours = Number(daily.sunshine_duration?.[0]) / 3600;
+  const summaryParts = [];
+  if (Number.isFinite(tempMax) && Number.isFinite(tempMin)) summaryParts.push(`high ${Math.round(tempMax)}°F / low ${Math.round(tempMin)}°F`);
+  if (Number.isFinite(apparentAvg)) summaryParts.push(`avg feels-like ${Math.round(apparentAvg)}°F`);
+  if (Number.isFinite(cloudAvg)) summaryParts.push(`avg cloud cover ${Math.round(cloudAvg)}%`);
+  if (Number.isFinite(precipSum)) summaryParts.push(`precip ${precipSum.toFixed(2)} in`);
+  if (Number.isFinite(shortwaveSum)) summaryParts.push(`solar radiation ${shortwaveSum.toFixed(1)} MJ/m²`);
+  if (Number.isFinite(sunshineHours)) summaryParts.push(`sunshine ${sunshineHours.toFixed(1)} hr`);
+  if (WEATHER_CODES[code]) summaryParts.push(WEATHER_CODES[code].toLowerCase());
+  return {
+    dateKey,
+    tempMax,
+    tempMin,
+    tempMean,
+    precipSum,
+    code,
+    cloudAvg,
+    humidityAvg,
+    apparentAvg,
+    shortwaveSum,
+    sunshineHours,
+    summary: summaryParts.length ? summaryParts.join(', ') : 'weather data returned, but no summary variables were available'
+  };
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
