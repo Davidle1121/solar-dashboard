@@ -1300,7 +1300,7 @@ async function answerEnergyQuestion(question) {
 
   if (intent === 'weather') return answerWeatherImpactQuestion(question);
   if (intent === 'previous_month_total') return answerPreviousMonthTotal();
-  if (intent === 'ev_charging') return answerLikelyEvCharging(parseQuestionDate(question));
+  if (intent === 'ev_charging') return answerLikelyEvCharging();
   if (intent === 'week_comparison') return answerWeekComparison();
   if (intent === 'usage_forecast') return answerUsageForecast(q.includes('tomorrow') ? 1 : 0);
   if (intent === 'peak_usage') return answerPeakUsage();
@@ -1522,10 +1522,9 @@ function answerUsageForecast(offsetDays) {
   };
 }
 
-function getLikelyEvSessions(dayFilter = null) {
+function answerLikelyEvCharging() {
   const sessions = [];
-  const days = dayFilter ? [dayFilter] : getLoadedDays();
-  for (const day of days) {
+  for (const day of getLoadedDays()) {
     const intervals = readings.get(day) || [];
     const meta = detectLikelyEvSessions(intervals);
     for (const range of meta.sessions || []) {
@@ -1542,60 +1541,10 @@ function getLikelyEvSessions(dayFilter = null) {
       const startMinutes = timeToMinutes(start);
       let endMinutes = timeToMinutes(end);
       if (startMinutes !== null && endMinutes !== null && endMinutes < startMinutes) endMinutes += 1440;
-      sessions.push({ day, start, end, startMinutes, endMinutes, total, peak, intervalCount: intervals.length });
+      sessions.push({ day, start, end, startMinutes, endMinutes, total, peak });
     }
   }
-  return sessions;
-}
 
-function formatEvSession(session) {
-  return `• ${to12hr(session.start)}–${to12hr(session.end)}: ${fmtKwh(session.total)} likely charging energy, peak interval ${fmtKwh(session.peak, 3)}`;
-}
-
-function answerLikelyEvCharging(dateKey = null) {
-  if (dateKey) {
-    if (!readings.has(dateKey)) {
-      return {
-        tone: 'warn',
-        text: [
-          `No loaded usage data found for ${fmtDate(dateKey)} (${dateKey}).`,
-          '',
-          'Answer: I cannot determine whether Tesla/EV charging happened on that date because that date is not in the currently loaded dashboard data.'
-        ].join('\n')
-      };
-    }
-
-    const sessionsForDate = getLikelyEvSessions(dateKey);
-    if (!sessionsForDate.length) {
-      return {
-        tone: 'warn',
-        text: [
-          `Answer: No likely Tesla/EV charging was detected on ${fmtDate(dateKey)} (${dateKey}).`,
-          '',
-          `Data checked: ${readings.get(dateKey).length} loaded usage intervals for that day.`,
-          'Method: looked for sustained large whole-home kWh spikes that match the dashboard EV heuristic.',
-          'Confidence: Medium — this can miss smaller/shorter charging sessions and cannot prove charger activity directly.'
-        ].join('\n')
-      };
-    }
-
-    const total = sessionsForDate.reduce((sum, session) => sum + session.total, 0);
-    return {
-      tone: 'warn',
-      text: [
-        `Answer: Yes — I found ${sessionsForDate.length} likely Tesla/EV charging session${sessionsForDate.length !== 1 ? 's' : ''} on ${fmtDate(dateKey)} (${dateKey}).`,
-        '',
-        `Likely charging total: ${fmtKwh(total)}.`,
-        '',
-        'Detected session(s):',
-        ...sessionsForDate.map(formatEvSession),
-        '',
-        'Confidence: Medium — this is inferred from sustained large whole-home usage spikes, not confirmed Tesla charger data. Other large loads could be included.'
-      ].join('\n')
-    };
-  }
-
-  const sessions = getLikelyEvSessions();
   if (!sessions.length) {
     return {
       tone: 'warn',
@@ -1614,7 +1563,7 @@ function answerLikelyEvCharging(dateKey = null) {
   const avgStart = timedTopSessions.length ? timedTopSessions.reduce((sum, s) => sum + s.startMinutes, 0) / timedTopSessions.length : null;
   const avgEnd = timedTopSessions.length ? timedTopSessions.reduce((sum, s) => sum + s.endMinutes, 0) / timedTopSessions.length : null;
   const avgSessionKwh = sessions.reduce((sum, s) => sum + s.total, 0) / sessions.length;
-  const examples = sessions.slice(-5).map(formatEvSession).join('\n');
+  const examples = sessions.slice(-5).map(s => `${s.day} ${to12hr(s.start)}–${to12hr(s.end)} (${fmtKwh(s.total)})`).join(', ');
   const windowLabel = avgStart !== null && avgEnd !== null
     ? `${minutesToTimeLabel(avgStart)}–${minutesToTimeLabel(avgEnd)}`
     : (topHour >= 0 ? `starting around ${to12hr(String(topHour).padStart(2, '0') + ':00')}` : 'unknown');
@@ -1623,13 +1572,9 @@ function answerLikelyEvCharging(dateKey = null) {
     tone: 'warn',
     text: [
       `Likely Tesla/EV charging window: ${windowLabel}.`,
-      '',
-      `Detected pattern: ${sessions.length} likely charging session${sessions.length !== 1 ? 's' : ''}; ${topCount} started in the ${topHour >= 0 ? to12hr(String(topHour).padStart(2, '0') + ':00') : 'unknown'} hour.`,
+      `I found ${sessions.length} likely charging session${sessions.length !== 1 ? 's' : ''}; ${topCount} started in the ${topHour >= 0 ? to12hr(String(topHour).padStart(2, '0') + ':00') : 'unknown'} hour.`,
       `Average likely session energy: ${fmtKwh(avgSessionKwh)}.`,
-      '',
-      'Recent examples:',
-      examples,
-      '',
+      `Recent examples: ${examples}.`,
       'Confidence: Medium — this is inferred from sustained large whole-home usage spikes, not confirmed Tesla charger data. Other large loads could be included.'
     ].join('\n')
   };
