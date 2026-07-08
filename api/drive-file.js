@@ -1,11 +1,5 @@
-import { isAuthenticated } from './_auth.js';
-
 export default async function handler(req, res) {
   try {
-    if (!isAuthenticated(req)) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
     const apiKey = process.env.DRIVE_API_KEY;
     const { id, exportCsv } = req.query;
 

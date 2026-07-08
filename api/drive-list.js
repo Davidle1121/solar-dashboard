@@ -1,11 +1,5 @@
-import { isAuthenticated } from './_auth.js';
-
 export default async function handler(req, res) {
   try {
-    if (!isAuthenticated(req)) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
     const apiKey = process.env.DRIVE_API_KEY;
     const folderId = process.env.DRIVE_FOLDER_ID;
 
@@ -13,11 +7,16 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Missing Vercel environment variables' });
     }
 
-    const url =
-      `https://www.googleapis.com/drive/v3/files` +
-      `?q='${encodeURIComponent(folderId)}'+in+parents+and+trashed=false` +
-      `&fields=files(id,name,mimeType,modifiedTime)` +
-      `&orderBy=name&pageSize=1000&key=${apiKey}`;
+    const params = new URLSearchParams({
+      q: `'${folderId}' in parents and trashed=false`,
+      fields: 'files(id,name,mimeType,modifiedTime)',
+      orderBy: 'name',
+      pageSize: '1000',
+      supportsAllDrives: 'true',
+      includeItemsFromAllDrives: 'true',
+      key: apiKey
+    });
+    const url = `https://www.googleapis.com/drive/v3/files?${params.toString()}`;
 
     const r = await fetch(url);
     const text = await r.text();
