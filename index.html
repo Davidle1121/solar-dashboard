@@ -104,26 +104,6 @@
     color: var(--muted);
     margin-top: 4px;
   }
-  .auth-row {
-    margin-top: 10px;
-    display: flex;
-    justify-content: flex-end;
-  }
-  .auth-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    padding: 8px 14px;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-  }
-  .auth-btn:hover { border-color: var(--danger); background: rgba(248,81,73,0.05); }
   .stats-row {
     display: grid;
     grid-template-columns: repeat(5, 200px);
@@ -627,9 +607,6 @@
           <div class="weather-loc">Katy, TX (77494)</div>
         </div>
       </div>
-      <div class="auth-row">
-        <button class="auth-btn" onclick="logoutSite()">Log out</button>
-      </div>
     </div>
   </header>
 
@@ -955,34 +932,14 @@ let freeEndHour = 6;
 let monthSummaries = new Map();
 const AUTO_SYNC_MODE = 'smart';
 const AUTO_SYNC_INTERVAL_HOURS = 6;
+const DASHBOARD_CACHE_KEY = 'energyDashboardCacheV2';
+const LEGACY_DASHBOARD_CACHE_KEY = 'energyDashboardCacheV1';
+const DRIVE_FETCH_TIMEOUT_MS = 30000;
+const DRIVE_FETCH_RETRIES = 2;
 const ALERT_THRESHOLDS = { weekPct: 10, dayPct: 15, monthPct: 10 };
 const STATS_CARD_ORDER_KEY = 'dashboardStatsOrderV1';
 const MAX_STATS_CARDS = 10;
 let draggingStatCard = null;
-
-async function requireAuth() {
-  try {
-    const res = await fetch('/api/session', { credentials: 'same-origin' });
-    const data = await res.json();
-    if (!data.authenticated) {
-      const next = encodeURIComponent(window.location.pathname || '/');
-      window.location.replace('/login.html?next=' + next);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    const next = encodeURIComponent(window.location.pathname || '/');
-    window.location.replace('/login.html?next=' + next);
-    return false;
-  }
-}
-
-async function logoutSite() {
-  try {
-    await fetch('/api/logout', { method: 'GET', credentials: 'same-origin' });
-  } catch (e) {}
-  window.location.href = '/login.html';
-}
 
 function getTodayKey() {
   const d = new Date();
@@ -1031,24 +988,50 @@ function deserializeReadingsMap(source) {
   return restored;
 }
 
+function buildDashboardCachePayload() {
+  return {
+    cachedAt: Date.now(),
+    readings: serializeReadingsMap(readings),
+    monthSummaries: Object.fromEntries(monthSummaries.entries()),
+    loadedFiles: loadedFiles.map(f => ({ name: f.name || String(f), type: f.type || '', cached: true }))
+  };
+}
+
 function cacheDashboardData() {
+  const serialized = JSON.stringify(buildDashboardCachePayload());
   try {
-    const payload = {
-      readings: serializeReadingsMap(readings),
-      monthSummaries: Object.fromEntries(monthSummaries.entries()),
-      loadedFiles: loadedFiles.map(f => ({ name: f.name || String(f), type: f.type || '', cached: true }))
-    };
-    sessionStorage.setItem('energyDashboardCacheV1', JSON.stringify(payload));
+    localStorage.setItem(DASHBOARD_CACHE_KEY, serialized);
   } catch (err) {
-    console.warn('Could not cache dashboard data', err);
+    console.warn('Could not persist dashboard data cache', err);
   }
+  try {
+    sessionStorage.setItem(DASHBOARD_CACHE_KEY, serialized);
+  } catch (err) {
+    console.warn('Could not cache dashboard data for this session', err);
+  }
+}
+
+function readDashboardCache() {
+  const sources = [
+    () => localStorage.getItem(DASHBOARD_CACHE_KEY),
+    () => sessionStorage.getItem(DASHBOARD_CACHE_KEY),
+    () => sessionStorage.getItem(LEGACY_DASHBOARD_CACHE_KEY)
+  ];
+  for (const read of sources) {
+    try {
+      const raw = read();
+      if (raw) return JSON.parse(raw);
+    } catch (err) {
+      console.warn('Could not read cached dashboard data', err);
+    }
+  }
+  return null;
 }
 
 function restoreDashboardData() {
   try {
-    const raw = sessionStorage.getItem('energyDashboardCacheV1');
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
+    const parsed = readDashboardCache();
+    if (!parsed) return false;
     const restoredReadings = deserializeReadingsMap(parsed.readings);
     if (restoredReadings.size === 0) return false;
     readings = restoredReadings;
@@ -1063,6 +1046,27 @@ function restoreDashboardData() {
     console.warn('Could not restore cached dashboard data', err);
     return false;
   }
+}
+
+async function fetchWithRetry(url, options = {}, retries = DRIVE_FETCH_RETRIES) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DRIVE_FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      if (res.ok || (res.status >= 400 && res.status < 500 && res.status !== 429)) return res;
+      lastError = new Error(`HTTP ${res.status} ${res.statusText}`.trim());
+    } catch (err) {
+      lastError = err;
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (attempt < retries) {
+      await new Promise(resolve => setTimeout(resolve, 600 * (attempt + 1)));
+    }
+  }
+  throw lastError || new Error('Request failed');
 }
 
 function clearDashboard() {
@@ -1817,9 +1821,6 @@ function normalizeWeather(dateKey, data) {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  const ok = await requireAuth();
-  if (!ok) return;
-
   fetchWeather();
   const startSel = document.getElementById('free-start');
   const endSel = document.getElementById('free-end');
@@ -2899,9 +2900,11 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
   const nextLoadedFiles = forceRefresh ? [] : [...loadedFiles];
 
   try {
-    const listRes = await fetch('/api/drive-list', { credentials: 'same-origin' });
+    const listRes = await fetchWithRetry('/api/drive-list', { credentials: 'same-origin' });
     if (!listRes.ok) throw new Error(`Drive API error: ${listRes.status} ${listRes.statusText}`);
-    const listData = await listRes.json();
+    const listData = await listRes.json().catch(() => {
+      throw new Error('Drive API returned an invalid file list');
+    });
 
     if (!listData.files || listData.files.length === 0) {
       status.className = 'drive-status err';
@@ -2981,9 +2984,15 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
         ? `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&exportCsv=1`
         : `/api/drive-file?id=${encodeURIComponent(driveFile.id)}`;
 
-      const fileRes = await fetch(downloadUrl, { credentials: 'same-origin' });
+      let fileRes;
+      try {
+        fileRes = await fetchWithRetry(downloadUrl, { credentials: 'same-origin' });
+      } catch (err) {
+        showToast(`Could not download ${driveFile.name}: ${err.message}`, 'error');
+        continue;
+      }
       if (!fileRes.ok) {
-        showToast(`Could not download ${driveFile.name}`, 'error');
+        showToast(`Could not download ${driveFile.name} (${fileRes.status})`, 'error');
         continue;
       }
 
