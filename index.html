@@ -672,7 +672,10 @@
     </div>
   </div>
 
-  <div class="solar-section" id="solar-section">
+  <!-- Solar install is postponed, so keep the placeholder off the live site.
+       When SIGEnergy data import is wired up, renderSolarStats() will reveal this
+       section and hide the banner in favor of real production/battery totals. -->
+  <div class="solar-section" id="solar-section" style="display:none">
     <div class="solar-banner" id="solar-banner">
       <div class="solar-banner-icon">☀️</div>
       <div class="solar-banner-text">
@@ -2907,6 +2910,13 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
     });
 
     if (!listData.files || listData.files.length === 0) {
+      // Empty Drive folder pause guard: if the install/data feed is paused and
+      // there is no browser-cached data to fall back to, show the intentional
+      // empty dashboard state instead of leaving placeholder cards visible.
+      if (!hadExistingData) {
+        clearDashboard();
+        document.getElementById('empty-state').style.display = 'flex';
+      }
       status.className = 'drive-status err';
       status.textContent = hadExistingData
         ? 'No files found in Drive folder — showing previously loaded data'
@@ -2934,9 +2944,14 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
     weekStart.setDate(anchorDate.getDate() - anchorDate.getDay());
     const previousWeekStart = new Date(weekStart);
     previousWeekStart.setDate(weekStart.getDate() - 7);
+    // Historical-data guard from the prior dashboard iteration: only import
+    // readings needed for current-month totals plus the previous-week comparison.
+    // This keeps Drive sync bounded even if the folder later contains older exports.
     const compareWindowStart = previousWeekStart < currentMonthStart ? previousWeekStart : currentMonthStart;
     const compareWindowStartKey = toDateKey(compareWindowStart);
 
+    // File-level companion to the date guard above: download only the anchor
+    // month and previous month when filenames/modified times reveal a month.
     const scopedFiles = smtFiles.filter(file => {
       const monthKey = inferFileMonthKey(file);
       if (!monthKey) return true;
@@ -3131,6 +3146,7 @@ function renderSolarStats() {
   document.getElementById('sig-grid').textContent = grid.toFixed(1);
   document.getElementById('sig-selfuse').textContent = selfuse + (selfuse !== '—' ? '%' : '');
 
+  document.getElementById('solar-section').style.display = 'block';
   document.getElementById('solar-banner').style.display = 'none';
   document.getElementById('solar-stats-row').style.display = 'grid';
 }
