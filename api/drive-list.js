@@ -19,9 +19,24 @@ export default async function handler(req, res) {
     const url = `https://www.googleapis.com/drive/v3/files?${params.toString()}`;
 
     const r = await fetch(url);
-    const text = await r.text();
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: 'Drive listing failed' });
 
-    return res.status(r.status).send(text);
+    const files = (data.files || []).map((file, index) => {
+      const extension = file.mimeType === 'application/vnd.google-apps.spreadsheet'
+        ? 'csv'
+        : String(file.name || '').split('.').pop().toLowerCase();
+      const safeExtension = ['csv', 'xlsx', 'xml'].includes(extension) ? extension : 'data';
+      const date = String(file.modifiedTime || '').slice(0, 10) || 'undated';
+      return {
+        id: file.id,
+        name: `usage-${date}-${index + 1}.${safeExtension}`,
+        mimeType: file.mimeType,
+        modifiedTime: file.modifiedTime
+      };
+    });
+
+    return res.status(200).json({ files });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
