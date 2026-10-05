@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   try {
     const apiKey = process.env.DRIVE_API_KEY;
     const folderId = process.env.DRIVE_FOLDER_ID;
-    const { id, token, exportCsv } = req.query;
+    const { id, exportCsv } = req.query;
 
     if (!apiKey || !folderId) {
       return res.status(500).json({ error: 'Missing Drive configuration' });
@@ -16,11 +16,45 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid file id' });
     }
 
-    // drive-list signs every id it obtained from the configured folder. Verifying
-    // that proof locally preserves the folder boundary without a second Google
-    // metadata/list request, which caused valid API-key downloads to fail with 403.
-    if (!verifyDriveFileToken(id, token, apiKey)) {
-      return res.status(403).json({ error: 'Invalid dashboard file token' });
+    // Validate membership on every request instead of trusting an id supplied by
+    // the browser. Use the same files.list operation as drive-list: some API-key
+    // Drive configurations permit folder listing and media download but reject a
+    // standalone files.get metadata request with 403.
+    const membershipParams = new URLSearchParams({
+      q: `'${folderId}' in parents and trashed=false`,
+      fields: 'files(id)',
+      pageSize: '1000',
+      supportsAllDrives: 'true',
+      includeItemsFromAllDrives: 'true',
+      key: apiKey
+    });
+    const membershipResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?${membershipParams.toString()}`
+    );
+    if (!membershipResponse.ok) {
+      return res.status(502).json({ error: 'Could not verify dashboard folder membership' });
+    }
+    const membership = await membershipResponse.json();
+    if (!membership.files?.some(file => file.id === id)) {
+      return res.status(403).json({ error: 'File is outside the dashboard folder' });
+    }
+
+    // Validate the parent on every request instead of trusting an id supplied by the
+    // browser. This keeps this route scoped to the dedicated dashboard folder.
+    const metadataParams = new URLSearchParams({
+      fields: 'id,parents,trashed',
+      supportsAllDrives: 'true',
+      key: apiKey
+    });
+    const metadataResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?${metadataParams.toString()}`
+    );
+    if (!metadataResponse.ok) {
+      return res.status(metadataResponse.status).json({ error: 'File is unavailable' });
+    }
+    const metadata = await metadataResponse.json();
+    if (metadata.trashed || !metadata.parents?.includes(folderId)) {
+      return res.status(403).json({ error: 'File is outside the dashboard folder' });
     }
 
     const url = exportCsv === '1'

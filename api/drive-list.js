@@ -34,7 +34,6 @@ export default async function handler(req, res) {
       const date = String(file.modifiedTime || '').slice(0, 10) || 'undated';
       return {
         id: file.id,
-        token: createDriveFileToken(file.id, apiKey),
         name: `usage-${date}-${index + 1}.${safeExtension}`,
         mimeType: file.mimeType,
         modifiedTime: file.modifiedTime

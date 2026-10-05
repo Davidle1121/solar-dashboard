@@ -56,9 +56,9 @@ will reject download requests for files that are not direct children of that fol
   exported filenames can contain names, meter identifiers, or other personal information.
 - The download endpoint rechecks that every requested file is a direct child of `DRIVE_FOLDER_ID`.
   This prevents the API key from turning the endpoint into a general-purpose Drive file proxy.
-  The listing endpoint creates a signed proof for each listed file ID, and the download endpoint
-  verifies that proof locally. This avoids the extra Google metadata/list request that returned 403
-  for valid files under some API-key configurations while still rejecting caller-invented IDs.
+  It performs that check with the same folder-list operation used by the listing endpoint because
+  some API-key configurations allow listing and downloading but return 403 for a standalone Drive
+  metadata lookup.
 - Parsed energy readings are cached only in `sessionStorage`, so closing the browser session clears
   them. Small non-energy preferences and weather summaries may still use `localStorage`.
 
