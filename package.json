@@ -1,0 +1,8 @@
+{
+  "name": "home-energy-dashboard",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "check": "node --check api/_auth.js && node --check api/drive-file.js && node --check api/drive-list.js && node --check api/login.js && node --check api/logout.js && node --check api/session.js && node --check api/weather.js"
+  }
+}
