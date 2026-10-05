@@ -1,3 +1,5 @@
+import { verifyDriveFileToken } from './_drive-token.js';
+
 export default async function handler(req, res) {
   try {
     const apiKey = process.env.DRIVE_API_KEY;
@@ -62,6 +64,17 @@ export default async function handler(req, res) {
     const r = await fetch(url);
     const contentType = r.headers.get('content-type') || 'application/octet-stream';
     const buffer = await r.arrayBuffer();
+
+    if (!r.ok) {
+      let detail = '';
+      try {
+        detail = JSON.parse(Buffer.from(buffer).toString()).error?.message || '';
+      } catch {
+        // Google occasionally returns a plain-text error; keep the client message generic.
+      }
+      const suffix = detail ? `: ${detail}` : '';
+      return res.status(r.status).json({ error: `Google Drive download failed${suffix}` });
+    }
 
     res.setHeader('Content-Type', contentType);
     return res.status(r.status).send(Buffer.from(buffer));

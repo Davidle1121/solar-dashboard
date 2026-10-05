@@ -1933,6 +1933,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
     status.textContent = `Found ${scopedFiles.length} file(s) in active window — downloading…`;
 
     let loaded = 0, skipped = 0;
+    const failures = [];
     for (const driveFile of scopedFiles) {
       if (!forceRefresh && nextLoadedFiles.find(f => f.name === driveFile.name)) {
         skipped++;
@@ -1943,18 +1944,22 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
 
       const isGoogleSheet = driveFile.mimeType === 'application/vnd.google-apps.spreadsheet';
       const downloadUrl = isGoogleSheet
-        ? `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&exportCsv=1`
-        : `/api/drive-file?id=${encodeURIComponent(driveFile.id)}`;
+        ? `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&token=${encodeURIComponent(driveFile.token)}&exportCsv=1`
+        : `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&token=${encodeURIComponent(driveFile.token)}`;
 
       let fileRes;
       try {
         fileRes = await fetchWithRetry(downloadUrl, { credentials: 'same-origin' });
       } catch (err) {
+        failures.push(`${driveFile.name}: request failed (${err.message})`);
         showToast(`Could not download ${driveFile.name}: ${err.message}`, 'error');
         continue;
       }
       if (!fileRes.ok) {
-        showToast(`Could not download ${driveFile.name} (${fileRes.status})`, 'error');
+        const errorBody = await fileRes.json().catch(() => null);
+        const reason = errorBody?.error ? `: ${errorBody.error}` : '';
+        failures.push(`${driveFile.name}: HTTP ${fileRes.status}${reason}`);
+        showToast(`Could not download ${driveFile.name} (${fileRes.status})${reason}`, 'error');
         continue;
       }
 
@@ -1970,6 +1975,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       try {
         const data = await parseFile(file);
         if (data.size === 0) {
+          failures.push(`${file.name}: parser found no interval readings`);
           showToast('No data in ' + file.name, 'error');
           continue;
         }
@@ -1995,6 +2001,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
         nextLoadedFiles.push(file);
         loaded++;
       } catch (err) {
+        failures.push(`${file.name}: ${err.message}`);
         showToast('Parse error: ' + file.name, 'error');
       }
     }
@@ -2041,16 +2048,18 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       if (readings.size > 0) {
         renderAllDebounced();
         status.className = 'drive-status err';
-        status.textContent = forceRefresh
+        const baseMessage = forceRefresh
           ? 'No valid data files were loaded — showing previously loaded data'
           : 'No new valid data files were loaded — showing previously loaded data';
+        status.textContent = failures.length ? `${baseMessage}. First issue: ${failures[0]}` : baseMessage;
       } else {
         clearDashboard();
         document.getElementById('empty-state').style.display = 'flex';
         status.className = 'drive-status err';
-        status.textContent = forceRefresh
+        const baseMessage = forceRefresh
           ? 'No valid data files were loaded from Drive'
           : 'No new valid data files were loaded from Drive';
+        status.textContent = failures.length ? `${baseMessage}. First issue: ${failures[0]}` : baseMessage;
       }
     }
 
