@@ -54,11 +54,11 @@ will reject download requests for files that are not direct children of that fol
   and keep the configured Drive folder dedicated to non-account dashboard exports.
 - The listing endpoint replaces original Drive filenames before sending them to the browser because
   exported filenames can contain names, meter identifiers, or other personal information.
-- The listing endpoint is restricted to direct children of `DRIVE_FOLDER_ID`. The download endpoint
-  intentionally performs only the media/export request that worked before the privacy refactor.
-  Extra Google metadata/list validation calls were removed after they caused valid production files
-  to return 403. Authentication is the future control for the download endpoint; reliability takes
-  precedence until that work is added.
+- The download endpoint rechecks that every requested file is a direct child of `DRIVE_FOLDER_ID`.
+  This prevents the API key from turning the endpoint into a general-purpose Drive file proxy.
+  It performs that check with the same folder-list operation used by the listing endpoint because
+  some API-key configurations allow listing and downloading but return 403 for a standalone Drive
+  metadata lookup.
 - Parsed energy readings are cached only in `sessionStorage`, so closing the browser session clears
   them. Small non-energy preferences and weather summaries may still use `localStorage`.
 
@@ -82,12 +82,5 @@ npm test
 npm run check
 ```
 
-The tests exercise the complete mocked Drive flow—listing, filename sanitization, and the single
-Google media download—plus input validation, upstream error behavior, and normalized weather output.
-
-### Verifying the deployed sync build
-
-The current failure status includes `direct-v1`, the number of attempted files, and the first
-download/parser failure. If a deployed site still shows only `No valid data files were loaded —
-showing previously loaded data`, it is serving an older `index.html`; redeploy the current commit
-and hard-refresh the browser before debugging Drive credentials or file contents.
+The tests exercise the complete mocked Drive flow—listing, filename sanitization, folder-membership
+verification, and media download—plus denial/error behavior and normalized weather output.

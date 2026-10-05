@@ -5,7 +5,6 @@ const vm = require('node:vm');
 
 function loadHandler(path, fetchImpl) {
   const source = fs.readFileSync(path, 'utf8')
-    .replace(/^import .*?;\n/mg, '')
     .replace('export default async function handler', 'async function handler')
     + '\nthis.handler = handler;';
   const context = { Buffer, URLSearchParams, fetch: fetchImpl, process };
@@ -31,7 +30,7 @@ async function invoke(handler, query = {}) {
   return res;
 }
 
-test('a file returned by drive-list downloads with one Google media request', async () => {
+test('a file returned by drive-list can pass membership validation and download', async () => {
   process.env.DRIVE_API_KEY = 'test-key';
   process.env.DRIVE_FOLDER_ID = 'dashboard-folder';
   const file = {
@@ -52,10 +51,16 @@ test('a file returned by drive-list downloads with one Google media request', as
   assert.equal(listResponse.body.files[0].name, 'usage-2026-10-04-1.csv');
   assert.doesNotMatch(JSON.stringify(listResponse.body), /private-customer-name/);
 
+  let requestCount = 0;
   const fileHandler = loadHandler('api/drive-file.js', async (url) => {
+    requestCount += 1;
+    if (requestCount === 1) {
+      assert.match(url, /files\?/);
+      assert.match(url, /pageSize=1000/);
+      return { ok: true, json: async () => ({ files: [{ id: file.id }] }) };
+    }
     assert.match(url, new RegExp(`/files/${file.id}\\?alt=media`));
     return {
-      ok: true,
       status: 200,
       headers: { get: () => 'text/csv' },
       arrayBuffer: async () => Buffer.from('date,kwh\n2026-10-04,1.2')
@@ -65,32 +70,28 @@ test('a file returned by drive-list downloads with one Google media request', as
   assert.equal(downloadResponse.statusCode, 200);
   assert.equal(downloadResponse.headers['Content-Type'], 'text/csv');
   assert.match(downloadResponse.body.toString(), /2026-10-04/);
+  assert.equal(requestCount, 2);
 });
 
-test('drive-file rejects malformed ids before requesting Google', async () => {
+test('drive-file rejects ids that are not present in the configured folder', async () => {
   process.env.DRIVE_API_KEY = 'test-key';
   process.env.DRIVE_FOLDER_ID = 'dashboard-folder';
-  const handler = loadHandler('api/drive-file.js', async () => {
-    throw new Error('download must not be attempted');
-  });
-  const res = await invoke(handler, { id: "invalid'id" });
-  assert.equal(res.statusCode, 400);
-  assert.equal(res.body.error, 'Invalid file id');
-});
-
-test('drive-file preserves Google download status and exposes a useful failure reason', async () => {
-  process.env.DRIVE_API_KEY = 'test-key';
-  process.env.DRIVE_FOLDER_ID = 'dashboard-folder';
-  const id = 'valid_file';
   const handler = loadHandler('api/drive-file.js', async () => ({
-    ok: false,
-    status: 403,
-    headers: { get: () => 'application/json' },
-    arrayBuffer: async () => Buffer.from(JSON.stringify({ error: { message: 'API key restriction' } }))
+    ok: true,
+    json: async () => ({ files: [] })
   }));
-  const res = await invoke(handler, { id });
+  const res = await invoke(handler, { id: 'outside_file' });
   assert.equal(res.statusCode, 403);
-  assert.equal(res.body.error, 'Google Drive download failed: API key restriction');
+  assert.equal(res.body.error, 'File is outside the dashboard folder');
+});
+
+test('drive-file reports membership lookup failures separately from access denial', async () => {
+  process.env.DRIVE_API_KEY = 'test-key';
+  process.env.DRIVE_FOLDER_ID = 'dashboard-folder';
+  const handler = loadHandler('api/drive-file.js', async () => ({ ok: false, status: 403 }));
+  const res = await invoke(handler, { id: 'valid_file' });
+  assert.equal(res.statusCode, 502);
+  assert.equal(res.body.error, 'Could not verify dashboard folder membership');
 });
 
 test('weather endpoint returns only normalized condition and rainfall', async () => {

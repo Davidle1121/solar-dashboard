@@ -1945,8 +1945,8 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
 
       const isGoogleSheet = driveFile.mimeType === 'application/vnd.google-apps.spreadsheet';
       const downloadUrl = isGoogleSheet
-        ? `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&exportCsv=1`
-        : `/api/drive-file?id=${encodeURIComponent(driveFile.id)}`;
+        ? `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&token=${encodeURIComponent(driveFile.token)}&exportCsv=1`
+        : `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&token=${encodeURIComponent(driveFile.token)}`;
 
       let fileRes;
       try {
@@ -2052,8 +2052,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
         const baseMessage = forceRefresh
           ? 'No valid data files were loaded — showing previously loaded data'
           : 'No new valid data files were loaded — showing previously loaded data';
-        const detail = failures.length ? ` First issue: ${failures[0]}` : ' No request or parser failure was recorded.';
-        status.textContent = `${baseMessage}. Attempted ${scopedFiles.length}, loaded 0. ${DRIVE_SYNC_VERSION}.${detail}`;
+        status.textContent = failures.length ? `${baseMessage}. First issue: ${failures[0]}` : baseMessage;
       } else {
         clearDashboard();
         document.getElementById('empty-state').style.display = 'flex';
@@ -2061,8 +2060,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
         const baseMessage = forceRefresh
           ? 'No valid data files were loaded from Drive'
           : 'No new valid data files were loaded from Drive';
-        const detail = failures.length ? ` First issue: ${failures[0]}` : ' No request or parser failure was recorded.';
-        status.textContent = `${baseMessage}. Attempted ${scopedFiles.length}, loaded 0. ${DRIVE_SYNC_VERSION}.${detail}`;
+        status.textContent = failures.length ? `${baseMessage}. First issue: ${failures[0]}` : baseMessage;
       }
     }
 

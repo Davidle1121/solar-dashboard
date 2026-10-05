@@ -1,3 +1,5 @@
+import { createDriveFileToken } from './_drive-token.js';
+
 export default async function handler(req, res) {
   try {
     const apiKey = process.env.DRIVE_API_KEY;
