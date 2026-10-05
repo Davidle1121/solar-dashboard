@@ -56,6 +56,9 @@ will reject download requests for files that are not direct children of that fol
   exported filenames can contain names, meter identifiers, or other personal information.
 - The download endpoint rechecks that every requested file is a direct child of `DRIVE_FOLDER_ID`.
   This prevents the API key from turning the endpoint into a general-purpose Drive file proxy.
+  It performs that check with the same folder-list operation used by the listing endpoint because
+  some API-key configurations allow listing and downloading but return 403 for a standalone Drive
+  metadata lookup.
 - Parsed energy readings are cached only in `sessionStorage`, so closing the browser session clears
   them. Small non-energy preferences and weather summaries may still use `localStorage`.
 
@@ -69,3 +72,15 @@ will reject download requests for files that are not direct children of that fol
   validated.
 - If hourly-table weather grows beyond condition and rainfall, add fields to `api/weather.js` and
   return only the normalized values required by the UI rather than forwarding raw provider data.
+
+## Local verification
+
+Run the dependency-free API regression suite before deployment:
+
+```bash
+npm test
+npm run check
+```
+
+The tests exercise the complete mocked Drive flow—listing, filename sanitization, folder-membership
+verification, and media download—plus denial/error behavior and normalized weather output.

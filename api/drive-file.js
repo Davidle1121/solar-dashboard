@@ -10,6 +10,32 @@ export default async function handler(req, res) {
     if (!id) {
       return res.status(400).json({ error: 'Missing file id' });
     }
+    if (!/^[A-Za-z0-9_-]+$/.test(id)) {
+      return res.status(400).json({ error: 'Invalid file id' });
+    }
+
+    // Validate membership on every request instead of trusting an id supplied by
+    // the browser. Use the same files.list operation as drive-list: some API-key
+    // Drive configurations permit folder listing and media download but reject a
+    // standalone files.get metadata request with 403.
+    const membershipParams = new URLSearchParams({
+      q: `'${folderId}' in parents and trashed=false`,
+      fields: 'files(id)',
+      pageSize: '1000',
+      supportsAllDrives: 'true',
+      includeItemsFromAllDrives: 'true',
+      key: apiKey
+    });
+    const membershipResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?${membershipParams.toString()}`
+    );
+    if (!membershipResponse.ok) {
+      return res.status(502).json({ error: 'Could not verify dashboard folder membership' });
+    }
+    const membership = await membershipResponse.json();
+    if (!membership.files?.some(file => file.id === id)) {
+      return res.status(403).json({ error: 'File is outside the dashboard folder' });
+    }
 
     // Validate the parent on every request instead of trusting an id supplied by the
     // browser. This keeps this route scoped to the dedicated dashboard folder.
