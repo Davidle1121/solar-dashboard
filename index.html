@@ -304,6 +304,16 @@
   .val-high { color: var(--danger); }
   .val-mid { color: var(--accent); }
   .val-low { color: var(--accent2); }
+  .table-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+  .table-toolbar label { color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.05em; }
+  .table-toolbar select, .table-action { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:6px 9px; font:11px var(--font-mono); }
+  .table-action { cursor:pointer; }
+  .table-action:hover { border-color:var(--accent3); }
+  #hourly-table th { position:sticky; top:0; z-index:2; white-space:nowrap; }
+  #hourly-table th:first-child, #hourly-table td:first-child { position:sticky; left:0; z-index:1; background:var(--surface); min-width:250px; }
+  #hourly-table th:first-child { z-index:3; background:var(--surface2); }
+  .weather-line { display:block; margin-top:3px; color:var(--muted); font-size:9px; white-space:nowrap; }
+  .partial-day { color:var(--accent); }
   .toast {
     position: fixed;
     bottom: 20px;
@@ -389,157 +399,6 @@
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  .chatbot-toggle {
-    position: fixed;
-    right: 18px;
-    bottom: 18px;
-    z-index: 50;
-    border: 1px solid rgba(88,166,255,0.55);
-    background: linear-gradient(135deg, rgba(88,166,255,0.22), rgba(240,165,0,0.18)), var(--surface);
-    color: var(--text);
-    border-radius: 999px;
-    min-width: 58px;
-    height: 58px;
-    padding: 0 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 9px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    box-shadow: 0 14px 36px rgba(0,0,0,0.38);
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-  .chatbot-toggle:hover { border-color: var(--accent3); }
-  .chatbot-toggle-icon { font-size: 22px; line-height: 1; }
-  .chatbot-panel {
-    position: fixed;
-    right: 18px;
-    bottom: 88px;
-    width: min(420px, calc(100vw - 32px));
-    height: min(680px, calc(100vh - 118px));
-    z-index: 49;
-    display: none;
-    flex-direction: column;
-    background: rgba(13,17,23,0.98);
-    border: 1px solid rgba(88,166,255,0.35);
-    border-radius: 18px;
-    box-shadow: 0 22px 56px rgba(0,0,0,0.48);
-    overflow: hidden;
-  }
-  .chatbot-panel.open { display: flex; }
-  .chatbot-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 16px;
-    border-bottom: 1px solid var(--border);
-    background: linear-gradient(135deg, rgba(88,166,255,0.12), rgba(240,165,0,0.06));
-  }
-  .chatbot-title {
-    font-family: var(--font-display);
-    font-size: 18px;
-    color: var(--text);
-    line-height: 1.1;
-  }
-  .chatbot-subtitle {
-    margin-top: 5px;
-    color: var(--muted);
-    font-size: 10px;
-    line-height: 1.45;
-  }
-  .chatbot-close {
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--muted);
-    border-radius: 999px;
-    width: 34px;
-    height: 34px;
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
-  }
-  .chatbot-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .chat-message {
-    max-width: 92%;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 11px 12px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .chat-message.bot {
-    align-self: flex-start;
-    background: var(--surface);
-    color: var(--text);
-  }
-  .chat-message.user {
-    align-self: flex-end;
-    border-color: rgba(88,166,255,0.45);
-    background: rgba(88,166,255,0.12);
-    color: var(--text);
-  }
-  .chat-message.warn { border-color: rgba(240,165,0,0.5); }
-  .chat-message.err { border-color: rgba(248,81,73,0.55); }
-  .chat-suggestions {
-    padding: 0 14px 10px;
-    display: flex;
-    gap: 7px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .chat-suggestion {
-    flex: 0 0 auto;
-    border: 1px solid rgba(88,166,255,0.28);
-    background: rgba(88,166,255,0.08);
-    color: var(--text);
-    border-radius: 999px;
-    padding: 7px 10px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-  .chatbot-form {
-    border-top: 1px solid var(--border);
-    padding: 12px;
-    display: flex;
-    gap: 8px;
-    background: var(--surface);
-  }
-  .chatbot-input {
-    flex: 1;
-    min-width: 0;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    padding: 11px 12px;
-  }
-  .chatbot-send {
-    border: 1px solid rgba(63,185,80,0.45);
-    background: rgba(63,185,80,0.12);
-    color: var(--text);
-    border-radius: 12px;
-    padding: 0 14px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .chatbot-send:disabled { opacity: 0.55; cursor: wait; }
 
   @media (max-width: 768px) {
     .stats-row {
@@ -547,43 +406,10 @@
       justify-content: stretch;
       overflow-x: visible;
     }
-    .chatbot-panel {
-      right: 14px;
-      bottom: 84px;
-      width: min(460px, calc(100vw - 28px));
-      height: min(640px, calc(100vh - 108px));
-    }
-  }
-  @media (max-height: 620px) {
-    .chatbot-panel {
-      top: 8px;
-      bottom: 76px;
-      height: auto;
-    }
-    .chatbot-header { padding: 12px 14px; }
-    .chatbot-subtitle { display: none; }
   }
   @media (max-width: 480px) {
     .stat-card { padding: 14px; }
 
-    .chatbot-toggle {
-      right: 12px;
-      bottom: 12px;
-      height: 54px;
-      min-width: 54px;
-      padding: 0 14px;
-    }
-    .chatbot-toggle-label { display: none; }
-    .chatbot-panel {
-      inset: auto 8px 76px 8px;
-      width: auto;
-      height: min(620px, calc(100vh - 88px));
-      border-radius: 16px;
-    }
-    .chatbot-header { padding: 14px; }
-    .chatbot-title { font-size: 17px; }
-    .chat-message { max-width: 96%; }
-    .chatbot-form { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
 
     .stat-value { font-size: clamp(18px, 7vw, 26px); }
     .stat-compare-line { font-size: 10px; }
@@ -604,7 +430,7 @@
         <div class="weather-icon" id="weather-icon">⏳</div>
         <div class="weather-info">
           <div class="weather-temp" id="weather-temp">--°F</div>
-          <div class="weather-loc">Katy, TX (77494)</div>
+          <div class="weather-loc">Local weather</div>
         </div>
       </div>
     </div>
@@ -630,45 +456,20 @@
   </div>
 
   <div class="stats-row" id="stats-row" style="display:none">
-    <div class="stat-card grid-color" data-card-id="current-week-grid-usage">
-      <div class="stat-label">Current Week Grid Usage</div>
-      <div class="stat-value" id="stat-total">—<span class="stat-unit">kWh</span></div>
-      <div class="stat-sub" id="stat-days-span">Sun–Sat window</div>
+    <div class="stat-card solar-color">
+      <div class="stat-label">Avg Total / Day</div>
+      <div class="stat-value" id="stat-avg-total">—<span class="stat-unit">kWh</span></div>
+      <div class="stat-sub" id="stat-avg-total-sub">complete loaded days</div>
     </div>
-    <div class="stat-card days-color" data-card-id="days-of-data">
-      <div class="stat-label">Days of Data</div>
-      <div class="stat-value" id="stat-days">—</div>
-      <div class="stat-sub" id="stat-date-range">—</div>
+    <div class="stat-card grid-color">
+      <div class="stat-label">Avg Free-Night / Day</div>
+      <div class="stat-value" id="stat-avg-free">—<span class="stat-unit">kWh</span></div>
+      <div class="stat-sub" id="stat-avg-free-sub">configured free period</div>
     </div>
-    <div class="stat-card solar-color" data-card-id="daily-average">
-      <div class="stat-label">Daily Average</div>
-      <div class="stat-value" id="stat-avg">—<span class="stat-unit">kWh</span></div>
-      <div class="stat-sub">from grid per day</div>
-    </div>
-    <div class="stat-card peak-color" data-card-id="peak-draw">
-      <div class="stat-label">Peak 15-min Draw</div>
-      <div class="stat-value" id="stat-peak">—<span class="stat-unit">kWh</span></div>
-      <div class="stat-sub" id="stat-peak-time">—</div>
-    </div>
-    <div class="stat-card proj-color" data-card-id="weekly-average">
-      <div class="stat-label">Weekly Avg</div>
-      <div class="stat-value" id="stat-weekly-avg">—<span class="stat-unit">kWh</span></div>
-      <div class="stat-sub" id="stat-weekly-avg-sub">avg per 7-day week</div>
-    </div>
-    <div class="stat-card compare-color" data-card-id="week-compare">
-      <div class="stat-label">Week Avg (Curr vs Prev)</div>
-      <div class="stat-value" id="stat-week-compare">—</div>
-      <div class="stat-sub" id="stat-week-compare-sub">current week vs previous week</div>
-    </div>
-    <div class="stat-card daily-compare-color" data-card-id="daily-trend">
-      <div class="stat-label">Daily Trend (Latest 2 Days)</div>
-      <div class="stat-value" id="stat-day-compare">—</div>
-      <div class="stat-sub" id="stat-day-compare-sub">latest day vs prior day</div>
-    </div>
-    <div class="stat-card month-compare-color" data-card-id="month-compare">
-      <div class="stat-label">Month Usage (Curr vs Prev)</div>
-      <div class="stat-value" id="stat-month-compare">—</div>
-      <div class="stat-sub" id="stat-month-compare-sub">current month vs previous month</div>
+    <div class="stat-card peak-color">
+      <div class="stat-label">Avg Paid / Day</div>
+      <div class="stat-value" id="stat-avg-paid">—<span class="stat-unit">kWh</span></div>
+      <div class="stat-sub" id="stat-avg-paid-sub">outside free period</div>
     </div>
   </div>
 
@@ -718,7 +519,6 @@
   <div class="section-tabs" id="section-tabs" style="display:none">
     <button class="tab-btn active" onclick="showTab('daily',this)">Daily View</button>
     <button class="tab-btn" onclick="showTab('hourly',this)">Hourly Profile Table</button>
-    <button class="tab-btn" onclick="showTab('weekly',this)">Weekly</button>
     <!-- <button class="tab-btn" onclick="showTab('monthly',this)">Monthly</button> -->
     <!-- <button class="tab-btn" onclick="showTab('table',this)">Data Table</button> -->
   </div>
@@ -759,7 +559,17 @@
     <div class="chart-panel">
       <div class="chart-header">
         <div class="chart-title">Hourly Consumption Table</div>
-        <div class="chart-note">Total kWh per hour for each day · <span style="color:rgba(240,165,0,0.9)">amber = paid</span> · <span style="color:rgba(88,166,255,0.9)">blue = free night</span> · <span style="color:rgba(248,81,73,0.9)">red bg = high draw (&gt;1.5 kWh/hr)</span></div>
+        <div class="chart-note">Local daily condition and rainfall · <span style="color:rgba(240,165,0,0.9)">amber = paid</span> · <span style="color:rgba(88,166,255,0.9)">blue = free night</span> · <span style="color:rgba(248,81,73,0.9)">red bg = high draw (&gt;1.5 kWh/hr)</span></div>
+      </div>
+      <div class="table-toolbar">
+        <label for="hourly-range">Show</label>
+        <select id="hourly-range" onchange="renderHourlyTable([...readings.keys()].sort())">
+          <option value="7">Last 7 days</option>
+          <option value="14" selected>Last 14 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="all">All loaded data</option>
+        </select>
+        <button class="table-action" type="button" onclick="copyHourlyTable()">Copy table</button>
       </div>
       <div class="data-table-wrap">
         <table id="hourly-table">
@@ -772,44 +582,6 @@
     </div>
   </div>
 
-  <div id="tab-weekly" style="display:none">
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">Weekly Consumption Totals</div>
-        <div class="chart-note">kWh per week (Sun–Sat)</div>
-      </div>
-      <div class="chart-wrap"><canvas id="chart-weekly"></canvas></div>
-    </div>
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">Day-of-Week Pattern</div>
-        <div class="chart-note">Average kWh by day of week across all data</div>
-      </div>
-      <div class="chart-wrap"><canvas id="chart-dow"></canvas></div>
-    </div>
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">Week-over-Week Comparison</div>
-        <div class="chart-note">Each Sun–Sat week · positive % = higher consumption than prior week</div>
-      </div>
-      <div class="data-table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Week of</th>
-              <th>Days</th>
-              <th>Total kWh</th>
-              <th>Daily Avg</th>
-              <th>Paid kWh</th>
-              <th>Free Night kWh</th>
-              <th>vs Prior Week</th>
-            </tr>
-          </thead>
-          <tbody id="weekly-compare-body"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
 
   <!--
   <div id="tab-monthly" style="display:none">
@@ -896,31 +668,6 @@
 <div class="toast" id="toast"></div>
 
 
-<button class="chatbot-toggle" id="chatbot-toggle" type="button" aria-label="Open energy assistant" aria-expanded="false" onclick="toggleChatbot()">
-  <span class="chatbot-toggle-icon">💬</span>
-  <span class="chatbot-toggle-label">Ask data</span>
-</button>
-
-<section class="chatbot-panel" id="chatbot-panel" aria-label="Energy data assistant">
-  <div class="chatbot-header">
-    <div>
-      <div class="chatbot-title">Energy Assistant</div>
-      <div class="chatbot-subtitle">Grounded calculations from loaded dashboard data + Open-Meteo weather. No AI guesses.</div>
-    </div>
-    <button class="chatbot-close" type="button" aria-label="Close energy assistant" onclick="toggleChatbot(false)">×</button>
-  </div>
-  <div class="chatbot-messages" id="chatbot-messages" aria-live="polite"></div>
-  <div class="chat-suggestions" id="chat-suggestions">
-    <button class="chat-suggestion" type="button" data-question="What was my total usage last month?">Last month</button>
-    <button class="chat-suggestion" type="button" data-question="When do I usually charge my Tesla?">Tesla/EV</button>
-    <button class="chat-suggestion" type="button" data-question="How does this week compare to last week?">Week compare</button>
-    <button class="chat-suggestion" type="button" data-question="What should I expect to use today?">Today forecast</button>
-  </div>
-  <form class="chatbot-form" id="chatbot-form">
-    <input class="chatbot-input" id="chatbot-input" type="text" autocomplete="off" placeholder="Ask about usage, Tesla spikes, forecasts, weather…" maxlength="220">
-    <button class="chatbot-send" id="chatbot-send" type="submit">Ask</button>
-  </form>
-</section>
 
 <script>
 let readings = new Map();
@@ -939,10 +686,8 @@ const DASHBOARD_CACHE_KEY = 'energyDashboardCacheV2';
 const LEGACY_DASHBOARD_CACHE_KEY = 'energyDashboardCacheV1';
 const DRIVE_FETCH_TIMEOUT_MS = 30000;
 const DRIVE_FETCH_RETRIES = 2;
+const DRIVE_SYNC_VERSION = 'direct-v1';
 const ALERT_THRESHOLDS = { weekPct: 10, dayPct: 15, monthPct: 10 };
-const STATS_CARD_ORDER_KEY = 'dashboardStatsOrderV1';
-const MAX_STATS_CARDS = 10;
-let draggingStatCard = null;
 
 function getTodayKey() {
   const d = new Date();
@@ -996,18 +741,15 @@ function buildDashboardCachePayload() {
     cachedAt: Date.now(),
     readings: serializeReadingsMap(readings),
     monthSummaries: Object.fromEntries(monthSummaries.entries()),
-    loadedFiles: loadedFiles.map(f => ({ name: f.name || String(f), type: f.type || '', cached: true }))
+    loadedFiles: []
   };
 }
 
 function cacheDashboardData() {
   const serialized = JSON.stringify(buildDashboardCachePayload());
   try {
-    localStorage.setItem(DASHBOARD_CACHE_KEY, serialized);
-  } catch (err) {
-    console.warn('Could not persist dashboard data cache', err);
-  }
-  try {
+    // Energy intervals can reveal household routines. Keep them for the current
+    // browser session only rather than persisting them in long-lived localStorage.
     sessionStorage.setItem(DASHBOARD_CACHE_KEY, serialized);
   } catch (err) {
     console.warn('Could not cache dashboard data for this session', err);
@@ -1016,7 +758,6 @@ function cacheDashboardData() {
 
 function readDashboardCache() {
   const sources = [
-    () => localStorage.getItem(DASHBOARD_CACHE_KEY),
     () => sessionStorage.getItem(DASHBOARD_CACHE_KEY),
     () => sessionStorage.getItem(LEGACY_DASHBOARD_CACHE_KEY)
   ];
@@ -1078,107 +819,9 @@ function clearDashboard() {
   document.getElementById('header-meta').textContent = 'No data loaded';
   const freshness = document.getElementById('freshness-badge');
   if (freshness) freshness.style.display = 'none';
-  ['tab-daily','tab-hourly','tab-weekly','tab-monthly','tab-table'].forEach(id => {
+  ['tab-daily','tab-hourly','tab-monthly','tab-table'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
-  });
-}
-
-function applySavedStatsCardOrder(statsRow) {
-  const cards = Array.from(statsRow.querySelectorAll('.stat-card'));
-  const cardById = new Map(cards.map(card => [card.dataset.cardId, card]));
-  const raw = localStorage.getItem(STATS_CARD_ORDER_KEY);
-  if (!raw) return;
-
-  try {
-    const savedOrder = JSON.parse(raw);
-    if (!Array.isArray(savedOrder)) return;
-
-    const seen = new Set();
-    savedOrder.forEach((cardId) => {
-      if (!cardById.has(cardId) || seen.has(cardId)) return;
-      seen.add(cardId);
-      statsRow.appendChild(cardById.get(cardId));
-    });
-    cards.forEach((card) => {
-      if (!seen.has(card.dataset.cardId)) statsRow.appendChild(card);
-    });
-  } catch (err) {
-    console.warn('Could not restore stat card order', err);
-  }
-}
-
-function saveStatsCardOrder(statsRow) {
-  const order = Array.from(statsRow.querySelectorAll('.stat-card')).map(card => card.dataset.cardId);
-  localStorage.setItem(STATS_CARD_ORDER_KEY, JSON.stringify(order));
-}
-
-function swapStatCards(cardA, cardB) {
-  if (!cardA || !cardB || cardA === cardB) return;
-  const parent = cardA.parentNode;
-  if (!parent || parent !== cardB.parentNode) return;
-
-  const aNext = cardA.nextSibling === cardB ? cardA : cardA.nextSibling;
-  parent.insertBefore(cardA, cardB);
-  parent.insertBefore(cardB, aNext);
-}
-
-function clearStatCardDropStates(statsRow) {
-  statsRow.querySelectorAll('.stat-card.drop-ghost').forEach(card => card.classList.remove('drop-ghost'));
-}
-
-function onStatCardDragStart(event) {
-  draggingStatCard = event.currentTarget;
-  draggingStatCard.classList.add('dragging');
-  event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData('text/plain', draggingStatCard.dataset.cardId || '');
-}
-
-function onStatCardDragOver(event) {
-  if (!draggingStatCard) return;
-  const target = event.currentTarget;
-  if (target === draggingStatCard) return;
-  event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
-  target.classList.add('drop-ghost');
-}
-
-function onStatCardDragLeave(event) {
-  event.currentTarget.classList.remove('drop-ghost');
-}
-
-function onStatCardDrop(event) {
-  event.preventDefault();
-  const target = event.currentTarget;
-  target.classList.remove('drop-ghost');
-  if (!draggingStatCard || target === draggingStatCard) return;
-  swapStatCards(draggingStatCard, target);
-  saveStatsCardOrder(target.parentNode);
-}
-
-function onStatCardDragEnd(event) {
-  const statsRow = document.getElementById('stats-row');
-  if (statsRow) clearStatCardDropStates(statsRow);
-  event.currentTarget.classList.remove('dragging');
-  draggingStatCard = null;
-}
-
-function initStatsCardLayout() {
-  const statsRow = document.getElementById('stats-row');
-  if (!statsRow) return;
-
-  const cards = Array.from(statsRow.querySelectorAll('.stat-card'));
-  cards.slice(MAX_STATS_CARDS).forEach(card => card.remove());
-  applySavedStatsCardOrder(statsRow);
-  statsRow.querySelectorAll('.stat-card').forEach((card) => {
-    card.draggable = true;
-    if (card.dataset.dragInit === 'true') return;
-    card.dataset.dragInit = 'true';
-    card.addEventListener('dragstart', onStatCardDragStart);
-    card.addEventListener('dragover', onStatCardDragOver);
-    card.addEventListener('dragleave', onStatCardDragLeave);
-    card.addEventListener('drop', onStatCardDrop);
-    card.addEventListener('dragend', onStatCardDragEnd);
   });
 }
 
@@ -1192,533 +835,23 @@ function cloneReadingsMap(source) {
 
 async function fetchWeather() {
   try {
-    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.738&longitude=-95.823&current_weather=true&temperature_unit=fahrenheit');
-    const data = await res.json();
-    document.getElementById('weather-temp').textContent = Math.round(data.current_weather.temperature) + '°F';
-    document.getElementById('weather-icon').textContent = data.current_weather.is_day ? '☀️' : '🌙';
-  } catch(e) {
-    document.getElementById('weather-temp').textContent = 'N/A';
+    const data = await fetchWeatherForDate(getTodayKey());
+    document.getElementById('weather-temp').textContent = data.condition;
+    document.getElementById('weather-icon').textContent = weatherIcon(data.condition);
+  } catch {
+    document.getElementById('weather-temp').textContent = 'Unavailable';
   }
 }
 
-
-const CHATBOT_WEATHER_LAT = 29.738;
-const CHATBOT_WEATHER_LON = -95.823;
-const CHATBOT_WEATHER_TZ = 'America/Chicago';
-const CHATBOT_WEATHER_CACHE_KEY = 'energyWeatherCacheV1';
-const CHATBOT_WEATHER_CACHE_MS = 12 * 60 * 60 * 1000;
-const DOW_LABELS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const DOW_LABELS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const WEATHER_CODES = {
-  0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
-  45: 'Fog', 48: 'Depositing rime fog', 51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
-  56: 'Light freezing drizzle', 57: 'Dense freezing drizzle', 61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
-  66: 'Light freezing rain', 67: 'Heavy freezing rain', 71: 'Slight snow', 73: 'Moderate snow', 75: 'Heavy snow',
-  77: 'Snow grains', 80: 'Slight rain showers', 81: 'Moderate rain showers', 82: 'Violent rain showers',
-  85: 'Slight snow showers', 86: 'Heavy snow showers', 95: 'Thunderstorm', 96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail'
-};
-let chatbotInitialized = false;
-
-function toggleChatbot(forceOpen) {
-  const panel = document.getElementById('chatbot-panel');
-  const toggle = document.getElementById('chatbot-toggle');
-  if (!panel || !toggle) return;
-  const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !panel.classList.contains('open');
-  panel.classList.toggle('open', shouldOpen);
-  toggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
-  if (shouldOpen) {
-    initChatbot();
-    setTimeout(() => document.getElementById('chatbot-input')?.focus(), 50);
-  }
-}
-
-function initChatbot() {
-  if (chatbotInitialized) return;
-  chatbotInitialized = true;
-  addChatMessage('bot', 'Hi — I can answer grounded questions from the currently loaded dashboard data. I can calculate totals, weekly comparisons, same-weekday forecasts, likely Tesla/EV charging windows from large spikes, and weather context from Open-Meteo. If the data is thin or missing, I will say so.');
-  const form = document.getElementById('chatbot-form');
-  form?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const input = document.getElementById('chatbot-input');
-    const question = input.value.trim();
-    if (!question) return;
-    input.value = '';
-    await askChatbot(question);
-  });
-  document.querySelectorAll('.chat-suggestion').forEach((btn) => {
-    btn.addEventListener('click', async () => askChatbot(btn.dataset.question || btn.textContent.trim()));
-  });
-}
-
-async function askChatbot(question) {
-  addChatMessage('user', question);
-  const send = document.getElementById('chatbot-send');
-  if (send) send.disabled = true;
-  const thinkingId = addChatMessage('bot', 'Calculating from loaded data…');
-  try {
-    const answer = await answerEnergyQuestion(question);
-    updateChatMessage(thinkingId, answer.text, answer.tone || '');
-  } catch (err) {
-    console.error(err);
-    updateChatMessage(thinkingId, 'I hit an error while calculating that answer. Nothing was guessed. Try refreshing the dashboard data and asking again.', 'err');
-  } finally {
-    if (send) send.disabled = false;
-  }
-}
-
-function addChatMessage(role, text, tone = '') {
-  const box = document.getElementById('chatbot-messages');
-  if (!box) return null;
-  const id = `chat-msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const msg = document.createElement('div');
-  msg.id = id;
-  msg.className = `chat-message ${role} ${tone}`.trim();
-  msg.textContent = text;
-  box.appendChild(msg);
-  box.scrollTop = box.scrollHeight;
-  return id;
-}
-
-function updateChatMessage(id, text, tone = '') {
-  const msg = document.getElementById(id);
-  if (!msg) return;
-  msg.className = `chat-message bot ${tone}`.trim();
-  msg.textContent = text;
-  const box = document.getElementById('chatbot-messages');
-  if (box) box.scrollTop = box.scrollHeight;
-}
-
-async function answerEnergyQuestion(question) {
-  const q = normalizeQuestion(question);
-  const intent = detectQuestionIntent(q);
-  if (readings.size === 0) {
-    return {
-      tone: 'warn',
-      text: 'I do not have loaded dashboard data yet. Sync from Google Drive first, then I can answer using the available readings. I will not estimate without data.'
-    };
-  }
-
-  if (intent === 'solar_battery_missing') {
-    return {
-      tone: 'warn',
-      text: 'I do not have solar production or battery data loaded yet. I can still answer grid-usage and weather questions, but I cannot analyze solar production or battery behavior until that data is imported into the dashboard.'
-    };
-  }
-
-  if (intent === 'weather') return answerWeatherImpactQuestion(question);
-  if (intent === 'previous_month_total') return answerPreviousMonthTotal();
-  if (intent === 'ev_charging') return answerLikelyEvCharging();
-  if (intent === 'week_comparison') return answerWeekComparison();
-  if (intent === 'usage_forecast') return answerUsageForecast(q.includes('tomorrow') ? 1 : 0);
-  if (intent === 'peak_usage') return answerPeakUsage();
-  if (intent === 'weekday_average') return answerWeekdayAverages();
-
-  return {
-    tone: 'warn',
-    text: 'I do not have a supported calculation for that question yet, so I will not make up an answer. Try asking naturally about: last month total, Tesla/EV charging windows, last week vs current week, expected usage today/tomorrow, peak usage, weekday averages, or weather impact for a specific date.'
-  };
-}
-
-function normalizeQuestion(question) {
-  return String(question || '')
-    .toLowerCase()
-    .replace(/[’']/g, '')
-    .replace(/[^a-z0-9/\-\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function hasAny(text, patterns) {
-  return patterns.some(pattern => typeof pattern === 'string' ? text.includes(pattern) : pattern.test(text));
-}
-
-function detectQuestionIntent(q) {
-  const asksEnergy = hasAny(q, ['usage', 'use', 'used', 'kwh', 'electric', 'electricity', 'energy', 'power', 'draw', 'bill', 'consume', 'consumption']);
-  const asksPlainForecast = q.includes('forecast') && !asksEnergy && !hasAny(q, ['expect', 'expected', 'estimate', 'predict', 'prediction', 'project', 'projection']);
-  const asksWeather = hasAny(q, [
-    'weather', 'temperature', 'temp', 'outside', 'cloud', 'cloudy', 'rain', 'raining', 'sunny', 'hot', 'cold', 'humidity', 'humid', 'storm', 'heat', 'cool'
-  ]) || asksPlainForecast;
-  const asksMonth = hasAny(q, ['last month', 'previous month', 'past month', /\bmonth\b/]);
-  const asksTotal = hasAny(q, ['total', 'how much', 'sum', 'all together', 'overall']);
-  const asksEv = hasAny(q, ['tesla', 'ev', 'car', 'vehicle', 'charger', 'charging', 'charge', 'plug in', 'plugged in', 'large spike', 'big spike', 'spikes', 'overnight load']);
-  const asksCompare = hasAny(q, ['compare', 'compared', 'versus', ' vs ', 'higher', 'lower', 'more than', 'less than', 'difference', 'stack up']);
-  const asksThisWeek = hasAny(q, ['this week', 'current week', 'week so far', 'so far this week']);
-  const asksLastWeek = hasAny(q, ['last week', 'previous week', 'prior week']);
-  const asksForecast = hasAny(q, ['expected', 'expect', 'forecast', 'estimate', 'predict', 'prediction', 'project', 'projection', 'baseline', 'normal', 'typical', 'should i expect']);
-  const asksTodayTomorrow = hasAny(q, ['today', 'tomorrow']);
-  const asksPeak = hasAny(q, ['highest', 'peak', 'max', 'maximum', 'biggest', 'largest', 'most', 'worst']);
-  const asksWeekday = hasAny(q, ['weekday', 'day of week', 'which day', 'what day', 'mondays', 'tuesdays', 'wednesdays', 'thursdays', 'fridays', 'saturdays', 'sundays']);
-  const asksSolarBattery = hasAny(q, ['solar', 'battery', 'batteries', 'production', 'produced', 'inverter']);
-
-  if (asksSolarBattery && sigData.size === 0) return 'solar_battery_missing';
-  if (asksWeather && (asksEnergy || parseQuestionDate(q) || asksTodayTomorrow || q.includes('yesterday'))) return 'weather';
-  if (asksEv) return 'ev_charging';
-  if (asksLastWeek && (asksThisWeek || asksCompare || q.includes('how did'))) return 'week_comparison';
-  if (asksThisWeek && asksCompare) return 'week_comparison';
-  if (asksForecast && asksTodayTomorrow) return 'usage_forecast';
-  if (asksTodayTomorrow && hasAny(q, ['what should i use', 'how much will i use', 'how much am i going to use', 'normal usage', 'typical usage'])) return 'usage_forecast';
-  if (asksMonth && (asksTotal || asksEnergy)) return 'previous_month_total';
-  if (asksWeekday && (asksEnergy || q.includes('average') || q.includes('avg') || asksPeak)) return 'weekday_average';
-  if (asksPeak && asksEnergy) return 'peak_usage';
-  if (asksWeather) return 'weather';
-  return 'unknown';
-}
-
-function getLoadedDays() {
-  return [...readings.keys()].sort();
-}
-
-function getDayTotal(day) {
-  return (readings.get(day) || []).reduce((sum, r) => sum + (Number(r.kwh) || 0), 0);
-}
-
-function getDailyTotals(days = getLoadedDays()) {
-  return days.map(day => ({ day, total: getDayTotal(day), intervals: readings.get(day) || [] }));
-}
-
-function addDays(dt, days) {
-  const next = new Date(dt);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function startOfWeek(dt) {
-  const d = new Date(dt);
-  d.setDate(d.getDate() - d.getDay());
-  return d;
-}
-
-function daysInMonth(year, monthIndex) {
-  return new Date(year, monthIndex + 1, 0).getDate();
-}
-
-function monthKeyFromDate(dt) {
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function fmtKwh(val, digits = 1) {
-  return `${Number(val || 0).toFixed(digits)} kWh`;
-}
-
-function timeToMinutes(time) {
-  const [hour, minute] = String(time || '').split(':').map(Number);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
-  return hour * 60 + minute;
-}
-
-function minutesToTimeLabel(totalMinutes) {
-  const normalized = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
-  const hour = Math.floor(normalized / 60);
-  const minute = normalized % 60;
-  return to12hr(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
-}
-
-function pctChange(current, previous) {
-  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return null;
-  return ((current - previous) / previous) * 100;
-}
-
-function describePct(pct) {
-  if (pct === null) return 'not comparable';
-  if (Math.abs(pct) < 0.1) return 'about the same';
-  return `${Math.abs(pct).toFixed(1)}% ${pct > 0 ? 'higher' : 'lower'}`;
-}
-
-function answerPreviousMonthTotal() {
-  const days = getLoadedDays();
-  const today = new Date();
-  const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const key = monthKeyFromDate(prevMonth);
-  const expectedCount = daysInMonth(prevMonth.getFullYear(), prevMonth.getMonth());
-  const monthDays = days.filter(day => day.startsWith(key));
-  const loadedTotal = monthDays.reduce((sum, day) => sum + getDayTotal(day), 0);
-  const summaryTotal = monthSummaries.has(key) ? monthSummaries.get(key) : null;
-  const total = summaryTotal ?? loadedTotal;
-  const complete = monthDays.length === expectedCount;
-  const estimate = monthDays.length ? (loadedTotal / monthDays.length) * expectedCount : null;
-
-  if (!monthDays.length && summaryTotal === null) {
-    return {
-      tone: 'warn',
-      text: `I do not have loaded daily data for ${formatMonthLabel(key)}, so I cannot give a grounded last-month total. Loaded range: ${fmtDate(days[0])} – ${fmtDate(days[days.length - 1])}.`
-    };
-  }
-
-  return {
-    tone: complete ? '' : 'warn',
-    text: [
-      `Last month (${formatMonthLabel(key)}) total: ${fmtKwh(total)}.`,
-      `Data used: ${monthDays.length} of ${expectedCount} calendar days loaded${summaryTotal !== null ? ', plus the dashboard monthly summary' : ''}.`,
-      complete
-        ? 'Confidence: High — this appears to include every day in the month.'
-        : `Confidence: Medium/Low — the loaded daily data is incomplete. A rough full-month estimate from the loaded days would be ${estimate === null ? 'unavailable' : fmtKwh(estimate)}.`
-    ].join('\n')
-  };
-}
-
-function answerWeekComparison() {
-  const days = getLoadedDays();
-  const latest = parseDateKey(days[days.length - 1]);
-  const curStart = startOfWeek(latest);
-  const curEnd = latest;
-  const prevStart = addDays(curStart, -7);
-  const prevEnd = addDays(curStart, -1);
-  const currentDays = days.filter(day => {
-    const d = parseDateKey(day);
-    return d >= curStart && d <= curEnd;
-  });
-  const previousDays = days.filter(day => {
-    const d = parseDateKey(day);
-    return d >= prevStart && d <= prevEnd;
-  });
-  const currentTotal = currentDays.reduce((sum, day) => sum + getDayTotal(day), 0);
-  const previousFullTotal = previousDays.reduce((sum, day) => sum + getDayTotal(day), 0);
-  const sameDayCountEnd = addDays(prevStart, Math.max(0, currentDays.length - 1));
-  const previousComparableDays = previousDays.filter(day => parseDateKey(day) <= sameDayCountEnd);
-  const previousComparableTotal = previousComparableDays.reduce((sum, day) => sum + getDayTotal(day), 0);
-  const fairPct = previousComparableDays.length ? pctChange(currentTotal, previousComparableTotal) : null;
-
-  return {
-    tone: previousDays.length === 7 && currentDays.length ? '' : 'warn',
-    text: [
-      `Current week so far (${fmtDate(toDateKey(curStart))} – ${fmtDate(toDateKey(curEnd))}): ${fmtKwh(currentTotal)} across ${currentDays.length} loaded day${currentDays.length !== 1 ? 's' : ''}.`,
-      `Last full week (${fmtDate(toDateKey(prevStart))} – ${fmtDate(toDateKey(prevEnd))}): ${fmtKwh(previousFullTotal)} across ${previousDays.length} loaded day${previousDays.length !== 1 ? 's' : ''}.`,
-      previousComparableDays.length
-        ? `Fair same-day-count comparison: ${fmtKwh(currentTotal)} vs ${fmtKwh(previousComparableTotal)} for the same part of last week, which is ${describePct(fairPct)}.`
-        : 'Fair same-day-count comparison is not available because I do not have matching prior-week days loaded.',
-      `Latest loaded day: ${fmtDate(days[days.length - 1])}. Confidence: ${previousDays.length === 7 && currentDays.length ? 'High for the loaded days; current week is partial by definition.' : 'Medium/Low because one of the week windows is incomplete.'}`
-    ].join('\n')
-  };
-}
-
-function answerUsageForecast(offsetDays) {
-  const target = addDays(new Date(), offsetDays);
-  const targetKey = toDateKey(target);
-  const targetDow = target.getDay();
-  const days = getLoadedDays();
-  const lookbackStartKey = toDateKey(addDays(target, -42));
-  const sameDow = getDailyTotals(days)
-    .filter(d => {
-      const dt = parseDateKey(d.day);
-      return d.day < targetKey && d.day >= lookbackStartKey && dt.getDay() === targetDow;
-    })
-    .slice(-6);
-  const recent = getDailyTotals(days.filter(day => day < targetKey)).slice(-14);
-
-  if (!sameDow.length && !recent.length) {
-    return { tone: 'warn', text: `I do not have enough historical data before ${fmtDate(targetKey)} to estimate usage. Nothing was guessed.` };
-  }
-
-  const sameDowAvg = sameDow.length ? sameDow.reduce((s, d) => s + d.total, 0) / sameDow.length : null;
-  const recentAvg = recent.length ? recent.reduce((s, d) => s + d.total, 0) / recent.length : null;
-  const blended = sameDowAvg !== null && recentAvg !== null ? (sameDowAvg * 0.7 + recentAvg * 0.3) : (sameDowAvg ?? recentAvg);
-  const sampleTotals = sameDow.map(d => d.total);
-  const min = sampleTotals.length ? Math.min(...sampleTotals) : null;
-  const max = sampleTotals.length ? Math.max(...sampleTotals) : null;
-  const confidence = sameDow.length >= 4 ? 'Medium' : sameDow.length >= 2 ? 'Low/Medium' : 'Low';
-
-  return {
-    tone: confidence === 'Medium' ? '' : 'warn',
-    text: [
-      `Estimated usage for ${offsetDays === 0 ? 'today' : 'tomorrow'} (${fmtDate(targetKey)}, ${DOW_LABELS_FULL[targetDow]}): ${fmtKwh(blended)}.`,
-      `Method: ${sameDow.length ? `average of the last ${sameDow.length} matching ${DOW_LABELS_FULL[targetDow]}${sameDow.length !== 1 ? 's' : ''}` : 'recent daily average'}${recentAvg !== null ? ' with a small recent-trend adjustment' : ''}.`,
-      min !== null ? `Matching weekday range: ${fmtKwh(min)} – ${fmtKwh(max)}.` : 'Matching weekday range: not available.',
-      `Data used: ${sameDow.map(d => `${d.day} (${fmtKwh(d.total)})`).join(', ') || `${recent.length} recent loaded day(s)`}.`,
-      `Confidence: ${confidence} — this is a forecast and does not know weather changes, Tesla charging plans, thermostat settings, or unusual activity.`
-    ].join('\n')
-  };
-}
-
-function answerLikelyEvCharging() {
-  const sessions = [];
-  for (const day of getLoadedDays()) {
-    const intervals = readings.get(day) || [];
-    const meta = detectLikelyEvSessions(intervals);
-    for (const range of meta.sessions || []) {
-      let total = 0;
-      let peak = 0;
-      for (let i = range.start; i <= range.end && i < intervals.length; i++) {
-        const val = intervals[i]?.kwh || 0;
-        total += val;
-        peak = Math.max(peak, val);
-      }
-      if (total < 4.5 || peak < 2.0) continue;
-      const start = intervals[range.start]?.time || 'unknown';
-      const end = intervals[Math.min(range.end, intervals.length - 1)]?.time || 'unknown';
-      const startMinutes = timeToMinutes(start);
-      let endMinutes = timeToMinutes(end);
-      if (startMinutes !== null && endMinutes !== null && endMinutes < startMinutes) endMinutes += 1440;
-      sessions.push({ day, start, end, startMinutes, endMinutes, total, peak });
-    }
-  }
-
-  if (!sessions.length) {
-    return {
-      tone: 'warn',
-      text: 'I do not see enough sustained large usage spikes to identify a likely Tesla/EV charging window. This does not mean no charging happened — only that the currently loaded whole-home data does not show a strong recurring EV-like pattern.'
-    };
-  }
-
-  const hourBuckets = new Map();
-  for (const s of sessions) {
-    const key = Number.isFinite(s.startMinutes) ? Math.floor(s.startMinutes / 60) : -1;
-    hourBuckets.set(key, (hourBuckets.get(key) || 0) + 1);
-  }
-  const [topHour, topCount] = [...hourBuckets.entries()].sort((a, b) => b[1] - a[1])[0];
-  const topSessions = sessions.filter(s => (Number.isFinite(s.startMinutes) ? Math.floor(s.startMinutes / 60) : -1) === topHour);
-  const timedTopSessions = topSessions.filter(s => Number.isFinite(s.startMinutes) && Number.isFinite(s.endMinutes));
-  const avgStart = timedTopSessions.length ? timedTopSessions.reduce((sum, s) => sum + s.startMinutes, 0) / timedTopSessions.length : null;
-  const avgEnd = timedTopSessions.length ? timedTopSessions.reduce((sum, s) => sum + s.endMinutes, 0) / timedTopSessions.length : null;
-  const avgSessionKwh = sessions.reduce((sum, s) => sum + s.total, 0) / sessions.length;
-  const examples = sessions.slice(-5).map(s => `${s.day} ${to12hr(s.start)}–${to12hr(s.end)} (${fmtKwh(s.total)})`).join(', ');
-  const windowLabel = avgStart !== null && avgEnd !== null
-    ? `${minutesToTimeLabel(avgStart)}–${minutesToTimeLabel(avgEnd)}`
-    : (topHour >= 0 ? `starting around ${to12hr(String(topHour).padStart(2, '0') + ':00')}` : 'unknown');
-
-  return {
-    tone: 'warn',
-    text: [
-      `Likely Tesla/EV charging window: ${windowLabel}.`,
-      `I found ${sessions.length} likely charging session${sessions.length !== 1 ? 's' : ''}; ${topCount} started in the ${topHour >= 0 ? to12hr(String(topHour).padStart(2, '0') + ':00') : 'unknown'} hour.`,
-      `Average likely session energy: ${fmtKwh(avgSessionKwh)}.`,
-      `Recent examples: ${examples}.`,
-      'Confidence: Medium — this is inferred from sustained large whole-home usage spikes, not confirmed Tesla charger data. Other large loads could be included.'
-    ].join('\n')
-  };
-}
-
-function answerPeakUsage() {
-  const totals = getDailyTotals();
-  const topDay = totals.slice().sort((a, b) => b.total - a.total)[0];
-  let peak = { day: null, time: null, kwh: 0 };
-  for (const day of getLoadedDays()) {
-    for (const r of readings.get(day) || []) {
-      if ((r.kwh || 0) > peak.kwh) peak = { day, time: r.time, kwh: r.kwh };
-    }
-  }
-  return {
-    text: [`Highest loaded day: ${topDay.day} (${fmtDate(topDay.day)}) at ${fmtKwh(topDay.total)}.`, `Highest interval: ${peak.day} at ${peak.time}, ${fmtKwh(peak.kwh, 3)} for that interval.`, 'Confidence: High for the currently loaded data.'].join('\n')
-  };
-}
-
-function answerWeekdayAverages() {
-  const buckets = Array(7).fill(null).map(() => []);
-  for (const d of getDailyTotals()) buckets[parseDateKey(d.day).getDay()].push(d.total);
-  const rows = buckets.map((arr, idx) => {
-    if (!arr.length) return `${DOW_LABELS_SHORT[idx]}: no data`;
-    return `${DOW_LABELS_SHORT[idx]}: ${fmtKwh(arr.reduce((a,b)=>a+b,0)/arr.length)} avg (${arr.length} day${arr.length !== 1 ? 's' : ''})`;
-  });
-  return { text: [`Day-of-week averages from loaded data:`, ...rows, 'Confidence depends on sample size per weekday.'].join('\n') };
-}
-
-function parseQuestionDate(question) {
-  const q = question.toLowerCase();
-  const now = new Date();
-  if (q.includes('today')) return toDateKey(now);
-  if (q.includes('yesterday')) return toDateKey(addDays(now, -1));
-  if (q.includes('tomorrow')) return toDateKey(addDays(now, 1));
-  const iso = q.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
-  if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
-  const slash = q.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(20\d{2}))?\b/);
-  if (slash) return `${slash[3] || now.getFullYear()}-${slash[1].padStart(2, '0')}-${slash[2].padStart(2, '0')}`;
-  const months = 'january february march april may june july august september october november december jan feb mar apr jun jul aug sep sept oct nov dec'.split(' ');
-  const monthPattern = new RegExp(`\\b(${months.join('|')})\\s+(\\d{1,2})(?:,?\\s+(20\\d{2}))?\\b`, 'i');
-  const named = question.match(monthPattern);
-  if (named) {
-    const raw = named[1].toLowerCase();
-    const monthMap = { jan:0,january:0,feb:1,february:1,mar:2,march:2,apr:3,april:3,may:4,jun:5,june:5,jul:6,july:6,aug:7,august:7,sep:8,sept:8,september:8,oct:9,october:9,nov:10,november:10,dec:11,december:11 };
-    return `${named[3] || now.getFullYear()}-${String(monthMap[raw] + 1).padStart(2, '0')}-${String(Number(named[2])).padStart(2, '0')}`;
-  }
-  return null;
-}
-
-async function answerWeatherImpactQuestion(question) {
-  const dateKey = parseQuestionDate(question);
-  if (!dateKey) {
-    return { tone: 'warn', text: 'Please include a specific date, or say today/tomorrow/yesterday. Example: “What was the weather on 2026-04-15 and how did it affect my usage?”' };
-  }
-  const usage = readings.has(dateKey) ? getDayTotal(dateKey) : null;
-  let weather;
-  try {
-    weather = await getWeatherForDate(dateKey);
-  } catch (err) {
-    const usageLine = usage === null ? 'I also do not have loaded electrical usage for that date.' : `Your loaded grid usage that day was ${fmtKwh(usage)}.`;
-    return {
-      tone: 'warn',
-      text: `I could not retrieve weather for ${fmtDate(dateKey)} from Open-Meteo (${err.message}). ${usageLine} I will not estimate weather impact without weather data.`
-    };
-  }
-  const similar = await getSimilarWeatherUsage(dateKey, weather);
-  const lines = [
-    `Weather for ${fmtDate(dateKey)} near Katy, TX: ${weather.summary}.`,
-  ];
-  if (usage === null) {
-    const q = question.toLowerCase();
-    const today = parseDateKey(getTodayKey());
-    const requested = parseDateKey(dateKey);
-    const offset = Math.round((requested - today) / (1000 * 60 * 60 * 24));
-    lines.push('I do not have loaded electrical usage for that date, so I can report the weather but cannot calculate actual usage impact.');
-    if (offset >= 0 && offset <= 1 && (q.includes('usage') || q.includes('expected') || q.includes('forecast') || q.includes('estimate'))) {
-      const forecast = answerUsageForecast(offset);
-      lines.push('Baseline usage estimate from energy history:');
-      lines.push(forecast.text);
-    }
-    lines.push('Confidence: High for weather lookup if Open-Meteo returned data; usage impact is unavailable without actual loaded usage for the date.');
-    return { tone: 'warn', text: lines.join('\n') };
-  }
-
-  const allTotals = getDailyTotals().filter(d => d.day !== dateKey);
-  const avg = allTotals.length ? allTotals.reduce((sum, d) => sum + d.total, 0) / allTotals.length : null;
-  const pct = avg ? pctChange(usage, avg) : null;
-  lines.push(`Your loaded grid usage that day: ${fmtKwh(usage)}${avg ? `, which is ${describePct(pct)} than your average loaded day (${fmtKwh(avg)}).` : '.'}`);
-  if (similar.length >= 2) {
-    const simAvg = similar.reduce((sum, d) => sum + d.total, 0) / similar.length;
-    lines.push(`Similar-weather days in the loaded data averaged ${fmtKwh(simAvg)} across ${similar.length} day${similar.length !== 1 ? 's' : ''}. This date was ${describePct(pctChange(usage, simAvg))} than that similar-weather baseline.`);
-  } else {
-    lines.push('I do not have enough similar-weather days loaded to build a strong weather-adjusted baseline.');
-  }
-  lines.push(buildWeatherInterpretation(weather, usage, avg));
-  lines.push('Confidence: Medium — weather/usage impact is correlation only. I cannot directly see HVAC, appliances, Tesla charging, thermostat settings, or occupancy.');
-  return { tone: similar.length >= 2 ? '' : 'warn', text: lines.join('\n') };
-}
-
-function buildWeatherInterpretation(weather, usage, avg) {
-  const high = weather.tempMax;
-  const cloud = weather.cloudAvg;
-  const parts = [];
-  if (Number.isFinite(high) && high >= 90) parts.push('high temperature is consistent with increased cooling load');
-  if (Number.isFinite(high) && high <= 50) parts.push('low temperatures may contribute to heating-related load if electric heat was used');
-  if (Number.isFinite(cloud) && cloud >= 65) parts.push('high cloud cover could reduce solar production once solar data is available');
-  if (weather.precipSum > 0.05) parts.push('rain/cloudy conditions may reduce solar output and change household usage patterns');
-  if (!parts.length) parts.push('the weather does not stand out strongly from the variables I checked');
-  const usageNote = avg && usage > avg * 1.15 ? ' Usage was elevated versus your loaded average.' : avg && usage < avg * 0.85 ? ' Usage was lower than your loaded average.' : '';
-  return `Interpretation: ${parts.join('; ')}.${usageNote}`;
-}
-
-async function getSimilarWeatherUsage(targetDateKey, weather) {
-  if (!Number.isFinite(weather.tempMax)) return [];
-  const candidates = getDailyTotals()
-    .filter(d => d.day !== targetDateKey)
-    .filter(d => Math.abs(parseDateKey(d.day) - parseDateKey(targetDateKey)) <= 1000 * 60 * 60 * 24 * 45)
-    .slice(-18);
-  const enriched = await Promise.all(candidates.map(async (d) => {
-    try {
-      return { ...d, weather: await getWeatherForDate(d.day) };
-    } catch (err) {
-      return { ...d, weather: null };
-    }
-  }));
-  return enriched
-    .filter(d => d.weather && Number.isFinite(d.weather.tempMax) && Math.abs(d.weather.tempMax - weather.tempMax) <= 5)
-    .slice(-10);
-}
+const WEATHER_CACHE_KEY = 'energyWeatherCacheV2';
+const WEATHER_CACHE_MS = 12 * 60 * 60 * 1000;
 
 function readWeatherCache(dateKey) {
   try {
-    const cache = JSON.parse(localStorage.getItem(CHATBOT_WEATHER_CACHE_KEY) || '{}');
+    const cache = JSON.parse(localStorage.getItem(WEATHER_CACHE_KEY) || '{}');
     const rec = cache[dateKey];
     if (!rec) return null;
-    if (Date.now() - rec.cachedAt > CHATBOT_WEATHER_CACHE_MS && dateKey >= getTodayKey()) return null;
+    if (Date.now() - rec.cachedAt > WEATHER_CACHE_MS && dateKey >= getTodayKey()) return null;
     return rec.data;
   } catch (err) {
     return null;
@@ -1727,100 +860,37 @@ function readWeatherCache(dateKey) {
 
 function writeWeatherCache(dateKey, data) {
   try {
-    const cache = JSON.parse(localStorage.getItem(CHATBOT_WEATHER_CACHE_KEY) || '{}');
+    const cache = JSON.parse(localStorage.getItem(WEATHER_CACHE_KEY) || '{}');
     cache[dateKey] = { cachedAt: Date.now(), data };
     const entries = Object.entries(cache).sort((a, b) => (a[1]?.cachedAt || 0) - (b[1]?.cachedAt || 0));
     while (entries.length > 80) {
       const [oldestKey] = entries.shift();
       delete cache[oldestKey];
     }
-    localStorage.setItem(CHATBOT_WEATHER_CACHE_KEY, JSON.stringify(cache));
+    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(cache));
   } catch (err) {
     console.warn('Could not cache weather', err);
   }
 }
 
-async function getWeatherForDate(dateKey) {
+async function fetchWeatherForDate(dateKey) {
   const cached = readWeatherCache(dateKey);
   if (cached) return cached;
-
-  const today = parseDateKey(getTodayKey());
-  const requested = parseDateKey(dateKey);
-  const daysFromToday = Math.round((requested - today) / (1000 * 60 * 60 * 24));
-  const forecastEndpoint = 'https://api.open-meteo.com/v1/forecast';
-  const archiveEndpoint = 'https://archive-api.open-meteo.com/v1/archive';
-  const endpoints = daysFromToday >= -7
-    ? [forecastEndpoint, archiveEndpoint]
-    : [archiveEndpoint, forecastEndpoint];
-  let lastError = null;
-
-  for (const endpoint of endpoints) {
-    try {
-      const params = new URLSearchParams({
-        latitude: CHATBOT_WEATHER_LAT,
-        longitude: CHATBOT_WEATHER_LON,
-        start_date: dateKey,
-        end_date: dateKey,
-        temperature_unit: 'fahrenheit',
-        precipitation_unit: 'inch',
-        timezone: CHATBOT_WEATHER_TZ,
-        daily: 'temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,weather_code,shortwave_radiation_sum,sunshine_duration',
-        hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,cloud_cover,shortwave_radiation'
-      });
-      const res = await fetch(`${endpoint}?${params.toString()}`);
-      if (!res.ok) throw new Error(`Weather API ${res.status}`);
-      const data = await res.json();
-      const normalized = normalizeWeather(dateKey, data);
-      normalized.source = endpoint.includes('archive') ? 'Open-Meteo archive' : 'Open-Meteo forecast';
-      writeWeatherCache(dateKey, normalized);
-      return normalized;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError || new Error('Weather API unavailable');
+  const response = await fetch(`/api/weather?date=${encodeURIComponent(dateKey)}`);
+  if (!response.ok) throw new Error(`Weather API ${response.status}`);
+  const weather = await response.json();
+  writeWeatherCache(dateKey, weather);
+  return weather;
 }
 
-function avgNumber(arr) {
-  const nums = (arr || []).map(Number).filter(Number.isFinite);
-  return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
-}
-
-function normalizeWeather(dateKey, data) {
-  const daily = data.daily || {};
-  const hourly = data.hourly || {};
-  const tempMax = Number(daily.temperature_2m_max?.[0]);
-  const tempMin = Number(daily.temperature_2m_min?.[0]);
-  const tempMean = Number(daily.temperature_2m_mean?.[0]);
-  const precipSum = Number(daily.precipitation_sum?.[0] || 0);
-  const code = Number(daily.weather_code?.[0]);
-  const cloudAvg = avgNumber(hourly.cloud_cover);
-  const humidityAvg = avgNumber(hourly.relative_humidity_2m);
-  const apparentAvg = avgNumber(hourly.apparent_temperature);
-  const shortwaveSum = Number(daily.shortwave_radiation_sum?.[0]);
-  const sunshineHours = Number(daily.sunshine_duration?.[0]) / 3600;
-  const summaryParts = [];
-  if (Number.isFinite(tempMax) && Number.isFinite(tempMin)) summaryParts.push(`high ${Math.round(tempMax)}°F / low ${Math.round(tempMin)}°F`);
-  if (Number.isFinite(apparentAvg)) summaryParts.push(`avg feels-like ${Math.round(apparentAvg)}°F`);
-  if (Number.isFinite(cloudAvg)) summaryParts.push(`avg cloud cover ${Math.round(cloudAvg)}%`);
-  if (Number.isFinite(precipSum)) summaryParts.push(`precip ${precipSum.toFixed(2)} in`);
-  if (Number.isFinite(shortwaveSum)) summaryParts.push(`solar radiation ${shortwaveSum.toFixed(1)} MJ/m²`);
-  if (Number.isFinite(sunshineHours)) summaryParts.push(`sunshine ${sunshineHours.toFixed(1)} hr`);
-  if (WEATHER_CODES[code]) summaryParts.push(WEATHER_CODES[code].toLowerCase());
-  return {
-    dateKey,
-    tempMax,
-    tempMin,
-    tempMean,
-    precipSum,
-    code,
-    cloudAvg,
-    humidityAvg,
-    apparentAvg,
-    shortwaveSum,
-    sunshineHours,
-    summary: summaryParts.length ? summaryParts.join(', ') : 'weather data returned, but no summary variables were available'
-  };
+function weatherIcon(condition = '') {
+  const value = condition.toLowerCase();
+  if (value.includes('thunder')) return '⛈️';
+  if (value.includes('rain') || value.includes('drizzle')) return '🌧️';
+  if (value.includes('snow')) return '🌨️';
+  if (value.includes('fog')) return '🌫️';
+  if (value.includes('cloud') || value.includes('overcast')) return '☁️';
+  return '☀️';
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -1835,7 +905,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     endSel.innerHTML += `<option value="${i}" ${i===6?'selected':''}>${label}</option>`;
   }
 
-  initStatsCardLayout();
 
   updateLastSyncLabel();
   const restoredFromCache = restoreDashboardData();
@@ -1860,7 +929,15 @@ window.addEventListener('DOMContentLoaded', async () => {
 function updateFreeHours() {
   freeStartHour = parseInt(document.getElementById('free-start').value);
   freeEndHour = parseInt(document.getElementById('free-end').value);
-  if (readings.size > 0) renderAll();
+  if (readings.size > 0) {
+    // Reclassify the readings already in memory. Avoid renderAll() here because it
+    // would unnecessarily reset the user from the hourly tab back to the daily tab.
+    const days = [...readings.keys()].sort();
+    renderStats(days);
+    renderDailyChart(days);
+    renderDetailChart(days, currentDayIndex);
+    renderHourlyTable(days);
+  }
 }
 
 function isFreeHour(h) {
@@ -2147,7 +1224,7 @@ function renderAll() {
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('stats-row').style.display = 'grid';
   document.getElementById('section-tabs').style.display = 'flex';
-  ['tab-daily','tab-hourly','tab-weekly'].forEach(id => {
+  ['tab-daily','tab-hourly'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = id === 'tab-daily' ? 'block' : 'none';
   });
@@ -2160,102 +1237,42 @@ function renderAll() {
   renderDetailChart(sortedDays, currentDayIndex);
   renderDaySelect(sortedDays);
   renderHourlyTable(sortedDays);
-  renderWeekly(sortedDays);
-  renderDOW(sortedDays);
-  renderWeeklyCompare(sortedDays);
   updateHeaderMeta(sortedDays);
   updateDataFreshness(sortedDays);
 }
 
 function renderStats(days) {
-  let totalKwh = 0, peakKwh = 0, peakTime = '', peakDate = '';
-  const dayTotals = new Map();
-  const monthlyTotals = {};
-  for (const day of days) {
-    const intervals = readings.get(day);
-    const dayTotal = intervals.reduce((s,r) => s + r.kwh, 0);
-    totalKwh += dayTotal;
-    dayTotals.set(day, dayTotal);
-    const monthKey = day.slice(0, 7);
-    monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + dayTotal;
-    for (const r of intervals) {
-      if (r.kwh > peakKwh) {
-        peakKwh = r.kwh;
-        peakTime = r.time;
-        peakDate = day;
-      }
-    }
-  }
-  const avg = totalKwh / days.length;
-  const weeklyAvg = days.length >= 7 ? (totalKwh / days.length) * 7 : avg * 7;
-  const weekCount = days.length >= 7 ? Math.round(days.length / 7 * 10) / 10 : null;
-
-  const latestDay = days[days.length - 1];
-  const latestDate = parseDateKey(latestDay);
-  const latestDow = latestDate.getDay();
-  const weekStart = new Date(latestDate);
-  weekStart.setDate(latestDate.getDate() - latestDow);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  const currentWeekDays = days.filter(day => {
-    const dt = parseDateKey(day);
-    return dt >= weekStart && dt <= weekEnd;
+  // Ninety-two quarter-hour readings represents a complete 23-hour DST day. This
+  // threshold excludes partial imports without rejecting the spring transition day.
+  const completeDays = days.filter(day => isCompleteDay(readings.get(day)));
+  const averageDays = completeDays.length ? completeDays : days;
+  let total = 0, free = 0, paid = 0;
+  averageDays.forEach(day => {
+    (readings.get(day) || []).forEach(reading => {
+      const hour = parseInt(reading.time.split(':')[0], 10);
+      total += reading.kwh;
+      if (isFreeHour(hour)) free += reading.kwh;
+      else paid += reading.kwh;
+    });
   });
-  const previousWeekStart = new Date(weekStart);
-  previousWeekStart.setDate(weekStart.getDate() - 7);
-  const previousWeekEnd = new Date(weekStart);
-  previousWeekEnd.setDate(weekStart.getDate() - 1);
-  const previousWeekDays = days.filter(day => {
-    const dt = parseDateKey(day);
-    return dt >= previousWeekStart && dt <= previousWeekEnd;
-  });
-  const currentWeekTotal = currentWeekDays.reduce((sum, day) => sum + (dayTotals.get(day) || 0), 0);
-  const currentWeekAvg = currentWeekDays.length ? currentWeekTotal / currentWeekDays.length : null;
-  const previousWeekAvg = previousWeekDays.length
-    ? previousWeekDays.reduce((sum, day) => sum + (dayTotals.get(day) || 0), 0) / previousWeekDays.length
-    : null;
+  const divisor = averageDays.length || 1;
+  const unit = '<span class="stat-unit">kWh</span>';
+  document.getElementById('stat-avg-total').innerHTML = (total / divisor).toFixed(1) + unit;
+  document.getElementById('stat-avg-free').innerHTML = (free / divisor).toFixed(1) + unit;
+  document.getElementById('stat-avg-paid').innerHTML = (paid / divisor).toFixed(1) + unit;
+  const dayLabel = `${averageDays.length} complete day${averageDays.length === 1 ? '' : 's'}`;
+  document.getElementById('stat-avg-total-sub').textContent = dayLabel;
+  document.getElementById('stat-avg-free-sub').textContent = `${formatHour(freeStartHour)}–${formatHour(freeEndHour)} · ${dayLabel}`;
+  document.getElementById('stat-avg-paid-sub').textContent = `outside free period · ${dayLabel}`;
+}
 
-  const previousDay = days.length >= 1 ? days[days.length - 1] : null;
-  const previousPreviousDay = days.length >= 2 ? days[days.length - 2] : null;
-  const previousDayTotal = previousDay ? dayTotals.get(previousDay) : null;
-  const previousPreviousDayTotal = previousPreviousDay ? dayTotals.get(previousPreviousDay) : null;
+function isCompleteDay(intervals) {
+  return Array.isArray(intervals) && intervals.length >= 92;
+}
 
-  const currentMonthKey = latestDay.slice(0, 7);
-  const currentMonthTotal = monthlyTotals[currentMonthKey] ?? null;
-  const currentMonthDate = parseDateKey(`${currentMonthKey}-01`);
-  const previousMonthDate = new Date(currentMonthDate);
-  previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
-  const previousMonthKey = `${previousMonthDate.getFullYear()}-${String(previousMonthDate.getMonth() + 1).padStart(2, '0')}`;
-  const previousMonthTotal = monthSummaries.has(previousMonthKey)
-    ? monthSummaries.get(previousMonthKey)
-    : (monthlyTotals[previousMonthKey] ?? null);
-  const weekCmp = buildComparison(currentWeekAvg, previousWeekAvg);
-  const dayCmp = buildComparison(previousDayTotal, previousPreviousDayTotal);
-  const monthCmp = buildComparison(currentMonthTotal, previousMonthTotal);
-
-  document.getElementById('stat-total').innerHTML = currentWeekTotal.toFixed(1) + '<span class="stat-unit">kWh</span>';
-  document.getElementById('stat-days').textContent = days.length;
-  document.getElementById('stat-avg').innerHTML = avg.toFixed(1) + '<span class="stat-unit">kWh</span>';
-  document.getElementById('stat-peak').innerHTML = peakKwh.toFixed(3) + '<span class="stat-unit">kWh</span>';
-  document.getElementById('stat-days-span').textContent = `${fmtDate(currentWeekDays[0] || latestDay)} – ${fmtDate(currentWeekDays[currentWeekDays.length - 1] || latestDay)} (${currentWeekDays.length} day${currentWeekDays.length !== 1 ? 's' : ''})`;
-  document.getElementById('stat-date-range').textContent = days.length > 1 ? `${fmtDate(days[0])} – ${fmtDate(days[days.length - 1])}` : fmtDate(days[0]);
-  document.getElementById('stat-peak-time').textContent = `${peakDate} at ${peakTime}`;
-  document.getElementById('stat-weekly-avg').innerHTML = weeklyAvg.toFixed(1) + '<span class="stat-unit">kWh</span>';
-  document.getElementById('stat-weekly-avg-sub').textContent = weekCount
-    ? `avg over ${weekCount} week${weekCount !== 1 ? 's' : ''}`
-    : `est. from ${days.length} day${days.length !== 1 ? 's' : ''} of data`;
-  document.getElementById('stat-week-compare').innerHTML = formatComparisonCard('Current week', 'Previous week', currentWeekAvg, previousWeekAvg);
-  document.getElementById('stat-week-compare-sub').textContent = previousWeekDays.length
-    ? formatAlertMessage(`${fmtDate(currentWeekDays[0] || latestDay)} week vs ${fmtDate(toDateKey(previousWeekStart))} week`, weekCmp ? weekCmp.pct : null, ALERT_THRESHOLDS.weekPct)
-    : 'need prior week data for comparison';
-  document.getElementById('stat-day-compare').innerHTML = formatComparisonCard('Latest day', 'Day before', previousDayTotal, previousPreviousDayTotal);
-  document.getElementById('stat-day-compare-sub').textContent = previousPreviousDay
-    ? formatAlertMessage(`${fmtDate(previousDay)} vs ${fmtDate(previousPreviousDay)} (SMT is typically 1-day delayed)`, dayCmp ? dayCmp.pct : null, ALERT_THRESHOLDS.dayPct)
-    : 'need 2 days of data for comparison';
-  document.getElementById('stat-month-compare').innerHTML = formatComparisonCard('Current month', 'Previous month', currentMonthTotal, previousMonthTotal);
-  document.getElementById('stat-month-compare-sub').textContent = previousMonthKey
-    ? formatAlertMessage(`${formatMonthLabel(currentMonthKey)} vs ${formatMonthLabel(previousMonthKey)}`, monthCmp ? monthCmp.pct : null, ALERT_THRESHOLDS.monthPct)
-    : 'need prior month data for comparison';
+function formatHour(hour) {
+  const normalized = ((hour % 24) + 24) % 24;
+  return `${normalized % 12 || 12}${normalized < 12 ? 'am' : 'pm'}`;
 }
 
 function updateHeaderMeta(days) {
@@ -2497,155 +1514,86 @@ function detectLikelyEvSessions(intervals) {
   return { evFlags, sessionStarts, sessions: merged };
 }
 
+let hourlyWeatherRenderId = 0;
+
+function getVisibleHourlyDays(days) {
+  // Fourteen days is the default compromise between useful context, table size,
+  // and the number of historical weather requests made on initial rendering.
+  const value = document.getElementById('hourly-range')?.value || '14';
+  return value === 'all' ? [...days] : days.slice(-Number(value));
+}
+
 function renderHourlyTable(days) {
+  const renderId = ++hourlyWeatherRenderId;
   const thead = document.getElementById('hourly-table-head');
-  let headHtml = '<th>Date</th>';
+  let headHtml = '<th>Date / weather</th>';
   for (let i = 0; i < 24; i++) {
     const hr = i === 0 ? 12 : i > 12 ? i - 12 : i;
     const ampm = i < 12 ? 'am' : 'pm';
     headHtml += `<th>${hr}${ampm}</th>`;
   }
+  headHtml += '<th>Total</th>';
   thead.innerHTML = headHtml;
 
   const tbody = document.getElementById('hourly-table-body');
   const rows = [];
-  for (const day of [...days].reverse()) {
+  const visibleDays = getVisibleHourlyDays(days);
+  for (const day of [...visibleDays].reverse()) {
     const hourTotals = Array(24).fill(0);
     readings.get(day).forEach(r => {
       const h = parseInt(r.time.split(':')[0]);
       hourTotals[h] += r.kwh;
     });
-    let rowHtml = `<td>${fmtDate(day)}</td>`;
+    const complete = isCompleteDay(readings.get(day));
+    let rowHtml = `<td><strong>${fmtDate(day)}</strong>${complete ? '' : ' <span class="partial-day">(Partial)</span>'}<span class="weather-line" id="weather-${day}">Weather loading…</span></td>`;
     hourTotals.forEach((val, h) => {
       const isFree = isFreeHour(h);
       const colorCls = isFree ? 'color:rgba(88,166,255,0.9)' : 'color:rgba(240,165,0,0.9)';
       const bgCls = val >= 1.5 ? 'background:rgba(248,81,73,0.15)' : val >= 0.5 ? 'background:rgba(240,165,0,0.1)' : '';
       rowHtml += `<td style="${colorCls}; ${bgCls}">${val > 0 ? val.toFixed(2) : '0'}</td>`;
     });
+    const total = hourTotals.reduce((sum, value) => sum + value, 0);
+    rowHtml += `<td><strong>${total.toFixed(2)}</strong></td>`;
     rows.push(`<tr>${rowHtml}</tr>`);
   }
   tbody.innerHTML = rows.join('');
+  loadHourlyWeather(visibleDays, renderId);
 }
 
-function renderWeekly(days) {
-  const weeks = {};
-  for (const day of days) {
-    const [y, m, d] = day.split('-').map(Number);
-    const dt = new Date(y, m - 1, d);
-    const dow = dt.getDay();
-    const weekStart = new Date(dt);
-    weekStart.setDate(d - dow);
-    const wk = weekStart.getFullYear() + '-' + String(weekStart.getMonth() + 1).padStart(2, '0') + '-' + String(weekStart.getDate()).padStart(2, '0');
-    if (!weeks[wk]) weeks[wk] = 0;
-    weeks[wk] += readings.get(day).reduce((s, r) => s + r.kwh, 0);
-  }
-  const wkKeys = Object.keys(weeks).sort();
-  const labels = wkKeys.map(d => 'Wk of ' + fmtDate(d));
-  const data = wkKeys.map(k => +weeks[k].toFixed(2));
-
-  destroyChart('chart-weekly');
-  const ctx = document.getElementById('chart-weekly').getContext('2d');
-  charts['chart-weekly'] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Weekly kWh',
-        data,
-        backgroundColor: 'rgba(63,185,80,0.65)',
-        borderColor: 'rgba(63,185,80,1)',
-        borderWidth: 1,
-        borderRadius: 4
-      }]
-    },
-    options: chartOptions({ yLabel: 'kWh' })
-  });
-}
-
-function renderDOW(days) {
-  const dowBuckets = Array(7).fill(null).map(() => []);
-  for (const day of days) {
-    const [y, m, d] = day.split('-').map(Number);
-    const dow = new Date(y, m - 1, d).getDay();
-    const total = readings.get(day).reduce((s, r) => s + r.kwh, 0);
-    dowBuckets[dow].push(total);
-  }
-  const dowLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const avgs = dowBuckets.map(arr => arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : null);
-
-  destroyChart('chart-dow');
-  const ctx = document.getElementById('chart-dow').getContext('2d');
-  charts['chart-dow'] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: dowLabels,
-      datasets: [{
-        label: 'Avg kWh',
-        data: avgs,
-        backgroundColor: avgs.map((v, i) => i === 0 || i === 6 ? 'rgba(240,165,0,0.65)' : 'rgba(88,166,255,0.55)'),
-        borderColor: avgs.map((v, i) => i === 0 || i === 6 ? 'rgba(240,165,0,1)' : 'rgba(88,166,255,0.8)'),
-        borderWidth: 1,
-        borderRadius: 4
-      }]
-    },
-    options: chartOptions({ yLabel: 'Avg kWh' })
-  });
-}
-
-function renderWeeklyCompare(days) {
-  const weeks = {};
-  for (const day of days) {
-    const [y, m, d] = day.split('-').map(Number);
-    const dt  = new Date(y, m - 1, d);
-    const dow = dt.getDay();
-    const sun = new Date(dt);
-    sun.setDate(d - dow);
-    const wk  = sun.getFullYear() + '-' +
-                String(sun.getMonth() + 1).padStart(2,'0') + '-' +
-                String(sun.getDate()).padStart(2,'0');
-    if (!weeks[wk]) weeks[wk] = { total:0, dayKwh:0, nightKwh:0, dayCount:0 };
-    weeks[wk].dayCount++;
-    (readings.get(day) || []).forEach(r => {
-      const h = parseInt(r.time.split(':')[0]);
-      weeks[wk].total += r.kwh;
-      if (isFreeHour(h)) weeks[wk].nightKwh += r.kwh;
-      else weeks[wk].dayKwh += r.kwh;
-    });
-  }
-
-  const wkKeys = Object.keys(weeks).sort();
-  const tbody = document.getElementById('weekly-compare-body');
-  if (!tbody) return;
-  const rows = [];
-
-  wkKeys.forEach((wk, i) => {
-    const w = weeks[wk];
-    const prev = i > 0 ? weeks[wkKeys[i - 1]] : null;
-    const avg = w.dayCount > 0 ? w.total / w.dayCount : 0;
-    let changeHtml = '<span style="color:var(--muted)">—</span>';
-    if (prev && prev.total > 0) {
-      const pct = ((w.total - prev.total) / prev.total * 100);
-      const sign = pct >= 0 ? '+' : '';
-      const color = pct > 5 ? 'var(--danger)' : pct < -5 ? 'var(--accent2)' : 'var(--muted)';
-      changeHtml = '<span style="color:' + color + '">' + sign + pct.toFixed(1) + '%</span>';
+async function loadHourlyWeather(days, renderId) {
+  const queue = [...days].reverse();
+  const worker = async () => {
+    while (queue.length && renderId === hourlyWeatherRenderId) {
+      const day = queue.shift();
+      const target = document.getElementById(`weather-${day}`);
+      try {
+        const weather = await fetchWeatherForDate(day);
+        if (target && renderId === hourlyWeatherRenderId) {
+          target.textContent = `${weather.condition} | Rain ${Number(weather.rainInches).toFixed(2)} in`;
+        }
+      } catch {
+        if (target && renderId === hourlyWeatherRenderId) target.textContent = 'Weather unavailable';
+      }
     }
+  };
+  // Bound concurrency so selecting "all" cannot flood the weather API. renderId
+  // also prevents a slower, older render from writing into a newly filtered table.
+  await Promise.all(Array.from({ length: Math.min(3, queue.length) }, worker));
+}
 
-    const [y, m, d] = wk.split('-').map(Number);
-    const label = new Date(y, m - 1, d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
-    const totalCls = w.total > 200 ? 'val-high' : w.total > 120 ? 'val-mid' : 'val-low';
-
-    rows.push('<tr>' +
-      '<td>' + label + '</td>' +
-      '<td style="color:var(--muted)">' + w.dayCount + '</td>' +
-      '<td class="' + totalCls + '">' + w.total.toFixed(1) + '</td>' +
-      '<td style="color:var(--muted)">' + avg.toFixed(1) + '</td>' +
-      '<td style="color:rgba(240,165,0,0.9)">' + w.dayKwh.toFixed(1) + '</td>' +
-      '<td style="color:rgba(88,166,255,0.9)">' + w.nightKwh.toFixed(1) + '</td>' +
-      '<td>' + changeHtml + '</td>' +
-    '</tr>');
-  });
-
-  tbody.innerHTML = rows.reverse().join('');
+async function copyHourlyTable() {
+  const table = document.getElementById('hourly-table');
+  // TSV preserves row/column structure in spreadsheets and AI prompts; newlines
+  // inside the date/weather cell become a readable pipe-delimited phrase.
+  const text = [...table.rows]
+    .map(row => [...row.cells].map(cell => cell.innerText.replace(/\s*\n\s*/g, ' | ').trim()).join('\t'))
+    .join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Hourly table copied', 'success');
+  } catch {
+    showToast('Could not copy the table', 'error');
+  }
 }
 
 function renderMonthly(days) {
@@ -2819,7 +1767,7 @@ function shiftDay(dir) {
 }
 
 function showTab(name, btn) {
-  ['daily','hourly','weekly'].forEach(t => {
+  ['daily','hourly'].forEach(t => {
     const el = document.getElementById('tab-' + t);
     if (el) el.style.display = t === name ? 'block' : 'none';
   });
@@ -2986,6 +1934,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
     status.textContent = `Found ${scopedFiles.length} file(s) in active window — downloading…`;
 
     let loaded = 0, skipped = 0;
+    const failures = [];
     for (const driveFile of scopedFiles) {
       if (!forceRefresh && nextLoadedFiles.find(f => f.name === driveFile.name)) {
         skipped++;
@@ -3003,11 +1952,15 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       try {
         fileRes = await fetchWithRetry(downloadUrl, { credentials: 'same-origin' });
       } catch (err) {
+        failures.push(`${driveFile.name}: request failed (${err.message})`);
         showToast(`Could not download ${driveFile.name}: ${err.message}`, 'error');
         continue;
       }
       if (!fileRes.ok) {
-        showToast(`Could not download ${driveFile.name} (${fileRes.status})`, 'error');
+        const errorBody = await fileRes.json().catch(() => null);
+        const reason = errorBody?.error ? `: ${errorBody.error}` : '';
+        failures.push(`${driveFile.name}: HTTP ${fileRes.status}${reason}`);
+        showToast(`Could not download ${driveFile.name} (${fileRes.status})${reason}`, 'error');
         continue;
       }
 
@@ -3023,6 +1976,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       try {
         const data = await parseFile(file);
         if (data.size === 0) {
+          failures.push(`${file.name}: parser found no interval readings`);
           showToast('No data in ' + file.name, 'error');
           continue;
         }
@@ -3048,6 +2002,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
         nextLoadedFiles.push(file);
         loaded++;
       } catch (err) {
+        failures.push(`${file.name}: ${err.message}`);
         showToast('Parse error: ' + file.name, 'error');
       }
     }
@@ -3094,16 +2049,20 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       if (readings.size > 0) {
         renderAllDebounced();
         status.className = 'drive-status err';
-        status.textContent = forceRefresh
+        const baseMessage = forceRefresh
           ? 'No valid data files were loaded — showing previously loaded data'
           : 'No new valid data files were loaded — showing previously loaded data';
+        const detail = failures.length ? ` First issue: ${failures[0]}` : ' No request or parser failure was recorded.';
+        status.textContent = `${baseMessage}. Attempted ${scopedFiles.length}, loaded 0. ${DRIVE_SYNC_VERSION}.${detail}`;
       } else {
         clearDashboard();
         document.getElementById('empty-state').style.display = 'flex';
         status.className = 'drive-status err';
-        status.textContent = forceRefresh
+        const baseMessage = forceRefresh
           ? 'No valid data files were loaded from Drive'
           : 'No new valid data files were loaded from Drive';
+        const detail = failures.length ? ` First issue: ${failures[0]}` : ' No request or parser failure was recorded.';
+        status.textContent = `${baseMessage}. Attempted ${scopedFiles.length}, loaded 0. ${DRIVE_SYNC_VERSION}.${detail}`;
       }
     }
 
