@@ -1,13 +1,30 @@
 export default async function handler(req, res) {
   try {
     const apiKey = process.env.DRIVE_API_KEY;
+    const folderId = process.env.DRIVE_FOLDER_ID;
     const { id, exportCsv } = req.query;
 
-    if (!apiKey) {
-      return res.status(500).json({ error: 'Missing DRIVE_API_KEY' });
+    if (!apiKey || !folderId) {
+      return res.status(500).json({ error: 'Missing Drive configuration' });
     }
     if (!id) {
       return res.status(400).json({ error: 'Missing file id' });
+    }
+
+    const metadataParams = new URLSearchParams({
+      fields: 'id,parents,trashed',
+      supportsAllDrives: 'true',
+      key: apiKey
+    });
+    const metadataResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?${metadataParams.toString()}`
+    );
+    if (!metadataResponse.ok) {
+      return res.status(metadataResponse.status).json({ error: 'File is unavailable' });
+    }
+    const metadata = await metadataResponse.json();
+    if (metadata.trashed || !metadata.parents?.includes(folderId)) {
+      return res.status(403).json({ error: 'File is outside the dashboard folder' });
     }
 
     const url = exportCsv === '1'
