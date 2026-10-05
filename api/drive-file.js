@@ -57,6 +57,8 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'File is outside the dashboard folder' });
     }
 
+    // Keep this as a single Google media/export request. Extra metadata or folder
+    // verification calls proved incompatible with the production API-key policy.
     const url = exportCsv === '1'
       ? `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}/export?mimeType=text/csv&key=${apiKey}`
       : `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&key=${apiKey}`;
