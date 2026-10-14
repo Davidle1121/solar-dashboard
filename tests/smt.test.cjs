@@ -6,6 +6,7 @@ const test = require('node:test');
 function dashboard() {
   const elements = new Map();
   const context = {
+    SolarEnergy: require('../solar-energy.js'),
     window: { addEventListener() {} },
     document: { getElementById(id) {
       if (!elements.has(id)) elements.set(id, { style: {}, setAttribute(name, value) { this[name] = value; }, value: id === 'hourly-range' ? '14' : id === 'night-rate' ? '0' : 'import', getContext() { return {}; } });
@@ -62,16 +63,13 @@ test('cross-file merges preserve both directions and prefer newer values', () =>
   assert.equal(c.gridTotals(items).net, -2);
 });
 
-test('chart and hourly table highlight net export green, import red, and balance gray', () => {
+test('hourly table highlights net export green, import red, and balance gray', () => {
   const { context: c, elements, run } = dashboard();
   run(`readings = new Map([
     ['2026-10-11', [{time:'00:00',kwh:2,exportKwh:4}]],
     ['2026-10-12', [{time:'00:00',kwh:4,exportKwh:2}]],
     ['2026-10-13', [{time:'00:00',kwh:2,exportKwh:2}]]
-  ]); renderBalanceChart([...readings.keys()]);`);
-  const chart = run("charts['chart-balance'].config");
-  assert.deepEqual(Array.from(chart.data.datasets[2].data), [-2, 2, 0]);
-  assert.deepEqual(Array.from(chart.data.datasets[2].backgroundColor), ['#3fb950','#f85149','#7d8590']);
+  ]); renderGridBalanceStats([...readings.keys()]);`);
   elements.get('hourly-metric') || c.document.getElementById('hourly-metric');
   elements.get('hourly-metric').value = 'net';
   run('renderHourlyTable([...readings.keys()])');
@@ -217,4 +215,40 @@ test('nighttime windows include both ends of the same calendar day and update wi
   run('freeEndHour=8;');
   assert.equal(c.periodEnergyCost(intervals,10,true).kwh, 3);
   assert.equal(c.gridEnergyCost(intervals,25,10).cost, 1.05);
+});
+
+test('energy profile and solar table keep mismatched sources separate and integrate kW to kWh', () => {
+  const {context:c,run}=dashboard();
+  c.document.getElementById('solar-metric').value='all';
+  run("readings = new Map([['2026-10-13',[{time:'12:00',kwh:0.25,exportKwh:0.5}]]]); sigData = new Map([['2026-10-12',{date:'2026-10-12',samples:[{minute:720,solarKw:2,socPct:40},{minute:735,solarKw:2,socPct:45}]}]]); energyDay='2026-10-12'; renderEnergyViews();");
+  assert.equal(run("charts['chart-energy'].config.data.datasets[0].data[0].y"),2);
+  assert.equal(run("charts['chart-energy'].config.data.datasets[4].data.length"),0);
+  assert.match(c.document.getElementById('solar-table-body').innerHTML,/0.500 \*/);
+  assert.match(c.document.getElementById('solar-table-body').innerHTML,/SMT · Grid import/);
+  assert.match(c.document.getElementById('energy-profile-note').textContent,/SMT data unavailable/);
+  run("energyDay='2026-10-13'; renderEnergyViews();");
+  assert.equal(run("charts['chart-energy'].config.data.datasets[0].data.length"),0);
+  assert.equal(run("charts['chart-energy'].config.data.datasets[4].data[0].y"),1);
+  assert.equal(run("charts['chart-energy'].config.data.datasets[5].data[0].y"),-2);
+  assert.match(c.document.getElementById('energy-profile-note').textContent,/Sigenergy data unavailable/);
+});
+
+test('solar table metric/range filters preserve the original hourly table and chart gaps remain gaps',()=>{
+  const {context:c,run}=dashboard();
+  c.document.getElementById('solar-metric').value='socPct';
+  c.document.getElementById('solar-range').value='all';
+  run("readings=new Map(); sigData=new Map([['2026-10-12',{samples:[{minute:0,socPct:20}]}],['2026-10-13',{samples:[{minute:0,socPct:30}]}]]); energyDay='2026-10-13'; renderEnergyViews();");
+  const body=c.document.getElementById('solar-table-body').innerHTML;
+  assert.equal((body.match(/<tr>/g)||[]).length,2);
+  assert.match(body,/20.0/);assert.match(body,/30.0/);
+  assert.doesNotMatch(body,/Home consumption/);
+  const points=c.tracePoints([{minute:0,solarKw:1},{minute:30,solarKw:2}],'solarKw');
+  assert.equal(points[1].y,null);
+});
+
+test('SMT power traces include the full measured interval but leave missing intervals blank',()=>{
+  const {context:c}=dashboard();
+  const points=c.smtPowerPoints([{time:'00:00',kwh:1},{time:'00:30',kwh:2}],'import');
+  assert.equal(points[0].y,4);assert.equal(points[1].x,15);assert.equal(points[2].y,null);
+  assert.equal(points[3].x,30);assert.equal(points.at(-1).x,45);
 });
