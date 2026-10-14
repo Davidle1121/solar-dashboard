@@ -24,7 +24,10 @@ preview, the variables must be available in Vercel's Preview environment as well
 any Production environment where you want to run the diagnostic. Values are never
 written to files, browser code, or diagnostic output.
 
-The explicit build command in vercel.json runs npm run build. The probe only logs
+The explicit build command in vercel.json runs npm run build. Its outputDirectory
+is the repository root, where index.html and login.html live; there is no generated
+public directory. API handlers remain under api/ for Vercel's serverless routing.
+The probe only logs
 in, discovers the account's home station, and reads yesterday's intraday and daily
 history, using America/Chicago to match the SMT dashboard. It does not change any
 inverter or battery setting, create an HTTP endpoint, or implement scheduled imports.
