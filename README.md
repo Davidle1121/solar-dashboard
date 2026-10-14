@@ -15,6 +15,43 @@ Configure these values as Vercel environment variables; never commit their value
 Use a dedicated Google Drive folder containing only dashboard usage exports. The dashboard API
 will reject download requests for files that are not direct children of that folder.
 
+## Sigenergy private-app API connection test
+
+The connection-test branch runs a server-side diagnostic during the Vercel build.
+Configure SIGEN_USERNAME and SIGEN_PASSWORD as sensitive environment variables,
+and SIGEN_REGION as a regular variable (us for North America). For a feature-branch
+preview, the variables must be available in Vercel's Preview environment as well as
+any Production environment where you want to run the diagnostic. Values are never
+written to files, browser code, or diagnostic output.
+
+The explicit build command in vercel.json runs npm run build. The probe only logs
+in, discovers the account's home station, and reads yesterday's intraday and daily
+history, using America/Chicago to match the SMT dashboard. It does not change any
+inverter or battery setting, create an HTTP endpoint, or implement scheduled imports.
+The private protocol is based on the community sigen-download implementation:
+https://github.com/kefa8/sigen-download/blob/master/src/common.py
+
+Look for the single SIGEN_PROBE JSON line in Vercel's build logs:
+
+- passed: authentication, station access, and numeric history with recognized kW
+  and kWh units were observed. Field meanings and values still need validation
+  before connecting the importer to dashboard calculations.
+- skipped: one or more variable names were missing. A successful deployment with
+  this result does not validate Sigenergy access.
+- failed: the stage and fixed reason identify a login, permission, network, or
+  response-format issue. Vendor response bodies and exception messages are omitted
+  because they can contain account data. Configured failures fail the build.
+- inconclusive: login and station discovery worked, but usable history or expected
+  units were absent. This also fails the build; do not treat it as import readiness.
+
+The probe makes a new login on each configured build and has no automatic retries.
+Avoid repeated redeployments while diagnosing authentication or rate-limit failures.
+This is a temporary connection diagnostic; replace the build hook with a scheduled
+collector after validating access. No historical readings or tokens are persisted.
+
+For local development with credentials securely injected into the process, use
+npm run probe:sigen. npm test uses mocked responses and never contacts Sigenergy.
+
 ## Design decisions and future reference
 
 ### Dashboard scope
