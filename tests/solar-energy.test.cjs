@@ -113,3 +113,13 @@ test('ambiguous repeated clock samples are not silently collapsed into complete 
   assert.equal(result.samples.some(sample=>sample.minute===720),false);
   assert.equal(Solar.hourlyEnergy(result,'solarKw').total,null);
 });
+
+test('mapping diagnostics expose measurement identifiers and shape, never values, timestamps or account fields',()=>{
+  const {describeHistory}=require('../lib/sigen-diagnostics.cjs');
+  const raw={stationId:'PRIVATE-STATION-123456',owner:'PRIVATE-OWNER',chartData:{unit:'kW',dataSeries:[{id:'POWER_PV',points:[{time:'12:34',value:9876.543}]},{id:'NDXZZ1234567890',points:[]}]}};
+  const schema=describeHistory('2026-10-13',raw);
+  assert.equal(schema.series[0].id,'POWER_PV');assert.equal(schema.series[0].timeFormat,'clock');
+  assert.equal(schema.series[0].numericPoints,1);assert.equal(schema.series[0].usableSamples,0);
+  assert.equal(schema.series[1].id,'[unrecognized identifier]');
+  assert.doesNotMatch(JSON.stringify(schema),/PRIVATE|9876|12:34|1234567890/);
+});

@@ -52,6 +52,19 @@ has no recognized metric series; pending means configuration/provider access sti
 needs attention. A successful build alone does not prove storage or collection works.
 Do not treat preview tests as evidence that the production cron has executed.
 
+When no usable provider samples exist, the UI explicitly says solar/battery data is
+not connected, labels the graph SMT Only, and hides empty legend entries and the
+battery-percent panel. All metrics shows only rows with at least one measured value;
+selecting an unavailable metric explicitly still shows its gaps. Saved empty date
+records are not counted as usable history. A successful login is not data readiness.
+
+Bootstrap logs include a bounded schema diagnostic containing generic measurement
+series identifiers, units, point counts, coarse timestamp-format categories, and
+recognized metrics. They exclude raw readings, point timestamps, station/account
+identifiers, tokens, and credentials. Long/non-metric identifiers are redacted.
+Use that build-log metadata to verify provider mappings before naming new aliases;
+never guess signed battery/grid conventions or expose full API responses.
+
 The provider's response shape and units were connection-tested, but series semantics
 must still match the actual installation. The normalizer accepts explicitly named
 power series (for example PV_POWER, LOAD_POWER, BATTERY_CHARGE_POWER,
