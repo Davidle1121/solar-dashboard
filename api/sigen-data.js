@@ -1,0 +1,2 @@
+import handlers from '../lib/sigen-handlers.cjs';
+export default function handler(req,res){return handlers.handleRead(req,res);}

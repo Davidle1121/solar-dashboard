@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "crons": [
+    {
+      "path": "/api/sigen-sync-daylight",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/sigen-sync-standard",
+      "schedule": "0 9 * * *"
+    }
+  ],
+  "functions": {
+    "api/sigen-sync-*.js": {
+      "maxDuration": 60
+    }
+  }
+}

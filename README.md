@@ -15,11 +15,77 @@ Configure these values as Vercel environment variables; never commit their value
 Use a dedicated Google Drive folder containing only dashboard usage exports. The dashboard API
 will reject download requests for files that are not direct children of that folder.
 
+## Automatic Sigenergy history and storage
+
+Run npm ci to install the pinned server dependency. Server-side Vercel variables:
+
+- SIGEN_USERNAME and SIGEN_PASSWORD: sensitive mySigen monitoring-account credentials.
+- SIGEN_REGION: us for North America (also supports eu, aus, apac, cn).
+- BLOB_READ_WRITE_TOKEN: connect a **private** Vercel Blob store to this project.
+- CRON_SECRET: a long random sensitive value. Vercel attaches it to cron requests.
+
+Enable the account and Blob variables in Preview and Production to test a branch.
+Vercel cron schedules only run on the production deployment. There are two daily
+UTC candidates, 08:00 and 09:00; the server only collects when America/Chicago is in
+its 3 AM hour. This accommodates daylight saving without changing the schedule.
+Vercel Hobby can dispatch daily jobs anywhere within that hour; it does not promise
+an exact 3:00 AM execution. One candidate is skipped and successful same-date runs
+are deduplicated. No browser visit or saved-data reload contacts the vendor.
+
+On a configured deployment, a bootstrap collects up to seven completed days if the
+store is empty. Subsequent daily runs collect yesterday, recheck the prior day for
+late readings, and fill missing days within that seven-day window. A bounded run
+may finish partially and catch up on a later run; existing usable records survive
+provider failures. Entries outside the seven completed Central dates are deleted
+before login, even when the upstream service is unavailable. Read responses filter
+expired dates independently. Only sigenergy/YYYY-MM-DD.json objects are managed;
+SMT data and other Blob namespaces are not deleted.
+
+The collector authenticates and reads station energy/SOC history only. It does not
+call inverter, battery, tariff, or operating-mode control APIs. Credentials, station
+IDs, tokens, and raw response payloads are not stored. Private-app protocol source:
+https://github.com/kefa8/sigen-download/blob/master/src/common.py
+
+Check the redacted SIGEN_SYNC build line: synced means normalized sample records were
+saved; partial means some history failed; mapping-required means the upstream data
+has no recognized metric series; pending means configuration/provider access still
+needs attention. A successful build alone does not prove storage or collection works.
+Do not treat preview tests as evidence that the production cron has executed.
+
+The provider's response shape and units were connection-tested, but series semantics
+must still match the actual installation. The normalizer accepts explicitly named
+power series (for example PV_POWER, LOAD_POWER, BATTERY_CHARGE_POWER,
+BATTERY_DISCHARGE_POWER, GRID_IMPORT_POWER, GRID_EXPORT_POWER) and BATTERY_SOC.
+Unknown series remain unavailable, never guessed from ordering or signed values.
+If the account uses different verified identifiers, SIGEN_SERIES_MAP can hold a
+non-secret JSON mapping, for example {"solarKw":"VERIFIED_SOLAR_SERIES_ID"}.
+Allowed keys are solarKw, loadKw, batteryChargeKw, batteryDischargeKw, gridImportKw,
+gridExportKw, and socPct. Mapping a signed combined battery/grid series directly to
+an unsigned metric is not supported: its sign meaning needs separate validation.
+No unvalidated series should be used to claim self-consumption or battery savings.
+
+The Home Energy Profile replaces the former import/export/net graph. It plots
+Sigenergy sampled kW and SMT interval-average kW, with grid export below zero, plus
+a separate battery-percent panel. The Solar & Battery Table offers source-labelled
+hourly rows, metric/date filters, and a Copy Table action for exactly the visible
+view. Dates and hours are joined in Central time; absent sources show gaps or —.
+Sigenergy hourly kWh are trapezoidal estimates between adjacent valid samples at
+most 15 minutes apart. Longer gaps are not filled; partial coverage is marked *.
+SOC is the last observed percent in the hour, not a sum. SMT remains the source for
+utility cost calculations. Only seven Sigenergy days are retained; SMT retention
+is unchanged. Naive provider timestamps are treated as station-local Central time;
+explicit timezone offsets are converted to Central.
+
+The static build publishes only index.html, login.html, and solar-energy.js under
+public/. Server code and dependencies are not copied to static output. API handlers
+remain under api/ for Vercel serverless routing. The old connection probe remains
+available via npm run probe:sigen but no longer logs in during normal builds.
+
 ## Design decisions and future reference
 
 ### Dashboard scope
 
-- The live navigation intentionally contains only **Daily View** and **Hourly Profile Table**.
+- The live navigation contains **Daily View**, **Hourly Profile Table**, and **Solar & Battery Table**.
   The former Weekly view and the chat assistant were removed because they were not part of the
   regular workflow. Their rendering code was removed as well, rather than merely hidden, to avoid
   maintaining and running unused features.
@@ -55,8 +121,7 @@ will reject download requests for files that are not direct children of that fol
 - SMT CSV files (and XLSX files with the same columns) retain Consumption as grid
   import and Surplus Generation as grid export. Export is surplus sent to the grid,
   not total solar production or total household consumption.
-- Net grid import is **import minus export**. The daily Import / Export / Net graph,
-  net summary card, and hourly net cells use green for net export, red for net import,
+- Net grid import is **import minus export**. The net summary card and hourly net cells use green for net export, red for net import,
   and gray for balance.
 - The hourly table offers Import, Export, and Net views and always includes all three
   daily totals. The selected metric and kWh units are included when copying the table.
@@ -107,15 +172,14 @@ will reject download requests for files that are not direct children of that fol
 - If access control is added, enforce it inside every data API route—not only with a client-side
   login screen. A signed, `HttpOnly`, `Secure`, `SameSite=Strict` cookie is the intended lightweight
   approach for this single-user dashboard.
-- Solar and battery placeholders remain dormant for a future SIGEnergy import. New production or
-  battery data should remain separate from grid readings until its source format and units are
-  validated.
+- Sigenergy solar/battery data stays separate from SMT meter readings. Validate provider
+  identifiers, units, and sign conventions before adding derived self-consumption or savings.
 - If hourly-table weather grows beyond condition and rainfall, add fields to `api/weather.js` and
   return only the normalized values required by the UI rather than forwarding raw provider data.
 
 ## Local verification
 
-Run the dependency-free API regression suite before deployment:
+Install with npm ci, then run the regression suite before deployment:
 
 ```bash
 npm test
