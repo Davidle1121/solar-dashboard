@@ -222,14 +222,14 @@ test('energy profile and solar table keep mismatched sources separate and integr
   c.document.getElementById('solar-metric').value='all';
   run("readings = new Map([['2026-10-13',[{time:'12:00',kwh:0.25,exportKwh:0.5}]]]); sigData = new Map([['2026-10-12',{date:'2026-10-12',samples:[{minute:720,solarKw:2,socPct:40},{minute:735,solarKw:2,socPct:45}]}]]); energyDay='2026-10-12'; renderEnergyViews();");
   assert.equal(run("charts['chart-energy'].config.data.datasets[0].data[0].y"),2);
-  assert.equal(run("charts['chart-energy'].config.data.datasets[4].data.length"),0);
+  assert.equal(run("charts['chart-energy'].config.data.datasets.some(d=>d.label.includes('SMT'))"),false);
   assert.match(c.document.getElementById('solar-table-body').innerHTML,/0.500 \*/);
-  assert.match(c.document.getElementById('solar-table-body').innerHTML,/SMT · Grid import/);
+  assert.doesNotMatch(c.document.getElementById('solar-table-body').innerHTML,/SMT · Grid import/);
   assert.match(c.document.getElementById('energy-profile-note').textContent,/SMT data unavailable/);
   run("energyDay='2026-10-13'; renderEnergyViews();");
-  assert.equal(run("charts['chart-energy'].config.data.datasets[0].data.length"),0);
-  assert.equal(run("charts['chart-energy'].config.data.datasets[4].data[0].y"),1);
-  assert.equal(run("charts['chart-energy'].config.data.datasets[5].data[0].y"),-2);
+  assert.equal(run("charts['chart-energy'].config.data.datasets.some(d=>d.label.includes('Sigenergy'))"),false);
+  assert.equal(run("charts['chart-energy'].config.data.datasets.find(d=>d.label.startsWith('Grid import')).data[0].y"),1);
+  assert.equal(run("charts['chart-energy'].config.data.datasets.find(d=>d.label.startsWith('Grid export')).data[0].y"),-2);
   assert.match(c.document.getElementById('energy-profile-note').textContent,/Sigenergy data unavailable/);
 });
 
@@ -251,4 +251,16 @@ test('SMT power traces include the full measured interval but leave missing inte
   const points=c.smtPowerPoints([{time:'00:00',kwh:1},{time:'00:30',kwh:2}],'import');
   assert.equal(points[0].y,4);assert.equal(points[1].x,15);assert.equal(points[2].y,null);
   assert.equal(points[3].x,30);assert.equal(points.at(-1).x,45);
+});
+
+test('SMT-only view never presents empty solar legends, battery panels, or unavailable rows',()=>{
+  const {context:c,run}=dashboard();c.document.getElementById('solar-metric').value='all';
+  run("readings=new Map([['2026-10-13',[{time:'12:00',kwh:1,exportKwh:2}]]]);sigData=new Map([['2026-10-13',{samples:[],unmappedSeriesCount:7}]]);energyDay='2026-10-13';renderEnergyViews();");
+  assert.equal(c.document.getElementById('energy-profile-title').textContent,'Grid Import / Export — SMT Only');
+  assert.equal(c.document.getElementById('energy-soc-panel').style.display,'none');
+  assert.equal(run("charts['chart-energy'].config.data.datasets.length"),2);
+  assert.doesNotMatch(c.document.getElementById('solar-table-body').innerHTML,/Sigenergy ·/);
+  c.document.getElementById('solar-metric').value='solarKw';run('renderEnergyTable(energyDays());');
+  assert.match(c.document.getElementById('solar-table-body').innerHTML,/Sigenergy · Solar produced/);
+  assert.match(c.document.getElementById('solar-table-body').innerHTML,/—/);
 });

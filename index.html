@@ -233,6 +233,7 @@
     color: var(--text);
   }
   .chart-note { font-size: 10px; color: var(--muted); }
+  #energy-status[data-state="pending"], #solar-status[data-state="pending"] { color:var(--accent); font-size:12px; line-height:1.6; margin:8px 0; }
   .chart-wrap { position: relative; }
   .chart-wrap canvas { max-height: 280px; }
   #chart-energy, #chart-soc { max-height:none; }
@@ -287,6 +288,12 @@
     border-radius: 4px;
     font-family: var(--font-mono);
   }
+  #solar-sync-dialog { margin:auto; padding:24px; max-width:420px; width:calc(100% - 32px); border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); }
+  #solar-sync-dialog::backdrop { background:rgba(0,0,0,0.65); }
+  #solar-sync-dialog input { display:block; width:100%; margin:12px 0; padding:10px; background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:6px; }
+  #solar-sync-dialog button { margin-top:8px; }
+  #solar-sync-diagnostic pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:300px; overflow:auto; font-size:11px; }
+  button:disabled { opacity:0.55; cursor:wait; }
   .rate-control { display:flex; align-items:center; gap:8px; }
   .latest-energy-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
   @media (max-width:768px) { .latest-energy-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
@@ -523,15 +530,17 @@
 
   <div id="tab-daily">
     <div class="chart-panel">
-      <div class="chart-header"><div class="chart-title">Home Energy Profile — Solar &amp; Battery</div>
-        <div class="day-nav"><label for="energy-day">Day</label><select id="energy-day" onchange="selectEnergyDay(this.value)"></select><button type="button" onclick="loadSigenergyData()">Reload saved solar data</button></div>
+      <div class="chart-header"><div class="chart-title" id="energy-profile-title">Home Energy Profile</div>
+        <div class="day-nav"><label for="energy-day">Day</label><select id="energy-day" onchange="selectEnergyDay(this.value)"></select><button type="button" data-manual-solar-sync onclick="openSolarSync()">Sync Solar Data</button><button type="button" onclick="loadSigenergyData()">Reload saved data</button></div>
       </div>
+      <p class="chart-note" id="solar-sync-result" role="status"></p>
+      <details id="solar-sync-diagnostic" hidden><summary>Connection diagnostic (safe to share)</summary><button class="table-action" type="button" onclick="copySolarSyncDiagnostic()">Copy diagnostic</button><pre id="solar-sync-diagnostic-text"></pre></details>
       <div class="chart-note" id="energy-status">Loading saved Sigenergy data…</div>
       <div class="chart-wrap" style="height:320px"><canvas id="chart-energy"></canvas></div>
-      <div class="chart-wrap" style="height:140px"><canvas id="chart-soc"></canvas></div>
+      <div class="chart-wrap" id="energy-soc-panel" style="height:140px"><canvas id="chart-soc"></canvas></div>
       <div class="chart-note" id="energy-profile-note"></div>
       <div class="chart-note" id="energy-soc-note"></div>
-      <div class="chart-note">Sigenergy sampled power and SMT interval-average power · blue shading = configured night hours · grid export is below zero · missing data remains a gap. Battery charge level is shown separately.</div>
+      <div class="chart-note">Sigenergy sampled power and SMT interval-average power · blue shading = configured night hours · grid export is below zero · missing data remains a gap. These lines show power, not electricity cost. Imports during free nights still appear above zero.</div>
     </div>
     <div class="chart-panel">
       <div class="chart-header">
@@ -599,7 +608,9 @@
     <div class="chart-panel">
       <div class="chart-header"><div class="chart-title">Solar &amp; Battery — Hourly Energy Table</div><div class="chart-note">Central time · source labels distinguish Sigenergy and SMT</div></div>
       <div class="chart-note" id="solar-status"></div>
+      <p class="chart-note" id="solar-table-sync-result" role="status"></p>
       <div class="table-toolbar">
+        <button class="table-action" type="button" data-manual-solar-sync onclick="openSolarSync()">Sync Solar Data</button>
         <label for="solar-day">Day</label><select id="solar-day" onchange="selectEnergyDay(this.value)"></select>
         <label for="solar-range">Show</label><select id="solar-range" onchange="renderEnergyTable(energyDays())"><option value="day">Selected day</option><option value="all">All available days (up to 7)</option></select>
         <label for="solar-metric">Metric</label><select id="solar-metric" onchange="renderEnergyTable(energyDays())">
@@ -607,7 +618,7 @@
         </select>
         <button class="table-action" type="button" onclick="copyRenderedTable('solar-table','Solar & battery table')">Copy table</button>
       </div>
-      <div class="chart-note">Sigenergy kWh are estimates integrated from power samples, not utility billing readings. * = incomplete coverage; — = unavailable. Battery % is the last observed level in each hour; its final column is the last level, not a sum. Sources are never substituted.</div>
+      <div class="chart-note">Sigenergy kWh are estimates integrated from power samples, not utility billing readings. * = incomplete coverage; — = unavailable. Battery % is the last observed level in each hour; its final column is the last level, not a sum. Sources are never substituted. All metrics hides unavailable rows.</div>
       <div class="data-table-wrap"><table id="solar-table"><thead><tr id="solar-table-head"></tr></thead><tbody id="solar-table-body"></tbody></table></div>
     </div>
   </div>
@@ -695,6 +706,17 @@
   Or tap <strong>Refresh from Google Drive</strong> above.</p>
 </div>
 
+<dialog id="solar-sync-dialog" aria-labelledby="solar-sync-title" onclose="document.getElementById('solar-sync-password').value=''">
+  <form onsubmit="event.preventDefault();runManualSolarSync()">
+    <h3 id="solar-sync-title">Sync Solar Data</h3>
+    <p>Reads history from Sigenergy and refreshes the last seven days. It does not change your solar or battery settings.</p>
+    <label for="solar-sync-password">Your sync passcode</label>
+    <input id="solar-sync-password" type="password" minlength="16" maxlength="256" required autocomplete="off" autofocus>
+    <p class="chart-note">Use the separate sync passcode configured for this site, not your mySigen login. It is not saved in your browser. Repeated syncs have a five-minute cooldown.</p>
+    <button class="table-action" type="submit">Start sync</button>
+    <button class="table-action" type="button" onclick="document.getElementById('solar-sync-password').value='';document.getElementById('solar-sync-dialog').close()">Cancel</button>
+  </form>
+</dialog>
 <div class="toast" id="toast"></div>
 
 
@@ -2283,12 +2305,71 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
   btn.disabled = false;
 }
 
+// Manual collection is owner-authenticated; passcodes are never cached or logged.
+let solarSyncBusy=false;
+let solarSyncCooldown=false;
+let solarSyncDiagnostic='';
+function setSolarSyncMessage(message) {
+  for(const id of ['solar-sync-result','solar-table-sync-result'])document.getElementById(id).textContent=message;
+}
+function setSolarSyncButtons(disabled) {
+  document.querySelectorAll('[data-manual-solar-sync]').forEach(button=>button.disabled=disabled);
+}
+function openSolarSync() {
+  if(solarSyncBusy||solarSyncCooldown)return;
+  document.getElementById('solar-sync-password').value='';
+  document.getElementById('solar-sync-dialog').showModal();
+}
+async function runManualSolarSync() {
+  const input=document.getElementById('solar-sync-password');
+  if(!input.reportValidity()||solarSyncBusy||solarSyncCooldown)return;
+  let passcode=input.value;
+  input.value='';document.getElementById('solar-sync-dialog').close();
+  solarSyncBusy=true;setSolarSyncButtons(true);
+  solarSyncDiagnostic='';document.getElementById('solar-sync-diagnostic').hidden=true;
+  setSolarSyncMessage('Reading the last seven completed days from Sigenergy… This can take about a minute.');
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),65000);
+  try {
+    const pending=fetch('/api/sigen-data',{method:'POST',headers:{'X-Solar-Sync-Key':passcode},cache:'no-store',signal:controller.signal});
+    passcode='';
+    const response=await pending;
+    const result=await response.json();
+    if(response.status===429) {
+      const seconds=Math.max(1,Math.min(300,Number(result.retryAfter)||300));
+      solarSyncCooldown=true;
+      setTimeout(()=>{solarSyncCooldown=false;setSolarSyncButtons(false);},seconds*1000);
+      throw new Error('A sync ran recently. Please wait about '+Math.ceil(seconds/60)+' minute(s) before trying again.');
+    }
+    if(!response.ok)throw new Error(result.error||'Solar sync could not complete.');
+    if(result.schema) {
+      solarSyncDiagnostic=JSON.stringify({status:result.status,saved:result.saved,mappedDays:result.mappedDays,failed:result.failed,schema:result.schema},null,2);
+      document.getElementById('solar-sync-diagnostic-text').textContent=solarSyncDiagnostic;
+      document.getElementById('solar-sync-diagnostic').hidden=false;
+    }
+    await loadSigenergyData();
+    if(result.status==='synced')setSolarSyncMessage('Updated '+result.mappedDays+' usable day(s). Recognized measurements are now refreshed in the graph and table.');
+    else if(result.status==='partial')setSolarSyncMessage('Some readings could not be collected. Existing readings were preserved. Open the connection diagnostic below if solar/battery measurements are still missing.');
+    else setSolarSyncMessage('Sigenergy responded, but usable solar/battery readings are still unavailable. Open the connection diagnostic below and share it so the field mapping can be finished.');
+  } catch(error) {
+    setSolarSyncMessage(error.name==='AbortError'?'Sync timed out. Existing readings are still available; wait a few minutes before retrying.':error.message||'Solar sync could not complete.');
+  } finally {
+    passcode='';input.value='';clearTimeout(timeout);solarSyncBusy=false;
+    if(!solarSyncCooldown)setSolarSyncButtons(false);
+  }
+}
+async function copySolarSyncDiagnostic() {
+  if(!solarSyncDiagnostic)return;
+  try{await navigator.clipboard.writeText(solarSyncDiagnostic);showToast('Connection diagnostic copied','success');}
+  catch{showToast('Could not copy the connection diagnostic','error');}
+}
+
 // Source dates are independent. Join only matching Central calendar dates/hours;
 // a missing SMT or Sigenergy series never becomes a zero or a substitute source.
 let energyDay = '';
 let sigStatus = 'Loading saved Sigenergy data…';
 let activeTab = 'daily';
-function energyDays() { return [...new Set([...readings.keys(),...sigData.keys()])].sort().slice(-7); }
+function energyDays() { const usableDates=[...sigData].filter(([,day])=>day.samples.some(sample=>SolarEnergy.METRICS.some(metric=>Number.isFinite(sample[metric])))).map(([date])=>date);return [...new Set([...readings.keys(),...usableDates])].sort().slice(-7); }
 function selectEnergyDay(day) { energyDay=day;renderEnergyViews(); }
 async function loadSigenergyData() {
   sigStatus='Loading saved Sigenergy data…';
@@ -2299,10 +2380,11 @@ async function loadSigenergyData() {
     if(!response.ok)throw new Error(payload.error||'Saved solar data is unavailable');
     const allowed=new Set(SolarEnergy.retainedDates());
     sigData=new Map((Array.isArray(payload.days)?payload.days:[]).filter(day=>allowed.has(day.date)&&Array.isArray(day.samples)).map(day=>[day.date,day]));
-    const updated=[...sigData.values()].map(day=>day.updatedAt).filter(Boolean).sort().pop();
+    const usable=[...sigData.values()].filter(day=>day.samples.some(sample=>SolarEnergy.METRICS.some(metric=>Number.isFinite(sample[metric]))));
+    const updated=usable.map(day=>day.updatedAt).filter(Boolean).sort().pop();
     const unknown=[...sigData.values()].some(day=>day.unmappedSeriesCount>0||!day.samples.length);
     const ambiguous=[...sigData.values()].some(day=>day.ambiguousSampleCount>0);
-    sigStatus=sigData.size ? 'Saved Sigenergy history: '+sigData.size+' day(s)'+(updated?' · last sync '+new Date(updated).toLocaleString('en-US',{timeZone:'America/Chicago'})+' Central':'')+(unknown?' · Some provider series are unavailable or need verified mapping.':'')+(ambiguous?' · Ambiguous repeated clock samples are left as gaps.':'') : 'No saved Sigenergy data yet. The daily sync collects during the 3 AM Central hour.';
+    sigStatus=usable.length ? 'Saved Sigenergy history: '+usable.length+' usable day(s)'+(updated?' · last usable sync '+new Date(updated).toLocaleString('en-US',{timeZone:'America/Chicago'})+' Central':'')+(unknown?' · Some provider measurements still need verified mapping.':'')+(ambiguous?' · Repeated clock samples remain gaps.':'') : sigData.size ? 'Solar/battery data is not connected yet: provider responses were saved, but no usable measurements were recognized. Any grid lines shown are SMT readings. This does not mean zero solar production.' : 'No saved Sigenergy data yet. The daily sync collects during the 3 AM Central hour.';
   }catch(error){sigStatus=error.message;}
   renderEnergyViews();
 }
@@ -2327,6 +2409,7 @@ function renderEnergyTable(days) {
   const rows=[];
   for(const day of [...selected].reverse())for(const row of energyRows(day)) {
     if(chosen!=='all'&&chosen!==row.key)continue;
+    if(chosen==='all'&&!row.values.some(value=>value!=null))continue;
     const cell=(value,h)=>{
       if(value==null)return '<td>—</td>';
       const partial=row.unit!=='%'&&row.coverage[h]<60;
@@ -2336,7 +2419,7 @@ function renderEnergyTable(days) {
     const partial=row.unit!=='%'&&row.coverage.some(c=>c<60);
     rows.push('<tr><td><strong>'+fmtDate(day)+'</strong><br>'+row.source+' · '+row.label+' ('+row.unit+')</td>'+row.values.map(cell).join('')+'<td><strong>'+(row.total==null?'—':row.total.toFixed(row.unit==='%'?1:3)+(partial?' *':''))+'</strong></td></tr>');
   }
-  document.getElementById('solar-table-body').innerHTML=rows.length?rows.join(''):'<tr><td colspan="26">No dated readings are available yet.</td></tr>';
+  document.getElementById('solar-table-body').innerHTML=rows.length?rows.join(''):'<tr><td colspan="26">No measurements available for this view yet.</td></tr>';
 }
 function tracePoints(samples,metric,maxGap=15) {
   const result=[];let previous;
@@ -2364,16 +2447,21 @@ function renderEnergyProfile() {
   const datasets=[['solarKw','Solar · Sigenergy','#f0a500'],['loadKw','Home · Sigenergy','#c084fc'],['batteryChargeKw','Battery charging · Sigenergy','#58a6ff'],['batteryDischargeKw','Battery discharging · Sigenergy','#3fb950']].map(([metric,label,color])=>({label,data:tracePoints(samples,metric),borderColor:color,backgroundColor:color,pointRadius:0,borderWidth:2,spanGaps:false}));
   datasets.push({label:'Grid import · SMT (interval average)',data:smtPowerPoints(smt,'import'),borderColor:'#f85149',backgroundColor:'#f85149',pointRadius:0,borderWidth:2,spanGaps:false,stepped:true},
     {label:'Grid export · SMT (below zero)',data:smtPowerPoints(smt,'export'),borderColor:'#3fb950',backgroundColor:'#3fb950',pointRadius:0,borderWidth:2,spanGaps:false,stepped:true});
+  const availableDatasets=datasets.filter(dataset=>dataset.data.some(point=>point.y!=null));
+  const sigPower=samples.some(sample=>SolarEnergy.METRICS.filter(metric=>metric!=='socPct').some(metric=>Number.isFinite(sample[metric])));
+  const hasSoc=samples.some(sample=>Number.isFinite(sample.socPct));
+  document.getElementById('energy-profile-title').textContent=sigPower?'Home Energy Profile — Solar & Battery':hasSoc?'Grid Exchange & Battery Charge':smt.length?'Grid Import / Export — SMT Only':'Energy Data Unavailable';
+  document.getElementById('energy-soc-panel').style.display=hasSoc?'block':'none';
   const shade={id:'nightPeriod',beforeDraw(chart){const {ctx,chartArea,scales}=chart;if(!chartArea)return;ctx.save();ctx.fillStyle='rgba(88,166,255,0.07)';for(let hour=0;hour<24;hour++)if(isFreeHour(hour)){const left=scales.x.getPixelForValue(hour*60),right=scales.x.getPixelForValue((hour+1)*60);ctx.fillRect(left,chartArea.top,right-left,chartArea.bottom-chartArea.top);}ctx.restore();}};
   const options=chartOptions({yLabel:'kW · export shown below zero'});
   options.maintainAspectRatio=false;options.parsing=false;options.animation=false;
   options.scales.x={type:'linear',min:0,max:1440,ticks:{stepSize:180,color:'#7d8590',callback:value=>to12hr(String(Math.floor(value/60)%24).padStart(2,'0')+':00')},grid:{color:'rgba(255,255,255,0.04)'}};
   options.plugins.legend={display:true,labels:{color:'#e6edf3',boxWidth:12,font:{size:10}}};
   options.plugins.tooltip.callbacks={title:items=>items.length?to12hr(String(Math.floor(items[0].parsed.x/60)%24).padStart(2,'0')+':'+String(Math.floor(items[0].parsed.x%60)).padStart(2,'0')):'',label:ctx=>ctx.dataset.label+': '+ctx.parsed.y.toFixed(3)+' kW'};
-  charts['chart-energy']=new Chart(document.getElementById('chart-energy').getContext('2d'),{type:'line',data:{datasets},options,plugins:[shade]});
+  charts['chart-energy']=new Chart(document.getElementById('chart-energy').getContext('2d'),{type:'line',data:{datasets:availableDatasets},options,plugins:[shade]});
   const socOptions={...options,scales:{...options.scales,y:{min:0,max:100,title:{display:true,text:'Battery charge (%)',color:'#7d8590'},ticks:{color:'#7d8590'}}},plugins:{...options.plugins,legend:{display:false},tooltip:{...options.plugins.tooltip,callbacks:{...options.plugins.tooltip.callbacks,label:ctx=>'Battery: '+ctx.parsed.y.toFixed(1)+'%'}}}};
   charts['chart-soc']=new Chart(document.getElementById('chart-soc').getContext('2d'),{type:'line',data:{datasets:[{label:'Battery charge · Sigenergy',data:tracePoints(samples,'socPct'),borderColor:'#58a6ff',pointRadius:0,borderWidth:2,spanGaps:false}]},options:socOptions,plugins:[shade]});
-  document.getElementById('energy-soc-note').textContent=samples.some(s=>Number.isFinite(s.socPct))?'Battery charge level: observed Sigenergy samples (%)':'Battery charge level is unavailable for this date; it is never inferred from power readings.';
+  document.getElementById('energy-soc-note').textContent=hasSoc?'Battery charge level: observed Sigenergy samples (%)':'Battery charge level is unavailable for this date; it is never inferred from power readings.';
   document.getElementById('energy-profile-note').textContent=energyDay?'Date: '+fmtDate(energyDay)+' · Central time · '+(samples.length?'Sigenergy power samples':'Sigenergy data unavailable for this date')+' · '+(smt.length?'SMT interval averages':'SMT data unavailable for this date'):'No dated readings available yet.';
 }
 function renderEnergyViews() {
@@ -2383,6 +2471,8 @@ function renderEnergyViews() {
   for(const id of ['energy-day','solar-day']){const select=document.getElementById(id);select.innerHTML=days.map(day=>'<option value="'+day+'">'+fmtDate(day)+'</option>').join('');select.value=energyDay;select.disabled=!days.length;}
   document.getElementById('energy-status').textContent=sigStatus;
   document.getElementById('solar-status').textContent=sigStatus;
+  const usable=[...sigData.values()].some(day=>day.samples.some(sample=>SolarEnergy.METRICS.some(metric=>Number.isFinite(sample[metric]))));
+  for(const id of ['energy-status','solar-status'])document.getElementById(id).setAttribute('data-state',usable?'ready':'pending');
   document.getElementById('section-tabs').style.display='flex';
   document.getElementById('tab-'+activeTab).style.display='block';
   renderEnergyProfile();renderEnergyTable(days);
