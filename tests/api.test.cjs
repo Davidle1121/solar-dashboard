@@ -212,3 +212,36 @@ test('drive-file preserves Google Sheets CSV export after membership validation'
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.toString(), 'usage_kwh\n2');
 });
+
+test('session, login method checks, and logout cookie clearing still work', async () => {
+  const session = await loadHandler('api/session.js');
+  let res = await invoke(session);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.authenticated, true);
+  const login = await loadHandler('api/login.js');
+  res = response();
+  await login({ method: 'GET', query: {} }, res);
+  assert.equal(res.statusCode, 405);
+  assert.equal(res.headers.Allow, 'POST');
+  res = response();
+  await login({ method: 'POST', query: {} }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.ok, true);
+  const logout = await loadHandler('api/logout.js');
+  res = await invoke(logout);
+  assert.equal(res.statusCode, 200);
+  assert.match(res.headers['Set-Cookie'], /site_auth=;/);
+  assert.match(res.headers['Set-Cookie'], /Max-Age=0/);
+});
+
+test('weather rejects invalid dates and reports upstream outages without leaking data', async () => {
+  process.env.WEATHER_LAT = '0'; process.env.WEATHER_LON = '0';
+  let requests = 0;
+  const handler = await loadHandler('api/weather.js', async () => { requests++; throw new Error('network unavailable'); });
+  let res = await invoke(handler, { date: 'bad-date' });
+  assert.equal(res.statusCode, 400);
+  assert.equal(requests, 0);
+  res = await invoke(handler, { date: '2026-10-13' });
+  assert.equal(res.statusCode, 502);
+  assert.equal(res.body.error, 'Weather service unavailable');
+});

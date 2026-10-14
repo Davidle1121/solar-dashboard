@@ -286,6 +286,9 @@
     border-radius: 4px;
     font-family: var(--font-mono);
   }
+  .rate-control { display:flex; align-items:center; gap:8px; }
+  .latest-energy-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+  @media (max-width:768px) { .latest-energy-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
   .data-table-wrap { overflow-x: auto; margin-top: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
   th {
@@ -455,19 +458,32 @@
     </div>
   </div>
 
+  <div class="chart-panel" id="latest-energy-widget">
+    <div class="chart-header"><div class="chart-title">Latest SMT Day — <span id="latest-energy-date">No data loaded</span></div><div class="chart-note">Latest available day; SMT readings usually arrive one day later.</div></div>
+    <div class="latest-energy-grid" aria-live="polite">
+      <div class="solar-stat"><div class="solar-stat-label">Daytime Import</div><div class="solar-stat-value" id="latest-day-import" style="color:var(--accent)">—</div><div class="stat-sub" id="latest-day-import-note">9am–9pm</div></div>
+      <div class="solar-stat"><div class="solar-stat-label">Daytime Cost</div><div class="solar-stat-value" id="latest-day-cost">—</div><div class="stat-sub" id="latest-day-cost-note">25¢/kWh</div></div>
+      <div class="solar-stat"><div class="solar-stat-label">Nighttime Import</div><div class="solar-stat-value" id="latest-night-import" style="color:var(--accent3)">—</div><div class="stat-sub" id="latest-night-import-note">9pm–9am</div></div>
+      <div class="solar-stat"><div class="solar-stat-label">Nighttime Cost</div><div class="solar-stat-value" id="latest-night-cost">—</div><div class="stat-sub" id="latest-night-cost-note">0¢/kWh</div></div>
+    </div>
+    <div class="chart-note">Rates are editable below. Nighttime combines midnight to the night-end time and the night-start time to midnight on this date. Missing readings show —.</div>
+  </div>
+
   <div class="chart-panel" id="cost-widget">
-    <div class="chart-header"><div class="chart-title">Estimated Paid Grid Energy Cost</div><div class="chart-note" id="cost-period">Paid period: 9am–9pm</div></div>
+    <div class="chart-header"><div class="chart-title">Estimated Grid Energy Cost</div><div class="chart-note" id="cost-period">Daytime: 9am–9pm · Nighttime: 9pm–9am</div></div>
     <div class="settings-bar">
-      <label for="day-rate">Day rate (¢/kWh)</label>
-      <input id="day-rate" type="number" min="0" step="any" value="25" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px">
-      <label for="cost-day">Day</label>
-      <select id="cost-day" onchange="selectDay(this.value)"></select>
-      <span>Rate resets to 25¢ on page reload.</span>
+      <div class="rate-control"><label for="day-rate">Day rate (¢/kWh)</label>
+      <input id="day-rate" type="number" min="0" step="any" value="25" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px"></div>
+      <div class="rate-control"><label for="night-rate">Night rate (¢/kWh)</label>
+      <input id="night-rate" type="number" min="0" step="any" value="0" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px"></div>
+      <div class="rate-control"><label for="cost-day">Day</label>
+      <select id="cost-day" onchange="selectDay(this.value)"></select></div>
+      <span>Rates reset to 25¢ day / 0¢ night on page reload.</span>
     </div>
     <div id="rate-validation" role="alert" style="color:var(--danger)"></div>
     <div class="solar-stats-row">
       <div class="solar-stat"><div class="solar-stat-label">Selected day</div><div class="solar-stat-value" id="cost-daily">—</div><div class="stat-sub" id="cost-daily-note">Load SMT data to calculate.</div></div>
-      <div class="solar-stat"><div class="solar-stat-label">7 days ending on selected day</div><div class="solar-stat-value" id="cost-weekly">—</div><div class="stat-sub" id="cost-weekly-note">Available paid-period imports only.</div></div>
+      <div class="solar-stat"><div class="solar-stat-label">7 days ending on selected day</div><div class="solar-stat-value" id="cost-weekly">—</div><div class="stat-sub" id="cost-weekly-note">Available daytime + nighttime imports only.</div></div>
     </div>
     <div class="chart-note">Energy charge only: excludes delivery charges, taxes, fixed fees, and export credits. Missing readings are not projected.</div>
   </div>
@@ -927,7 +943,9 @@ function weatherIcon(condition = '') {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // Rates are session-only preferences: never restore them from cached data.
   document.getElementById('day-rate').value = '25';
+  document.getElementById('night-rate').value = '0';
   renderCostEstimates();
   fetchWeather();
   const startSel = document.getElementById('free-start');
@@ -977,16 +995,57 @@ function updateFreeHours() {
   }
 }
 
-function paidEnergyCost(intervals, rateCents) {
-  const paid = intervals.filter(r => r.hasImport !== false && !isFreeHour(Number(r.time.split(':')[0])));
-  const expected = Array.from({ length: 24 }, (_, hour) => hour).filter(hour => !isFreeHour(hour)).length * 4;
-  const kwh = paid.length ? paid.reduce((sum, r) => sum + r.kwh, 0) : expected === 0 && intervals.length ? 0 : null;
+// Keep import energy separate from exports: export credits do not reduce these charges.
+function periodEnergyCost(intervals, rateCents, nighttime = false) {
+  const imports = intervals.filter(r => r.hasImport !== false);
+  const period = imports.filter(r => isFreeHour(Number(r.time.split(':')[0])) === nighttime);
+  const expected = Array.from({ length: 24 }, (_, hour) => hour).filter(hour => isFreeHour(hour) === nighttime).length * 4;
+  const kwh = period.length ? period.reduce((sum, r) => sum + r.kwh, 0) : expected === 0 && imports.length ? 0 : null;
   return {
     kwh,
     cost: kwh == null ? null : kwh * rateCents / 100,
-    complete: kwh != null && new Set(paid.map(r => r.time)).size === expected,
-    estimated: paid.some(r => r.importEstimated)
+    complete: kwh != null && new Set(period.map(r => r.time)).size === expected,
+    estimated: period.some(r => r.importEstimated)
   };
+}
+
+function gridEnergyCost(intervals, dayRate, nightRate) {
+  const daytime = periodEnergyCost(intervals, dayRate);
+  const nighttime = periodEnergyCost(intervals, nightRate, true);
+  const known = [daytime.cost, nighttime.cost].filter(value => value != null);
+  return { daytime, nighttime,
+    cost: known.length ? known.reduce((sum, value) => sum + value, 0) : null,
+    complete: daytime.complete && nighttime.complete,
+    estimated: daytime.estimated || nighttime.estimated };
+}
+
+function readEnergyRate(id) {
+  const input = document.getElementById(id);
+  const raw = input.value.trim();
+  const value = Number(raw);
+  const valid = raw !== '' && Number.isFinite(value) && value >= 0;
+  input.setAttribute('aria-invalid', String(!valid));
+  return valid ? value : null;
+}
+
+function formatEnergyCost(value) {
+  return value == null ? '—' : '$' + value.toFixed(2);
+}
+
+function renderLatestEnergyDay(days, dayRate, nightRate) {
+  // Always use the newest data date, not yesterday or the historical chart selection.
+  const day = days[days.length - 1];
+  document.getElementById('latest-energy-date').textContent = day ? fmtDate(day) : 'No data loaded';
+  for (const [name, rate, isNight] of [['day', dayRate, false], ['night', nightRate, true]]) {
+    const period = periodEnergyCost(day ? readings.get(day) : [], rate, isNight);
+    const window = isNight ? formatHour(freeStartHour) + '–' + formatHour(freeEndHour) : formatHour(freeEndHour) + '–' + formatHour(freeStartHour);
+    const status = period.kwh == null ? 'No readings' : period.complete ? 'Complete period' : 'Partial period';
+    const quality = period.estimated ? ' · includes estimated readings' : '';
+    document.getElementById('latest-' + name + '-import').textContent = period.kwh == null ? '—' : period.kwh.toFixed(3) + ' kWh';
+    document.getElementById('latest-' + name + '-cost').textContent = formatEnergyCost(rate == null ? null : period.cost);
+    document.getElementById('latest-' + name + '-import-note').textContent = window + ' · ' + status + quality;
+    document.getElementById('latest-' + name + '-cost-note').textContent = rate == null ? 'Enter a valid ' + name + ' rate below.' : rate + '¢/kWh · ' + status + quality;
+  }
 }
 
 function renderCostEstimates() {
@@ -996,37 +1055,37 @@ function renderCostEstimates() {
   selector.innerHTML = days.map(date => '<option value="' + date + '">' + fmtDate(date) + '</option>').join('');
   if (day) selector.value = day;
   selector.disabled = !day;
-  const input = document.getElementById('day-rate');
-  const rawRate = input.value.trim();
-  const rate = Number(rawRate);
-  const valid = rawRate !== '' && Number.isFinite(rate) && rate >= 0;
-  input.setAttribute('aria-invalid', String(!valid));
-  document.getElementById('rate-validation').textContent = valid ? '' : 'Enter a non-negative rate in cents per kWh.';
-  document.getElementById('cost-period').textContent = 'Paid period: ' + formatHour(freeEndHour) + '–' + formatHour(freeStartHour);
+  const dayRate = readEnergyRate('day-rate');
+  const nightRate = readEnergyRate('night-rate');
+  const valid = dayRate != null && nightRate != null;
+  renderLatestEnergyDay(days, dayRate, nightRate);
+  document.getElementById('rate-validation').textContent = valid ? '' : 'Enter non-negative day and night rates in cents per kWh.';
+  document.getElementById('cost-period').textContent = 'Daytime: ' + formatHour(freeEndHour) + '–' + formatHour(freeStartHour) + ' · Nighttime: ' + formatHour(freeStartHour) + '–' + formatHour(freeEndHour);
   const dailyValue = document.getElementById('cost-daily');
   const weeklyValue = document.getElementById('cost-weekly');
   if (!day || !valid) {
     dailyValue.textContent = weeklyValue.textContent = '—';
-    document.getElementById('cost-daily-note').textContent = day ? 'Enter a valid rate.' : 'Load SMT data to calculate.';
-    document.getElementById('cost-weekly-note').textContent = 'Available paid-period imports only.';
+    document.getElementById('cost-daily-note').textContent = day ? 'Enter valid rates.' : 'Load SMT data to calculate.';
+    document.getElementById('cost-weekly-note').textContent = 'Available daytime + nighttime imports only.';
     return;
   }
-  const daily = paidEnergyCost(readings.get(day), rate);
+  const daily = gridEnergyCost(readings.get(day), dayRate, nightRate);
   const weekDays = Array.from({ length: 7 }, (_, index) => {
     const date = parseDateKey(day);
     date.setDate(date.getDate() - 6 + index);
     return toDateKey(date);
   });
-  const weekly = weekDays.map(date => paidEnergyCost(readings.get(date) || [], rate));
+  const weekly = weekDays.map(date => gridEnergyCost(readings.get(date) || [], dayRate, nightRate));
   const available = weekly.filter(item => item.cost != null);
-  const money = value => value == null ? '—' : '$' + value.toFixed(2);
-  dailyValue.textContent = money(daily.cost);
-  weeklyValue.textContent = money(available.length ? available.reduce((sum, item) => sum + item.cost, 0) : null);
-  document.getElementById('cost-daily-note').textContent = fmtDate(day) + ' · ' +
-    (daily.kwh == null ? 'No paid-period readings' : daily.kwh.toFixed(3) + ' paid kWh · ' + (daily.complete ? 'Complete paid period' : 'Partial paid period')) +
+  dailyValue.textContent = formatEnergyCost(daily.cost);
+  // Sum available intervals without projecting missing days or inventing zero usage.
+  weeklyValue.textContent = formatEnergyCost(available.length ? available.reduce((sum, item) => sum + item.cost, 0) : null);
+  const usage = period => period.kwh == null ? '—' : period.kwh.toFixed(3);
+  document.getElementById('cost-daily-note').textContent = fmtDate(day) + ' · ' + usage(daily.daytime) + ' day / ' + usage(daily.nighttime) + ' night kWh · ' +
+    (daily.cost == null ? 'No import readings' : daily.complete ? 'Complete day' : 'Partial day') +
     (daily.estimated ? ' · includes estimated readings' : '');
   document.getElementById('cost-weekly-note').textContent = fmtDate(weekDays[0]) + '–' + fmtDate(day) + ' · ' +
-    weekly.filter(item => item.complete).length + '/7 complete paid periods · ' + available.length + '/7 days with paid readings' +
+    weekly.filter(item => item.complete).length + '/7 complete days · ' + available.length + '/7 days with import readings' +
     (available.some(item => item.estimated) ? ' · includes estimated readings' : '');
 }
 

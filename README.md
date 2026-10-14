@@ -36,12 +36,17 @@ will reject download requests for files that are not direct children of that fol
 
 - Free nights default to 9 PM–9 AM; paid hours are 9 AM–9 PM. Changing the selectors
   immediately updates import colors, free/paid totals, and cost estimates.
-- The cost widget charges paid-period grid imports at an editable cents-per-kWh rate.
-  The rate starts at 25 cents on every page reload and is not stored. Refreshing Drive
-  data within the same page keeps the entered rate.
-- Choose a day to see its energy charge and the seven-day total ending on that day.
-  Missing and partial paid periods are identified; missing readings are not projected.
-  The estimate excludes delivery charges, taxes, fixed fees, and export credits.
+- Four latest-day cards show daytime import/cost and nighttime import/cost for the
+  newest available SMT date, independently of the historical day selected below.
+  Nighttime means midnight–9 AM plus 9 PM–midnight on that same calendar date;
+  changing the night selectors updates both period splits.
+- Day and night rates are editable in cents per kWh. They default to 25 cents for
+  daytime and 0 cents for nighttime on every page reload and are never stored.
+  Refreshing Drive data within the same page keeps the entered rates.
+- The selected-day and trailing seven-day estimates include both rates. Missing and
+  partial periods are identified; missing readings are not projected. Even at a zero
+  rate, a period without import readings shows unavailable rather than a zero charge.
+  Estimates exclude delivery charges, taxes, fixed fees, and export credits.
 - Copy Table reads the currently rendered hourly table, including the selected energy
   metric, visible date range, daily totals, and displayed weather, as tab-separated text.
 

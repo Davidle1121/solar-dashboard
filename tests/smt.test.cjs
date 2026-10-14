@@ -8,7 +8,7 @@ function dashboard() {
   const context = {
     window: { addEventListener() {} },
     document: { getElementById(id) {
-      if (!elements.has(id)) elements.set(id, { style: {}, setAttribute(name, value) { this[name] = value; }, value: id === 'hourly-range' ? '14' : 'import', getContext() { return {}; } });
+      if (!elements.has(id)) elements.set(id, { style: {}, setAttribute(name, value) { this[name] = value; }, value: id === 'hourly-range' ? '14' : id === 'night-rate' ? '0' : 'import', getContext() { return {}; } });
       return elements.get(id);
     } },
     Chart: function (_canvas, config) { this.config = config; this.destroy = () => {}; },
@@ -116,20 +116,20 @@ test('default free nights end at 9am, with paid hours from 9am through 8:59pm', 
   assert.equal(c.isFreeHour(20), false);
   assert.equal(c.isFreeHour(21), true);
   const intervals = ['08:45', '09:00', '20:45', '21:00'].map(time => ({time, kwh: 1, exportKwh: 99}));
-  assert.equal(c.paidEnergyCost(intervals, 25).kwh, 2);
-  assert.equal(c.paidEnergyCost(intervals, 25).cost, 0.5);
-  assert.equal(c.paidEnergyCost(intervals, 0).cost, 0);
+  assert.equal(c.periodEnergyCost(intervals, 25).kwh, 2);
+  assert.equal(c.periodEnergyCost(intervals, 25).cost, 0.5);
+  assert.equal(c.periodEnergyCost(intervals, 0).cost, 0);
 });
 
 test('costs flag partial data, exclude export-only readings, and accept complete zero imports', () => {
   const { context: c } = dashboard();
-  assert.equal(c.paidEnergyCost([{time:'12:00',kwh:0,hasImport:false,exportKwh:8}],25).cost, null);
-  assert.equal(c.paidEnergyCost([],25).cost, null);
-  assert.equal(c.paidEnergyCost([{time:'12:00',kwh:1,importEstimated:true}],25).estimated, true);
-  assert.equal(c.paidEnergyCost([{time:'12:00',kwh:1}],25).complete, false);
+  assert.equal(c.periodEnergyCost([{time:'12:00',kwh:0,hasImport:false,exportKwh:8}],25).cost, null);
+  assert.equal(c.periodEnergyCost([],25).cost, null);
+  assert.equal(c.periodEnergyCost([{time:'12:00',kwh:1,importEstimated:true}],25).estimated, true);
+  assert.equal(c.periodEnergyCost([{time:'12:00',kwh:1}],25).complete, false);
   const intervals = Array.from({length:48}, (_, i) => ({time: String(9 + Math.floor(i / 4)).padStart(2, '0') + ':' + String(i % 4 * 15).padStart(2,'0'),kwh:0}));
-  assert.equal(c.paidEnergyCost(intervals,25).complete, true);
-  assert.equal(c.paidEnergyCost(intervals,25).cost, 0);
+  assert.equal(c.periodEnergyCost(intervals,25).complete, true);
+  assert.equal(c.periodEnergyCost(intervals,25).cost, 0);
 });
 
 test('cost widget recalculates selected-day and trailing seven-day costs without using older data', () => {
@@ -144,7 +144,7 @@ test('cost widget recalculates selected-day and trailing seven-day costs without
   assert.equal(c.document.getElementById('cost-daily').textContent, '$4.00');
   assert.equal(c.document.getElementById('cost-weekly').textContent, '$6.00');
   run('freeEndHour=10; renderCostEstimates();');
-  assert.equal(c.document.getElementById('cost-daily').textContent, '—');
+  assert.equal(c.document.getElementById('cost-daily').textContent, '$0.00');
   assert.equal(c.document.getElementById('cost-weekly').textContent, '$2.00');
   c.document.getElementById('day-rate').value = '-1';
   c.renderCostEstimates();
@@ -153,4 +153,68 @@ test('cost widget recalculates selected-day and trailing seven-day costs without
   c.document.getElementById('day-rate').value = '';
   c.renderCostEstimates();
   assert.equal(c.document.getElementById('cost-weekly').textContent, '—');
+});
+
+test('latest-day cards stay pinned to newest readings while historical selection and both rates change', () => {
+  const { context: c, run } = dashboard();
+  c.document.getElementById('day-rate').value = '25';
+  c.document.getElementById('night-rate').value = '0';
+  run("readings = new Map([['2026-10-10',[{time:'12:00',kwh:4},{time:'22:00',kwh:2}]],['2026-10-13',[{time:'09:00',kwh:8},{time:'00:00',kwh:3},{time:'21:00',kwh:7,importEstimated:true}]]]); currentDayIndex=0; renderCostEstimates();");
+  assert.match(c.document.getElementById('latest-energy-date').textContent, /Oct 13/);
+  assert.equal(c.document.getElementById('latest-day-import').textContent, '8.000 kWh');
+  assert.equal(c.document.getElementById('latest-night-import').textContent, '10.000 kWh');
+  assert.equal(c.document.getElementById('latest-day-cost').textContent, '$2.00');
+  assert.equal(c.document.getElementById('latest-night-cost').textContent, '$0.00');
+  assert.equal(c.document.getElementById('cost-daily').textContent, '$1.00');
+  assert.match(c.document.getElementById('latest-night-import-note').textContent, /estimated/);
+  c.document.getElementById('night-rate').value = '10';
+  c.renderCostEstimates();
+  assert.equal(c.document.getElementById('latest-night-cost').textContent, '$1.00');
+  assert.equal(c.document.getElementById('cost-daily').textContent, '$1.20');
+  assert.equal(c.document.getElementById('cost-weekly').textContent, '$1.20');
+  run('currentDayIndex=1; renderCostEstimates();');
+  assert.equal(c.document.getElementById('cost-daily').textContent, '$3.00');
+  assert.equal(c.document.getElementById('cost-weekly').textContent, '$4.20');
+  c.document.getElementById('day-rate').value = '50';
+  c.renderCostEstimates();
+  assert.equal(c.document.getElementById('latest-day-cost').textContent, '$4.00');
+  assert.equal(c.document.getElementById('cost-daily').textContent, '$5.00');
+  assert.equal(c.document.getElementById('cost-weekly').textContent, '$7.20');
+});
+
+test('missing nighttime imports show unavailable while measured zero usage shows zero cost', () => {
+  const { context: c, run } = dashboard();
+  c.document.getElementById('day-rate').value = '25';
+  run("readings = new Map([['2026-10-13',[{time:'12:00',kwh:1},{time:'22:00',kwh:0,hasImport:false,exportKwh:5}]]]); renderCostEstimates();");
+  assert.equal(c.document.getElementById('latest-night-import').textContent, '—');
+  assert.equal(c.document.getElementById('latest-night-cost').textContent, '—');
+  assert.match(c.document.getElementById('cost-daily-note').textContent, /Partial day/);
+  run("readings.get('2026-10-13')[1].hasImport=true; renderCostEstimates();");
+  assert.equal(c.document.getElementById('latest-night-import').textContent, '0.000 kWh');
+  assert.equal(c.document.getElementById('latest-night-cost').textContent, '$0.00');
+});
+
+test('invalid night rates preserve import data and valid day costs but invalidate combined totals', () => {
+  const { context: c, run } = dashboard();
+  c.document.getElementById('day-rate').value = '25';
+  run("readings = new Map([['2026-10-13',[{time:'12:00',kwh:4},{time:'22:00',kwh:2}]]]);");
+  for (const invalid of ['', '-1', 'abc']) {
+    c.document.getElementById('night-rate').value = invalid;
+    c.renderCostEstimates();
+    assert.equal(c.document.getElementById('latest-night-import').textContent, '2.000 kWh');
+    assert.equal(c.document.getElementById('latest-day-cost').textContent, '$1.00');
+    assert.equal(c.document.getElementById('latest-night-cost').textContent, '—');
+    assert.equal(c.document.getElementById('cost-daily').textContent, '—');
+    assert.equal(c.document.getElementById('cost-weekly').textContent, '—');
+  }
+});
+
+test('nighttime windows include both ends of the same calendar day and update with selectors', () => {
+  const { context: c, run } = dashboard();
+  const intervals = ['00:00','08:45','09:00','20:45','21:00','23:45'].map(time => ({time,kwh:1}));
+  assert.equal(c.periodEnergyCost(intervals,10,true).kwh, 4);
+  assert.equal(c.gridEnergyCost(intervals,25,10).cost, 0.9);
+  run('freeEndHour=8;');
+  assert.equal(c.periodEnergyCost(intervals,10,true).kwh, 3);
+  assert.equal(c.gridEnergyCost(intervals,25,10).cost, 1.05);
 });
