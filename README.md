@@ -78,7 +78,9 @@ will reject download requests for files that are not direct children of that fol
   This prevents the API key from turning the endpoint into a general-purpose Drive file proxy.
   It performs that check with the same folder-list operation used by the listing endpoint because
   some API-key configurations allow listing and downloading but return 403 for a standalone Drive
-  metadata lookup.
+  metadata lookup. Both routes follow every listing page before deciding membership; a short page
+  is not proof that the folder listing is complete. Incomplete or failed membership searches return
+  a verification error rather than incorrectly declaring the file outside the folder.
 - Parsed energy readings are cached only in `sessionStorage`, so closing the browser session clears
   them. Small non-energy preferences and weather summaries may still use `localStorage`.
 
