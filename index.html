@@ -288,6 +288,12 @@
     border-radius: 4px;
     font-family: var(--font-mono);
   }
+  #solar-sync-dialog { margin:auto; padding:24px; max-width:420px; width:calc(100% - 32px); border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); }
+  #solar-sync-dialog::backdrop { background:rgba(0,0,0,0.65); }
+  #solar-sync-dialog input { display:block; width:100%; margin:12px 0; padding:10px; background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:6px; }
+  #solar-sync-dialog button { margin-top:8px; }
+  #solar-sync-diagnostic pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:300px; overflow:auto; font-size:11px; }
+  button:disabled { opacity:0.55; cursor:wait; }
   .rate-control { display:flex; align-items:center; gap:8px; }
   .latest-energy-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
   @media (max-width:768px) { .latest-energy-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
@@ -525,8 +531,10 @@
   <div id="tab-daily">
     <div class="chart-panel">
       <div class="chart-header"><div class="chart-title" id="energy-profile-title">Home Energy Profile</div>
-        <div class="day-nav"><label for="energy-day">Day</label><select id="energy-day" onchange="selectEnergyDay(this.value)"></select><button type="button" onclick="loadSigenergyData()">Reload saved solar data</button></div>
+        <div class="day-nav"><label for="energy-day">Day</label><select id="energy-day" onchange="selectEnergyDay(this.value)"></select><button type="button" data-manual-solar-sync onclick="openSolarSync()">Sync Solar Data</button><button type="button" onclick="loadSigenergyData()">Reload saved data</button></div>
       </div>
+      <p class="chart-note" id="solar-sync-result" role="status"></p>
+      <details id="solar-sync-diagnostic" hidden><summary>Connection diagnostic (safe to share)</summary><button class="table-action" type="button" onclick="copySolarSyncDiagnostic()">Copy diagnostic</button><pre id="solar-sync-diagnostic-text"></pre></details>
       <div class="chart-note" id="energy-status">Loading saved Sigenergy data…</div>
       <div class="chart-wrap" style="height:320px"><canvas id="chart-energy"></canvas></div>
       <div class="chart-wrap" id="energy-soc-panel" style="height:140px"><canvas id="chart-soc"></canvas></div>
@@ -600,7 +608,9 @@
     <div class="chart-panel">
       <div class="chart-header"><div class="chart-title">Solar &amp; Battery — Hourly Energy Table</div><div class="chart-note">Central time · source labels distinguish Sigenergy and SMT</div></div>
       <div class="chart-note" id="solar-status"></div>
+      <p class="chart-note" id="solar-table-sync-result" role="status"></p>
       <div class="table-toolbar">
+        <button class="table-action" type="button" data-manual-solar-sync onclick="openSolarSync()">Sync Solar Data</button>
         <label for="solar-day">Day</label><select id="solar-day" onchange="selectEnergyDay(this.value)"></select>
         <label for="solar-range">Show</label><select id="solar-range" onchange="renderEnergyTable(energyDays())"><option value="day">Selected day</option><option value="all">All available days (up to 7)</option></select>
         <label for="solar-metric">Metric</label><select id="solar-metric" onchange="renderEnergyTable(energyDays())">
@@ -696,6 +706,17 @@
   Or tap <strong>Refresh from Google Drive</strong> above.</p>
 </div>
 
+<dialog id="solar-sync-dialog" aria-labelledby="solar-sync-title" onclose="document.getElementById('solar-sync-password').value=''">
+  <form onsubmit="event.preventDefault();runManualSolarSync()">
+    <h3 id="solar-sync-title">Sync Solar Data</h3>
+    <p>Reads history from Sigenergy and refreshes the last seven days. It does not change your solar or battery settings.</p>
+    <label for="solar-sync-password">Your sync passcode</label>
+    <input id="solar-sync-password" type="password" minlength="16" maxlength="256" required autocomplete="off" autofocus>
+    <p class="chart-note">Use the separate sync passcode configured for this site, not your mySigen login. It is not saved in your browser. Repeated syncs have a five-minute cooldown.</p>
+    <button class="table-action" type="submit">Start sync</button>
+    <button class="table-action" type="button" onclick="document.getElementById('solar-sync-password').value='';document.getElementById('solar-sync-dialog').close()">Cancel</button>
+  </form>
+</dialog>
 <div class="toast" id="toast"></div>
 
 
@@ -2282,6 +2303,65 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
   }
 
   btn.disabled = false;
+}
+
+// Manual collection is owner-authenticated; passcodes are never cached or logged.
+let solarSyncBusy=false;
+let solarSyncCooldown=false;
+let solarSyncDiagnostic='';
+function setSolarSyncMessage(message) {
+  for(const id of ['solar-sync-result','solar-table-sync-result'])document.getElementById(id).textContent=message;
+}
+function setSolarSyncButtons(disabled) {
+  document.querySelectorAll('[data-manual-solar-sync]').forEach(button=>button.disabled=disabled);
+}
+function openSolarSync() {
+  if(solarSyncBusy||solarSyncCooldown)return;
+  document.getElementById('solar-sync-password').value='';
+  document.getElementById('solar-sync-dialog').showModal();
+}
+async function runManualSolarSync() {
+  const input=document.getElementById('solar-sync-password');
+  if(!input.reportValidity()||solarSyncBusy||solarSyncCooldown)return;
+  let passcode=input.value;
+  input.value='';document.getElementById('solar-sync-dialog').close();
+  solarSyncBusy=true;setSolarSyncButtons(true);
+  solarSyncDiagnostic='';document.getElementById('solar-sync-diagnostic').hidden=true;
+  setSolarSyncMessage('Reading the last seven completed days from Sigenergy… This can take about a minute.');
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),65000);
+  try {
+    const pending=fetch('/api/sigen-data',{method:'POST',headers:{'X-Solar-Sync-Key':passcode},cache:'no-store',signal:controller.signal});
+    passcode='';
+    const response=await pending;
+    const result=await response.json();
+    if(response.status===429) {
+      const seconds=Math.max(1,Math.min(300,Number(result.retryAfter)||300));
+      solarSyncCooldown=true;
+      setTimeout(()=>{solarSyncCooldown=false;setSolarSyncButtons(false);},seconds*1000);
+      throw new Error('A sync ran recently. Please wait about '+Math.ceil(seconds/60)+' minute(s) before trying again.');
+    }
+    if(!response.ok)throw new Error(result.error||'Solar sync could not complete.');
+    if(result.schema) {
+      solarSyncDiagnostic=JSON.stringify({status:result.status,saved:result.saved,mappedDays:result.mappedDays,failed:result.failed,schema:result.schema},null,2);
+      document.getElementById('solar-sync-diagnostic-text').textContent=solarSyncDiagnostic;
+      document.getElementById('solar-sync-diagnostic').hidden=false;
+    }
+    await loadSigenergyData();
+    if(result.status==='synced')setSolarSyncMessage('Updated '+result.mappedDays+' usable day(s). Recognized measurements are now refreshed in the graph and table.');
+    else if(result.status==='partial')setSolarSyncMessage('Some readings could not be collected. Existing readings were preserved. Open the connection diagnostic below if solar/battery measurements are still missing.');
+    else setSolarSyncMessage('Sigenergy responded, but usable solar/battery readings are still unavailable. Open the connection diagnostic below and share it so the field mapping can be finished.');
+  } catch(error) {
+    setSolarSyncMessage(error.name==='AbortError'?'Sync timed out. Existing readings are still available; wait a few minutes before retrying.':error.message||'Solar sync could not complete.');
+  } finally {
+    passcode='';input.value='';clearTimeout(timeout);solarSyncBusy=false;
+    if(!solarSyncCooldown)setSolarSyncButtons(false);
+  }
+}
+async function copySolarSyncDiagnostic() {
+  if(!solarSyncDiagnostic)return;
+  try{await navigator.clipboard.writeText(solarSyncDiagnostic);showToast('Connection diagnostic copied','success');}
+  catch{showToast('Could not copy the connection diagnostic','error');}
 }
 
 // Source dates are independent. Join only matching Central calendar dates/hours;

@@ -23,6 +23,9 @@ Run npm ci to install the pinned server dependency. Server-side Vercel variables
 - SIGEN_REGION: us for North America (also supports eu, aus, apac, cn).
 - BLOB_READ_WRITE_TOKEN: connect a **private** Vercel Blob store to this project.
 - CRON_SECRET: a long random sensitive value. Vercel attaches it to cron requests.
+- SIGEN_SYNC_PASSWORD: a separate strong passcode (16–256 characters), sensitive in
+  Preview and Production. Redeploy after adding it. Never use the mySigen password
+  or CRON_SECRET for this setting.
 
 Enable the account and Blob variables in Preview and Production to test a branch.
 Vercel cron schedules only run on the production deployment. There are two daily
@@ -31,6 +34,21 @@ its 3 AM hour. This accommodates daylight saving without changing the schedule.
 Vercel Hobby can dispatch daily jobs anywhere within that hour; it does not promise
 an exact 3:00 AM execution. One candidate is skipped and successful same-date runs
 are deduplicated. No browser visit or saved-data reload contacts the vendor.
+
+The Sync Solar Data button in Daily View and Solar & Battery Table asks for the
+owner passcode and sends an authenticated POST to /api/sigen-data. It rereads only
+the last seven completed Central dates, then refreshes the graph and table. The
+passcode is cleared from the input immediately and is never saved in browser
+storage or placed in a URL. Wrong passcodes cannot trigger provider access. The
+Reload saved data button only rereads Blob; it does not initiate collection.
+
+Build, scheduled, and manual collection share a five-minute cooldown coordinated
+by a conditional-write private Blob object, sigenergy-meta/sync-lock.json. This is
+one fixed metadata object, not additional energy history. A recent run returns a
+wait message; the daily schedule remains unchanged. If series mapping is missing,
+manual sync exposes a Copy diagnostic action containing only the bounded schema
+metadata described below. Share that diagnostic to finish verifying the mappings;
+successful authentication alone does not mean solar/battery readings are ready.
 
 On a configured deployment, a bootstrap collects up to seven completed days if the
 store is empty. Subsequent daily runs collect yesterday, recheck the prior day for
