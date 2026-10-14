@@ -278,7 +278,7 @@
     border-radius: 8px;
     font-size: 11px;
   }
-  .settings-bar select {
+  .settings-bar select, .settings-bar input {
     background: var(--surface2);
     border: 1px solid var(--border);
     color: var(--text);
@@ -453,6 +453,23 @@
       <span style="color:var(--muted)">Free Night End:</span>
       <select id="free-end" onchange="updateFreeHours()"></select>
     </div>
+  </div>
+
+  <div class="chart-panel" id="cost-widget">
+    <div class="chart-header"><div class="chart-title">Estimated Paid Grid Energy Cost</div><div class="chart-note" id="cost-period">Paid period: 9am–9pm</div></div>
+    <div class="settings-bar">
+      <label for="day-rate">Day rate (¢/kWh)</label>
+      <input id="day-rate" type="number" min="0" step="any" value="25" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px">
+      <label for="cost-day">Day</label>
+      <select id="cost-day" onchange="selectDay(this.value)"></select>
+      <span>Rate resets to 25¢ on page reload.</span>
+    </div>
+    <div id="rate-validation" role="alert" style="color:var(--danger)"></div>
+    <div class="solar-stats-row">
+      <div class="solar-stat"><div class="solar-stat-label">Selected day</div><div class="solar-stat-value" id="cost-daily">—</div><div class="stat-sub" id="cost-daily-note">Load SMT data to calculate.</div></div>
+      <div class="solar-stat"><div class="solar-stat-label">7 days ending on selected day</div><div class="solar-stat-value" id="cost-weekly">—</div><div class="stat-sub" id="cost-weekly-note">Available paid-period imports only.</div></div>
+    </div>
+    <div class="chart-note">Energy charge only: excludes delivery charges, taxes, fixed fees, and export credits. Missing readings are not projected.</div>
   </div>
 
   <div class="stats-row" id="stats-row" style="display:none">
@@ -692,7 +709,7 @@ let charts = {};
 let dailyChartDays = [];
 let dailyChartLookup = { previous: Array(7).fill(null), current: Array(7).fill(null) };
 let freeStartHour = 21;
-let freeEndHour = 6;
+let freeEndHour = 9;
 let monthSummaries = new Map();
 const AUTO_SYNC_MODE = 'smart';
 const AUTO_SYNC_INTERVAL_HOURS = 6;
@@ -910,6 +927,8 @@ function weatherIcon(condition = '') {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('day-rate').value = '25';
+  renderCostEstimates();
   fetchWeather();
   const startSel = document.getElementById('free-start');
   const endSel = document.getElementById('free-end');
@@ -918,7 +937,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const hr = i === 0 ? 12 : i > 12 ? i - 12 : i;
     const label = `${hr}:00 ${ampm}`;
     startSel.innerHTML += `<option value="${i}" ${i===21?'selected':''}>${label}</option>`;
-    endSel.innerHTML += `<option value="${i}" ${i===6?'selected':''}>${label}</option>`;
+    endSel.innerHTML += `<option value="${i}" ${i===9?'selected':''}>${label}</option>`;
   }
 
 
@@ -953,7 +972,62 @@ function updateFreeHours() {
     renderDailyChart(days);
     renderDetailChart(days, currentDayIndex);
     renderHourlyTable(days);
+  } else {
+    renderCostEstimates();
   }
+}
+
+function paidEnergyCost(intervals, rateCents) {
+  const paid = intervals.filter(r => r.hasImport !== false && !isFreeHour(Number(r.time.split(':')[0])));
+  const expected = Array.from({ length: 24 }, (_, hour) => hour).filter(hour => !isFreeHour(hour)).length * 4;
+  const kwh = paid.length ? paid.reduce((sum, r) => sum + r.kwh, 0) : expected === 0 && intervals.length ? 0 : null;
+  return {
+    kwh,
+    cost: kwh == null ? null : kwh * rateCents / 100,
+    complete: kwh != null && new Set(paid.map(r => r.time)).size === expected,
+    estimated: paid.some(r => r.importEstimated)
+  };
+}
+
+function renderCostEstimates() {
+  const days = [...readings.keys()].sort();
+  const day = days[Math.max(0, Math.min(days.length - 1, currentDayIndex))];
+  const selector = document.getElementById('cost-day');
+  selector.innerHTML = days.map(date => '<option value="' + date + '">' + fmtDate(date) + '</option>').join('');
+  if (day) selector.value = day;
+  selector.disabled = !day;
+  const input = document.getElementById('day-rate');
+  const rawRate = input.value.trim();
+  const rate = Number(rawRate);
+  const valid = rawRate !== '' && Number.isFinite(rate) && rate >= 0;
+  input.setAttribute('aria-invalid', String(!valid));
+  document.getElementById('rate-validation').textContent = valid ? '' : 'Enter a non-negative rate in cents per kWh.';
+  document.getElementById('cost-period').textContent = 'Paid period: ' + formatHour(freeEndHour) + '–' + formatHour(freeStartHour);
+  const dailyValue = document.getElementById('cost-daily');
+  const weeklyValue = document.getElementById('cost-weekly');
+  if (!day || !valid) {
+    dailyValue.textContent = weeklyValue.textContent = '—';
+    document.getElementById('cost-daily-note').textContent = day ? 'Enter a valid rate.' : 'Load SMT data to calculate.';
+    document.getElementById('cost-weekly-note').textContent = 'Available paid-period imports only.';
+    return;
+  }
+  const daily = paidEnergyCost(readings.get(day), rate);
+  const weekDays = Array.from({ length: 7 }, (_, index) => {
+    const date = parseDateKey(day);
+    date.setDate(date.getDate() - 6 + index);
+    return toDateKey(date);
+  });
+  const weekly = weekDays.map(date => paidEnergyCost(readings.get(date) || [], rate));
+  const available = weekly.filter(item => item.cost != null);
+  const money = value => value == null ? '—' : '$' + value.toFixed(2);
+  dailyValue.textContent = money(daily.cost);
+  weeklyValue.textContent = money(available.length ? available.reduce((sum, item) => sum + item.cost, 0) : null);
+  document.getElementById('cost-daily-note').textContent = fmtDate(day) + ' · ' +
+    (daily.kwh == null ? 'No paid-period readings' : daily.kwh.toFixed(3) + ' paid kWh · ' + (daily.complete ? 'Complete paid period' : 'Partial paid period')) +
+    (daily.estimated ? ' · includes estimated readings' : '');
+  document.getElementById('cost-weekly-note').textContent = fmtDate(weekDays[0]) + '–' + fmtDate(day) + ' · ' +
+    weekly.filter(item => item.complete).length + '/7 complete paid periods · ' + available.length + '/7 days with paid readings' +
+    (available.some(item => item.estimated) ? ' · includes estimated readings' : '');
 }
 
 function isFreeHour(h) {
@@ -1481,6 +1555,7 @@ function renderDetailChart(days, idx) {
   const day = days[safeIdx];
   const intervals = readings.get(day) || [];
   document.getElementById('detail-date-label').textContent = fmtDate(day);
+  renderCostEstimates();
   const evMeta = detectLikelyEvSessions(intervals);
 
   const labels = intervals.map((r, idx2) => {

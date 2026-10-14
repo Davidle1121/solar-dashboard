@@ -32,6 +32,19 @@ will reject download requests for files that are not direct children of that fol
   are kept out of the headline averages. If no complete day exists, available data is shown rather
   than leaving every card blank.
 
+### Free nights and estimated energy charges
+
+- Free nights default to 9 PM–9 AM; paid hours are 9 AM–9 PM. Changing the selectors
+  immediately updates import colors, free/paid totals, and cost estimates.
+- The cost widget charges paid-period grid imports at an editable cents-per-kWh rate.
+  The rate starts at 25 cents on every page reload and is not stored. Refreshing Drive
+  data within the same page keeps the entered rate.
+- Choose a day to see its energy charge and the seven-day total ending on that day.
+  Missing and partial paid periods are identified; missing readings are not projected.
+  The estimate excludes delivery charges, taxes, fixed fees, and export credits.
+- Copy Table reads the currently rendered hourly table, including the selected energy
+  metric, visible date range, daily totals, and displayed weather, as tab-separated text.
+
 ### SMT import, export, and net energy
 
 - SMT CSV files (and XLSX files with the same columns) retain Consumption as grid
