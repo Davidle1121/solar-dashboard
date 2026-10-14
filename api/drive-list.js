@@ -1,4 +1,4 @@
-import { createDriveFileToken } from './_drive-token.js';
+import { listDashboardFiles } from './_drive-folder.js';
 
 export default async function handler(req, res) {
   try {
@@ -9,20 +9,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Missing Vercel environment variables' });
     }
 
-    const params = new URLSearchParams({
-      q: `'${folderId}' in parents and trashed=false`,
-      fields: 'files(id,name,mimeType,modifiedTime)',
-      orderBy: 'name',
-      pageSize: '1000',
-      supportsAllDrives: 'true',
-      includeItemsFromAllDrives: 'true',
-      key: apiKey
-    });
-    const url = `https://www.googleapis.com/drive/v3/files?${params.toString()}`;
-
-    const r = await fetch(url);
-    const data = await r.json();
-    if (!r.ok) return res.status(r.status).json({ error: 'Drive listing failed' });
+    const data = await listDashboardFiles(apiKey, folderId, 'id,name,mimeType,modifiedTime');
+    if (!data.ok) return res.status(data.status).json({ error: 'Drive listing failed' });
 
     // Never expose original export names: utility filenames may contain a customer,
     // premise, meter, or account identifier even when the parsed readings do not.
