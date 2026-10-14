@@ -457,20 +457,25 @@
 
   <div class="stats-row" id="stats-row" style="display:none">
     <div class="stat-card solar-color">
-      <div class="stat-label">Avg Total / Day</div>
+      <div class="stat-label">Avg Grid Import / Day</div>
       <div class="stat-value" id="stat-avg-total">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub" id="stat-avg-total-sub">complete loaded days</div>
     </div>
     <div class="stat-card grid-color">
-      <div class="stat-label">Avg Free-Night / Day</div>
+      <div class="stat-label">Avg Free-Night Import / Day</div>
       <div class="stat-value" id="stat-avg-free">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub" id="stat-avg-free-sub">configured free period</div>
     </div>
     <div class="stat-card peak-color">
-      <div class="stat-label">Avg Paid / Day</div>
+      <div class="stat-label">Avg Paid Import / Day</div>
       <div class="stat-value" id="stat-avg-paid">—<span class="stat-unit">kWh</span></div>
       <div class="stat-sub" id="stat-avg-paid-sub">outside free period</div>
     </div>
+  </div>
+
+  <div class="stats-row" id="grid-balance-stats" style="display:none">
+    <div class="stat-card"><div class="stat-label">Avg Grid Export / Day</div><div class="stat-value" id="stat-export">—</div><div class="stat-sub">matched complete import/export days</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Net Grid Import / Day</div><div class="stat-value" id="stat-net">—</div><div class="stat-sub">import − export · negative = net export</div></div>
   </div>
 
   <!-- Solar install is postponed, so keep the placeholder off the live site.
@@ -525,8 +530,13 @@
 
   <div id="tab-daily">
     <div class="chart-panel">
+      <div class="chart-header"><div class="chart-title">Daily Grid Import / Export / Net</div><div class="chart-note">kWh · net = import − export · green = net export · red = net import · gray = balanced · gaps = unavailable data</div></div>
+      <div class="chart-wrap"><canvas id="chart-balance"></canvas></div>
+      <div class="chart-note">SMT exports are surplus sent to the grid, not total solar production. * includes estimated readings. Incomplete days show available totals.</div>
+    </div>
+    <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">Daily Grid Consumption</div>
+        <div class="chart-title">Daily Grid Import</div>
         <div class="chart-note">Previous week vs current week, side-by-side by day (stacked Free + Paid)</div>
       </div>
       <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
@@ -558,10 +568,14 @@
   <div id="tab-hourly" style="display:none">
     <div class="chart-panel">
       <div class="chart-header">
-        <div class="chart-title">Hourly Consumption Table</div>
-        <div class="chart-note">Local daily condition and rainfall · <span style="color:rgba(240,165,0,0.9)">amber = paid</span> · <span style="color:rgba(88,166,255,0.9)">blue = free night</span> · <span style="color:rgba(248,81,73,0.9)">red bg = high draw (&gt;1.5 kWh/hr)</span></div>
+        <div class="chart-title">Hourly Grid Energy Table</div>
+        <div class="chart-note">Local daily condition and rainfall · <span style="color:rgba(240,165,0,0.9)">amber = paid</span> · <span style="color:rgba(88,166,255,0.9)">blue = free night</span> · <span style="color:rgba(248,81,73,0.9)">red bg = high import (&gt;1.5 kWh/hr)</span> · net: green = export, red = import · — = missing · * = estimated</div>
       </div>
       <div class="table-toolbar">
+        <label for="hourly-metric">Energy (kWh)</label>
+        <select id="hourly-metric" onchange="renderHourlyTable([...readings.keys()].sort())">
+          <option value="import">Import</option><option value="export">Export</option><option value="net">Net (import − export)</option>
+        </select>
         <label for="hourly-range">Show</label>
         <select id="hourly-range" onchange="renderHourlyTable([...readings.keys()].sort())">
           <option value="7">Last 7 days</option>
@@ -682,11 +696,10 @@ let freeEndHour = 6;
 let monthSummaries = new Map();
 const AUTO_SYNC_MODE = 'smart';
 const AUTO_SYNC_INTERVAL_HOURS = 6;
-const DASHBOARD_CACHE_KEY = 'energyDashboardCacheV2';
-const LEGACY_DASHBOARD_CACHE_KEY = 'energyDashboardCacheV1';
+const DASHBOARD_CACHE_KEY = 'energyDashboardCacheV3';
 const DRIVE_FETCH_TIMEOUT_MS = 30000;
 const DRIVE_FETCH_RETRIES = 2;
-const DRIVE_SYNC_VERSION = 'direct-v1';
+const DRIVE_SYNC_VERSION = 'smt-import-export-v2';
 const ALERT_THRESHOLDS = { weekPct: 10, dayPct: 15, monthPct: 10 };
 
 function getTodayKey() {
@@ -695,6 +708,7 @@ function getTodayKey() {
 }
 
 function shouldAutoSync() {
+  if (localStorage.getItem('driveSyncVersion') !== DRIVE_SYNC_VERSION) return true;
   if (AUTO_SYNC_MODE === 'daily') {
     return localStorage.getItem('lastSyncDate') !== getTodayKey();
   }
@@ -706,6 +720,7 @@ function shouldAutoSync() {
 }
 
 function markSyncedNow() {
+  localStorage.setItem('driveSyncVersion', DRIVE_SYNC_VERSION);
   localStorage.setItem('lastSyncTime', Date.now().toString());
   localStorage.setItem('lastSyncDate', getTodayKey());
 }
@@ -758,8 +773,7 @@ function cacheDashboardData() {
 
 function readDashboardCache() {
   const sources = [
-    () => sessionStorage.getItem(DASHBOARD_CACHE_KEY),
-    () => sessionStorage.getItem(LEGACY_DASHBOARD_CACHE_KEY)
+    () => sessionStorage.getItem(DASHBOARD_CACHE_KEY)
   ];
   for (const read of sources) {
     try {
@@ -814,6 +828,8 @@ async function fetchWithRetry(url, options = {}, retries = DRIVE_FETCH_RETRIES) 
 }
 
 function clearDashboard() {
+  document.getElementById('grid-balance-stats').style.display = 'none';
+  destroyChart('chart-balance');
   document.getElementById('stats-row').style.display = 'none';
   document.getElementById('section-tabs').style.display = 'none';
   document.getElementById('header-meta').textContent = 'No data loaded';
@@ -1031,7 +1047,7 @@ function parseXLSXRows(rows, filename) {
     if (!row || row.length < consumptionIdx + 1) continue;
     const timeRaw = String(row[timeStartIdx] || '').trim();
     const kwh = parseFloat(row[consumptionIdx]);
-    if (isNaN(kwh)) continue;
+    if (!Number.isFinite(kwh) || kwh < 0) continue;
 
     const tMatch = timeRaw.match(/(\d+):(\d+)\s*(am|pm)/i);
     if (!tMatch) continue;
@@ -1070,14 +1086,83 @@ function splitCSVLine(line) {
   return result;
 }
 
+function mergeInterval(intervals, incoming) {
+  let target = intervals.find(r => r.time === incoming.time);
+  if (!target) {
+    target = { time: incoming.time, kwh: 0, hasImport: false };
+    intervals.push(target);
+  }
+  for (const direction of ['import', 'export']) {
+    const field = direction === 'import' ? 'kwh' : 'exportKwh';
+    const present = direction === 'import' ? incoming.hasImport !== false : Number.isFinite(incoming.exportKwh);
+    const exists = direction === 'import' ? target.hasImport !== false : Number.isFinite(target.exportKwh);
+    if (present && (!exists || (incoming[direction + 'Revision'] || 0) >= (target[direction + 'Revision'] || 0))) {
+      target[field] = incoming[field];
+      target[direction + 'Revision'] = incoming[direction + 'Revision'] || 0;
+      target[direction + 'Estimated'] = !!incoming[direction + 'Estimated'];
+      if (direction === 'import') target.hasImport = true;
+    }
+  }
+}
+
+function gridTotals(intervals) {
+  const imports = intervals.filter(r => r.hasImport !== false);
+  const exports = intervals.filter(r => Number.isFinite(r.exportKwh));
+  // Net is valid only when both directions cover the same intervals.
+  const matched = intervals.length > 0 && imports.length === intervals.length && exports.length === intervals.length;
+  const imported = imports.length ? imports.reduce((sum, r) => sum + r.kwh, 0) : null;
+  const exported = exports.length ? exports.reduce((sum, r) => sum + r.exportKwh, 0) : null;
+  return { imported, exported, net: matched ? imported - exported : null,
+    estimated: intervals.some(r => r.importEstimated || r.exportEstimated),
+    complete: matched && isCompleteDay(intervals) };
+}
+
+function netColor(value) {
+  return value == null || Math.abs(value) < 0.000001 ? '#7d8590' : value < 0 ? '#3fb950' : '#f85149';
+}
+
+function renderBalanceChart(days) {
+  const totals = days.map(day => gridTotals(readings.get(day)));
+  destroyChart('chart-balance');
+  const options = chartOptions({ yLabel: 'kWh · net = import − export' });
+  options.plugins.legend = { display: true, labels: { color: '#e6edf3' } };
+  options.plugins.tooltip.callbacks = {
+    label: context => {
+      const value = context.raw;
+      return context.dataset.label + ': ' + (value == null ? 'Unavailable' : value.toFixed(3) + ' kWh');
+    }
+  };
+  charts['chart-balance'] = new Chart(document.getElementById('chart-balance').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: days.map((day, i) => fmtDate(day) + (totals[i].estimated ? ' *' : '')),
+      datasets: [
+        { label: 'Import', data: totals.map(t => t.imported), backgroundColor: '#58a6ff' },
+        { label: 'Export', data: totals.map(t => t.exported), backgroundColor: '#d2a8ff' },
+        { label: 'Net (import − export)', data: totals.map(t => t.net), backgroundColor: totals.map(t => netColor(t.net)) }
+      ]
+    }, options
+  });
+  const complete = totals.filter(t => t.complete);
+  const exportCard = document.getElementById('stat-export');
+  const netCard = document.getElementById('stat-net');
+  document.getElementById('grid-balance-stats').style.display = 'grid';
+  exportCard.textContent = complete.length ? (complete.reduce((sum, t) => sum + t.exported, 0) / complete.length).toFixed(2) + ' kWh' : '—';
+  const net = complete.length ? complete.reduce((sum, t) => sum + t.net, 0) / complete.length : null;
+  netCard.textContent = net == null ? '—' : net.toFixed(2) + ' kWh';
+  netCard.style.color = netColor(net);
+}
+
 function parseCSV(text, filename) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return new Map();
 
-  const header = splitCSVLine(lines[0]).map(h => h.toLowerCase());
+  const header = splitCSVLine(lines[0]).map(h => h.replace(/^\uFEFF/, '').trim().toLowerCase());
   const dateIdx  = header.findIndex(h => h === 'usage_date');
   const startIdx = header.findIndex(h => h === 'usage_start_time');
   const kwhIdx   = header.findIndex(h => h === 'usage_kwh');
+  const revisionIdx = header.indexOf('revision_date');
+  const qualityIdx = header.indexOf('estimated_actual');
   const typeIdx  = header.findIndex(h => h === 'consumption_surplusgeneration');
   const safeDateIdx  = dateIdx  >= 0 ? dateIdx  : header.findIndex(h => h.includes('date'));
   const safeStartIdx = startIdx >= 0 ? startIdx : header.findIndex(h => h.includes('start'));
@@ -1091,10 +1176,11 @@ function parseCSV(text, filename) {
     const line = lines[i];
     if (!line.trim()) continue;
     const cells = splitCSVLine(line.replace(/^'/, ''));
-    if (typeIdx >= 0 && cells[typeIdx] && cells[typeIdx].toLowerCase() !== 'consumption') continue;
+    const kind = typeIdx >= 0 ? (cells[typeIdx] || '').trim().toLowerCase() : 'consumption';
+    if (!['consumption', 'surplus generation'].includes(kind)) continue;
 
     const kwh = parseFloat(cells[safeKwhIdx]);
-    if (isNaN(kwh)) continue;
+    if (!Number.isFinite(kwh) || kwh < 0) continue;
 
     const timeRaw = (cells[safeStartIdx] || '').trim();
     const tMatch = timeRaw.match(/^(\d{1,2}):(\d{2})/);
@@ -1116,8 +1202,16 @@ function parseCSV(text, filename) {
     if (!dateStr) dateStr = new Date().toISOString().slice(0,10);
 
     if (!result.has(dateStr)) result.set(dateStr, []);
-    result.get(dateStr).push({ time: timeStr, kwh });
+    const direction = kind === 'surplus generation' ? 'export' : 'import';
+    const revision = revisionIdx >= 0 ? Date.parse(cells[revisionIdx]) || 0 : 0;
+    const reading = { time: timeStr, kwh: 0, hasImport: false };
+    if (direction === 'import') { reading.kwh = kwh; reading.hasImport = true; }
+    else reading.exportKwh = kwh;
+    reading[direction + 'Revision'] = revision;
+    reading[direction + 'Estimated'] = qualityIdx >= 0 && (cells[qualityIdx] || '').trim().toUpperCase() === 'E';
+    mergeInterval(result.get(dateStr), reading);
   }
+  for (const intervals of result.values()) intervals.sort((a, b) => a.time.localeCompare(b.time));
   return result;
 }
 
@@ -1234,6 +1328,7 @@ function renderAll() {
 
   renderStats(sortedDays);
   renderDailyChart(sortedDays);
+  renderBalanceChart(sortedDays);
   renderDetailChart(sortedDays, currentDayIndex);
   renderDaySelect(sortedDays);
   renderHourlyTable(sortedDays);
@@ -1267,7 +1362,7 @@ function renderStats(days) {
 }
 
 function isCompleteDay(intervals) {
-  return Array.isArray(intervals) && intervals.length >= 92;
+  return Array.isArray(intervals) && intervals.filter(r => r.hasImport !== false).length >= 92;
 }
 
 function formatHour(hour) {
@@ -1278,7 +1373,7 @@ function formatHour(hour) {
 function updateHeaderMeta(days) {
   const total = [...readings.values()].flat().reduce((s,r) => s+r.kwh, 0);
   document.getElementById('header-meta').textContent =
-    `${days.length} day${days.length !== 1 ? 's' : ''} loaded  ·  ${total.toFixed(1)} kWh total  ·  SMT data`;
+    `${days.length} day${days.length !== 1 ? 's' : ''} loaded  ·  ${total.toFixed(1)} kWh imported  ·  SMT data`;
 }
 
 function updateDataFreshness(days) {
@@ -1446,7 +1541,7 @@ function renderDetailChart(days, idx) {
           bodyFont: { family: 'DM Mono', size: 11 },
           callbacks: {
             label: ctx => {
-              const parts = [` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y * 4).toFixed(2)} kWh/hr)`];
+              const parts = [` ${ctx.parsed.y.toFixed(3)} kWh  (≈${(ctx.parsed.y * 4).toFixed(2)} kW average)`];
               if (evMeta.evFlags[ctx.dataIndex]) parts.push(' ⚡ likely EV charging interval');
               return parts;
             },
@@ -1525,38 +1620,35 @@ function getVisibleHourlyDays(days) {
 
 function renderHourlyTable(days) {
   const renderId = ++hourlyWeatherRenderId;
+  const metric = document.getElementById('hourly-metric').value;
+  const metricLabel = { import: 'Import', export: 'Export', net: 'Net' }[metric];
   const thead = document.getElementById('hourly-table-head');
-  let headHtml = '<th>Date / weather</th>';
-  for (let i = 0; i < 24; i++) {
-    const hr = i === 0 ? 12 : i > 12 ? i - 12 : i;
-    const ampm = i < 12 ? 'am' : 'pm';
-    headHtml += `<th>${hr}${ampm}</th>`;
-  }
-  headHtml += '<th>Total</th>';
-  thead.innerHTML = headHtml;
-
-  const tbody = document.getElementById('hourly-table-body');
-  const rows = [];
+  let headHtml = '<th>Date / weather · ' + metricLabel + ' (kWh)</th>';
+  for (let i = 0; i < 24; i++) headHtml += '<th>' + to12hr(String(i).padStart(2, '0') + ':00') + '</th>';
+  thead.innerHTML = headHtml + '<th>Import kWh</th><th>Export kWh</th><th>Net kWh</th>';
   const visibleDays = getVisibleHourlyDays(days);
-  for (const day of [...visibleDays].reverse()) {
-    const hourTotals = Array(24).fill(0);
-    readings.get(day).forEach(r => {
-      const h = parseInt(r.time.split(':')[0]);
-      hourTotals[h] += r.kwh;
-    });
-    const complete = isCompleteDay(readings.get(day));
-    let rowHtml = `<td><strong>${fmtDate(day)}</strong>${complete ? '' : ' <span class="partial-day">(Partial)</span>'}<span class="weather-line" id="weather-${day}">Weather loading…</span></td>`;
-    hourTotals.forEach((val, h) => {
-      const isFree = isFreeHour(h);
-      const colorCls = isFree ? 'color:rgba(88,166,255,0.9)' : 'color:rgba(240,165,0,0.9)';
-      const bgCls = val >= 1.5 ? 'background:rgba(248,81,73,0.15)' : val >= 0.5 ? 'background:rgba(240,165,0,0.1)' : '';
-      rowHtml += `<td style="${colorCls}; ${bgCls}">${val > 0 ? val.toFixed(2) : '0'}</td>`;
-    });
-    const total = hourTotals.reduce((sum, value) => sum + value, 0);
-    rowHtml += `<td><strong>${total.toFixed(2)}</strong></td>`;
-    rows.push(`<tr>${rowHtml}</tr>`);
-  }
-  tbody.innerHTML = rows.join('');
+  const cell = (total, key, color = '', background = '') => {
+    const value = total[key];
+    const estimated = total.estimated ? ' *' : '';
+    return '<td style="color:' + color + ';background:' + background + '">' + (value == null ? '—' : value.toFixed(2) + estimated) + '</td>';
+  };
+  document.getElementById('hourly-table-body').innerHTML = [...visibleDays].reverse().map(day => {
+    const intervals = readings.get(day);
+    const total = gridTotals(intervals);
+    let html = '<td><strong>' + fmtDate(day) + '</strong>' +
+      (isCompleteDay(intervals) ? '' : ' <span class="partial-day">(Partial import)</span>') +
+      (total.exported != null && !total.complete ? ' <span class="partial-day">(Partial export)</span>' : '') +
+      '<span class="weather-line" id="weather-' + day + '">Weather loading…</span></td>';
+    for (let hour = 0; hour < 24; hour++) {
+      const hourly = gridTotals(intervals.filter(r => Number(r.time.split(':')[0]) === hour));
+      const key = { import: 'imported', export: 'exported', net: 'net' }[metric];
+      const color = metric === 'net' ? netColor(hourly.net) : metric === 'export' ? '#d2a8ff' : isFreeHour(hour) ? '#58a6ff' : '#f0a500';
+      const background = metric === 'import' && hourly.imported >= 1.5 ? 'rgba(248,81,73,0.15)' : '';
+      html += cell(hourly, key, color, background);
+    }
+    html += cell(total, 'imported', '#58a6ff') + cell(total, 'exported', '#d2a8ff') + cell(total, 'net', netColor(total.net));
+    return '<tr>' + html + '</tr>';
+  }).join('');
   loadHourlyWeather(visibleDays, renderId);
 }
 
@@ -1988,15 +2080,16 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
           if (!monthlyByDate.has(date)) monthlyByDate.set(date, new Map());
           const monthlyByTime = monthlyByDate.get(date);
           for (const r of intervals) {
-            if (!monthlyByTime.has(r.time)) monthlyByTime.set(r.time, r.kwh);
+            const merged = [];
+            if (monthlyByTime.has(r.time)) merged.push(monthlyByTime.get(r.time));
+            mergeInterval(merged, r);
+            monthlyByTime.set(r.time, merged[0]);
           }
 
           if (date >= compareWindowStartKey) {
             if (!nextReadings.has(date)) nextReadings.set(date, []);
-            const existing = new Set(nextReadings.get(date).map(r => r.time));
-            for (const r of intervals) {
-              if (!existing.has(r.time)) nextReadings.get(date).push(r);
-            }
+            for (const r of intervals) mergeInterval(nextReadings.get(date), r);
+            nextReadings.get(date).sort((a, b) => a.time.localeCompare(b.time));
           }
         }
         nextLoadedFiles.push(file);
@@ -2010,7 +2103,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
     monthSummaries = new Map();
     for (const [monthKey, byDate] of monthlyIntervals.entries()) {
       const monthTotal = [...byDate.values()].reduce((sum, byTime) => {
-        return sum + [...byTime.values()].reduce((sub, kwh) => sub + kwh, 0);
+        return sum + [...byTime.values()].reduce((sub, reading) => sub + reading.kwh, 0);
       }, 0);
       monthSummaries.set(monthKey, monthTotal);
     }

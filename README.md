@@ -32,6 +32,26 @@ will reject download requests for files that are not direct children of that fol
   are kept out of the headline averages. If no complete day exists, available data is shown rather
   than leaving every card blank.
 
+### SMT import, export, and net energy
+
+- SMT CSV files (and XLSX files with the same columns) retain Consumption as grid
+  import and Surplus Generation as grid export. Export is surplus sent to the grid,
+  not total solar production or total household consumption.
+- Net grid import is **import minus export**. The daily Import / Export / Net graph,
+  net summary card, and hourly net cells use green for net export, red for net import,
+  and gray for balance.
+- The hourly table offers Import, Export, and Net views and always includes all three
+  daily totals. The selected metric and kWh units are included when copying the table.
+  Existing free-night and paid-period figures continue to use imports only.
+- Missing export readings remain unavailable, rather than becoming zero. Net values
+  require matching import/export coverage; the export/net average cards use only
+  matching complete days. Asterisks flag estimated readings. Partial-day graph/table
+  totals represent the available intervals.
+- Overlapping files merge each direction independently, preferring newer SMT revision
+  timestamps. The cache/sync version forces an initial refresh after this update so
+  previously discarded exports are loaded. Energy data remains in session storage.
+- Solar-production, battery, and self-sufficiency cards still require inverter data.
+
 ### Hourly table and weather
 
 - The hourly table defaults to the most recent 14 days to stay readable and avoid unnecessary
