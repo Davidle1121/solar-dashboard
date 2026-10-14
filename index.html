@@ -533,6 +533,7 @@
       <div class="chart-header"><div class="chart-title" id="energy-profile-title">Home Energy Profile</div>
         <div class="day-nav"><label for="energy-day">Day</label><select id="energy-day" onchange="selectEnergyDay(this.value)"></select><button type="button" data-manual-solar-sync onclick="openSolarSync()">Sync Solar Data</button><button type="button" onclick="loadSigenergyData()">Reload saved data</button></div>
       </div>
+      <p class="chart-note" id="solar-sync-history" role="status">Last solar sync: loading…</p>
       <p class="chart-note" id="solar-sync-result" role="status"></p>
       <details id="solar-sync-diagnostic" hidden><summary>Connection diagnostic (safe to share)</summary><button class="table-action" type="button" onclick="copySolarSyncDiagnostic()">Copy diagnostic</button><pre id="solar-sync-diagnostic-text"></pre></details>
       <div class="chart-note" id="energy-status">Loading saved Sigenergy data…</div>
@@ -607,6 +608,7 @@
   <div id="tab-solar" style="display:none">
     <div class="chart-panel">
       <div class="chart-header"><div class="chart-title">Solar &amp; Battery — Hourly Energy Table</div><div class="chart-note">Central time · source labels distinguish Sigenergy and SMT</div></div>
+      <p class="chart-note" id="solar-table-sync-history" role="status">Last solar sync: loading…</p>
       <div class="chart-note" id="solar-status"></div>
       <p class="chart-note" id="solar-table-sync-result" role="status"></p>
       <div class="table-toolbar">
@@ -2350,8 +2352,12 @@ async function runManualSolarSync() {
     await loadSigenergyData();
     if(result.status==='synced')setSolarSyncMessage('Updated '+result.mappedDays+' usable day(s). Recognized measurements are now refreshed in the graph and table.');
     else if(result.status==='partial')setSolarSyncMessage('Some readings could not be collected. Existing readings were preserved. Open the connection diagnostic below if solar/battery measurements are still missing.');
+    else if(result.status==='failed')setSolarSyncMessage('Solar sync failed: no requested days could be updated. Check the provider connection before retrying.');
     else setSolarSyncMessage('Sigenergy responded, but usable solar/battery readings are still unavailable. Open the connection diagnostic below and share it so the field mapping can be finished.');
   } catch(error) {
+    // Failed attempts also have a server-side status; refresh it without another
+    // provider login. Cooldown/invalid-passcode requests never replace that status.
+    await loadSigenergyData();
     setSolarSyncMessage(error.name==='AbortError'?'Sync timed out. Existing readings are still available; wait a few minutes before retrying.':error.message||'Solar sync could not complete.');
   } finally {
     passcode='';input.value='';clearTimeout(timeout);solarSyncBusy=false;
@@ -2371,6 +2377,14 @@ let sigStatus = 'Loading saved Sigenergy data…';
 let activeTab = 'daily';
 function energyDays() { const usableDates=[...sigData].filter(([,day])=>day.samples.some(sample=>SolarEnergy.METRICS.some(metric=>Number.isFinite(sample[metric])))).map(([date])=>date);return [...new Set([...readings.keys(),...usableDates])].sort().slice(-7); }
 function selectEnergyDay(day) { energyDay=day;renderEnergyViews(); }
+function renderSolarSyncHistory(sync,unavailable=false) {
+  const format=value=>value&&Number.isFinite(Date.parse(value))?new Date(value).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit'})+' Central':null;
+  const outcomes={synced:'Successful — recognized readings updated ('+(sync?.mappedDays??0)+' usable day(s)).',partial:'Incomplete — some days could not be updated.', 'mapping-required':'Integration incomplete — Sigenergy fields are not yet recognized by the dashboard. No mapping setup is needed from you.','no-data':'No usable data returned.',failed:'Failed — readings could not be updated.',running:'Started — completion has not been recorded yet.'};
+  let message=unavailable?'Last solar sync: status temporarily unavailable.':!sync?'Last solar sync: no recorded attempt yet. The next sync will record its result.':'Last solar sync '+(format(sync.completedAt)||format(sync.startedAt)||'(time unavailable)')+' · '+(outcomes[sync.status]||'Result unavailable.');
+  if(sync&&sync.status!=='synced')message+=' Last successful sync: '+(format(sync.lastSuccessfulAt)||'none recorded')+'.';
+  const color=sync?.status==='synced'?'#3fb950':sync?.status==='failed'?'#ff4444':'var(--accent)';
+  for(const id of ['solar-sync-history','solar-table-sync-history']){const element=document.getElementById(id);element.textContent=message;element.style.color=color;}
+}
 async function loadSigenergyData() {
   sigStatus='Loading saved Sigenergy data…';
   document.getElementById('energy-status').textContent=sigStatus;
@@ -2378,14 +2392,15 @@ async function loadSigenergyData() {
     const response=await fetch('/api/sigen-data',{cache:'no-store'});
     const payload=await response.json();
     if(!response.ok)throw new Error(payload.error||'Saved solar data is unavailable');
+    renderSolarSyncHistory(payload.sync,payload.syncStatusUnavailable);
     const allowed=new Set(SolarEnergy.retainedDates());
     sigData=new Map((Array.isArray(payload.days)?payload.days:[]).filter(day=>allowed.has(day.date)&&Array.isArray(day.samples)).map(day=>[day.date,day]));
     const usable=[...sigData.values()].filter(day=>day.samples.some(sample=>SolarEnergy.METRICS.some(metric=>Number.isFinite(sample[metric]))));
     const updated=usable.map(day=>day.updatedAt).filter(Boolean).sort().pop();
     const unknown=[...sigData.values()].some(day=>day.unmappedSeriesCount>0||!day.samples.length);
     const ambiguous=[...sigData.values()].some(day=>day.ambiguousSampleCount>0);
-    sigStatus=usable.length ? 'Saved Sigenergy history: '+usable.length+' usable day(s)'+(updated?' · last usable sync '+new Date(updated).toLocaleString('en-US',{timeZone:'America/Chicago'})+' Central':'')+(unknown?' · Some provider measurements still need verified mapping.':'')+(ambiguous?' · Repeated clock samples remain gaps.':'') : sigData.size ? 'Solar/battery data is not connected yet: provider responses were saved, but no usable measurements were recognized. Any grid lines shown are SMT readings. This does not mean zero solar production.' : 'No saved Sigenergy data yet. The daily sync collects during the 3 AM Central hour.';
-  }catch(error){sigStatus=error.message;}
+    sigStatus=usable.length ? 'Saved Sigenergy history: '+usable.length+' usable day(s)'+(updated?' · last usable sync '+new Date(updated).toLocaleString('en-US',{timeZone:'America/Chicago'})+' Central':'')+(unknown?' · Some provider measurements are not yet recognized by the dashboard.':'')+(ambiguous?' · Repeated clock samples remain gaps.':'') : sigData.size ? 'Solar/battery integration is incomplete: Sigenergy responded, but the dashboard does not yet recognize its measurement fields. No mapping setup is needed from you. Any grid lines shown are SMT readings. Missing readings do not mean zero solar production.' : 'No saved Sigenergy data yet. The daily sync collects during the 3 AM Central hour.';
+  }catch(error){sigStatus=error.message;renderSolarSyncHistory(null,true);}
   renderEnergyViews();
 }
 function energyRows(day) {

@@ -50,6 +50,18 @@ manual sync exposes a Copy diagnostic action containing only the bounded schema
 metadata described below. Share that diagnostic to finish verifying the mappings;
 successful authentication alone does not mean solar/battery readings are ready.
 
+Both solar views show the last collection time in Central time and its result:
+successful readings update (green), failed (red), or incomplete/needs mapping
+(amber). The last successful update remains visible after a later failure. One
+private sigenergy-meta/sync-status.json object is overwritten per actual attempt,
+so status survives page reloads without accumulating history. It contains only
+timestamps, status, source, and counts; its public response excludes source and
+any unexpected fields. Cooldowns, wrong passcodes, and skipped cron candidates do
+not replace the previous attempt. A started attempt without a recorded completion
+is shown as unconfirmed, never successful. Historical attempts before this feature
+are not backfilled from saved-response timestamps. Failed status reads do not hide
+saved energy data. Seven-day energy retention and the 3 AM schedule are unchanged.
+
 On a configured deployment, a bootstrap collects up to seven completed days if the
 store is empty. Subsequent daily runs collect yesterday, recheck the prior day for
 late readings, and fill missing days within that seven-day window. A bounded run

@@ -22,6 +22,17 @@ function dashboard() {
   return { context, elements, run: code => vm.runInContext(code, context) };
 }
 const header = 'USAGE_DATE,REVISION_DATE,USAGE_START_TIME,USAGE_END_TIME,USAGE_KWH,ESTIMATED_ACTUAL,CONSUMPTION_SURPLUSGENERATION';
+test('solar sync summaries distinguish usable success, mapping and failures in both views',()=>{
+  const {run,elements}=dashboard();
+  for(const [status,pattern,color] of [['synced',/Successful.*7 usable day/,'#3fb950'],['mapping-required',/Integration incomplete/,'var(--accent)'],['failed',/Failed/,'#ff4444'],['partial',/Incomplete/,'var(--accent)'],['running',/completion has not been recorded/,'var(--accent)']]){
+    run(`renderSolarSyncHistory({status:${JSON.stringify(status)},mappedDays:7,startedAt:'2026-10-14T18:00:00Z',completedAt:'2026-10-14T18:01:00Z',lastSuccessfulAt:'2026-10-13T08:00:00Z'})`);
+    const graph=elements.get('solar-sync-history'),table=elements.get('solar-table-sync-history');
+    assert.match(graph.textContent,pattern);assert.match(graph.textContent,/Central/);assert.equal(table.textContent,graph.textContent);assert.equal(graph.style.color,color);
+    if(status!=='synced')assert.match(graph.textContent,/Last successful sync:/);
+  }
+  run('renderSolarSyncHistory(null)');assert.match(elements.get('solar-sync-history').textContent,/no recorded attempt/);
+  run('renderSolarSyncHistory(null,true)');assert.match(elements.get('solar-sync-history').textContent,/temporarily unavailable/);
+});
 function csv(rows) { return header + '\n' + rows.map(r => '10/13/2026,' + r).join('\n'); }
 
 test('SMT keeps both directions, estimated flags, zeros, and newest revisions independently', () => {

@@ -54,3 +54,34 @@ test('cooldown prevents forced collector from contacting the provider',async()=>
   const store=memoryStore();store.acquireSync=async()=>({acquired:false,retryAfter:200});
   const result=await collectSigen({now,store,force:true,connect:async()=>assert.fail('must not log in')});assert.deepEqual(result,{status:'cooldown',retryAfter:200});
 });
+
+test('persistent sync status records real outcomes and retains the last successful update',async()=>{
+  const store=memoryStore();let summary;const writes=[];
+  store.readSyncStatus=async()=>summary;
+  store.writeSyncStatus=async value=>{summary={...value};writes.push(summary)};
+  const good={chartData:{unit:'kW',dataSeries:[{id:'PV_POWER',points:[{time:'12:00',value:2}]}]}};
+  const collect=options=>collectSigen({now,store,force:true,clock:()=>100,...options});
+  await collect({connect:async()=>({history:async(_date,soc)=>soc?null:good})});
+  assert.equal(writes[0].status,'running');assert.equal(summary.status,'synced');assert.equal(summary.lastSuccessfulAt,now.toISOString());assert.equal(summary.mappedDays,7);
+  const success=summary.lastSuccessfulAt;
+  await collect({connect:async()=>{throw new Error('SECRET login details')}}).then(()=>assert.fail('must reject'),()=>{});
+  assert.equal(summary.status,'failed');assert.equal(summary.lastSuccessfulAt,success);assert.doesNotMatch(JSON.stringify(summary),/SECRET|schema|chartData/);
+  store.data.clear();
+  await collect({connect:async()=>({history:async()=>({chartData:{unit:'kW',dataSeries:[{id:'UNKNOWN',points:[{time:'12:00',value:2}]}]}})})});
+  assert.equal(summary.status,'mapping-required');assert.equal(summary.mappedDays,0);assert.equal(summary.lastSuccessfulAt,success);
+  await collect({connect:async()=>({history:async()=>{throw new Error('private provider error')}})});
+  assert.equal(summary.status,'failed');assert.equal(summary.failed,7);assert.equal(summary.lastSuccessfulAt,success);
+  await collect({connect:async()=>({history:async(date,soc)=>{if(soc)return null;if(date==='2026-10-13')throw new Error('outage');return good}})});
+  assert.equal(summary.status,'partial');assert.equal(summary.saved,6);assert.equal(summary.lastSuccessfulAt,success);
+  const before=JSON.stringify(summary);store.acquireSync=async()=>({acquired:false,retryAfter:50});
+  await collect({connect:async()=>assert.fail('no login during cooldown')});assert.equal(JSON.stringify(summary),before);
+});
+
+test('read endpoint returns only safe persisted status fields and tolerates status storage outages',async()=>{
+  const {handleRead}=require('../lib/sigen-handlers.cjs');const store=memoryStore();
+  store.data.set('sigenergy/2026-10-13.json',{date:'2026-10-13',samples:[{minute:0,solarKw:1}]});
+  store.readSyncStatus=async()=>({status:'synced',startedAt:now.toISOString(),completedAt:now.toISOString(),lastSuccessfulAt:now.toISOString(),saved:7,mappedDays:7,failed:0,source:'manual',password:'SECRET',schema:{token:'SECRET'}});
+  let res=response();await handleRead({method:'GET'},res,{now,store});assert.equal(res.body.sync.status,'synced');assert.equal(res.body.sync.mappedDays,7);assert.equal(res.body.days.length,1);assert.doesNotMatch(JSON.stringify(res.body),/SECRET|source|schema/);
+  store.readSyncStatus=async()=>{throw new Error('Blob unavailable')};
+  res=response();await handleRead({method:'GET'},res,{now,store});assert.equal(res.statusCode,200);assert.equal(res.body.days.length,1);assert.equal(res.body.sync,null);assert.equal(res.body.syncStatusUnavailable,true);
+});
