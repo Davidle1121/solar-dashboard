@@ -3,11 +3,7 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "check": "node --check api/_auth.js && node --check api/_drive-folder.js && node --check api/drive-file.js && node --check api/drive-list.js && node --check api/login.js && node --check api/logout.js && node --check api/session.js && node --check api/weather.js && node --check scripts/sigen-probe.cjs && node --check solar-energy.js && node --check lib/sigen-client.cjs && node --check lib/sigen-store.cjs && node --check lib/sigen-collector.cjs && node --check lib/sigen-handlers.cjs && node --check api/sigen-data.js && node --check api/sigen-sync-daylight.js && node --check api/sigen-sync-standard.js && node --check scripts/bootstrap-sigen.cjs && node --check scripts/build-site.cjs && node --check lib/sigen-diagnostics.cjs && node --check lib/sigen-sync-lock.cjs",
-    "probe:sigen": "node scripts/sigen-probe.cjs",
-    "build": "npm run check && node scripts/bootstrap-sigen.cjs && node scripts/build-site.cjs"
-  },
-  "dependencies": {
-    "@vercel/blob": "2.8.2"
+    "check": "node --check api/_auth.js && node --check api/_drive-folder.js && node --check api/drive-file.js && node --check api/drive-list.js && node --check api/login.js && node --check api/logout.js && node --check api/session.js && node --check api/weather.js && node --check scripts/build-site.cjs",
+    "build": "npm run check && node scripts/build-site.cjs"
   }
 }
