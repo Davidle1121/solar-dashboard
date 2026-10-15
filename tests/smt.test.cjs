@@ -6,7 +6,6 @@ const test = require('node:test');
 function dashboard() {
   const elements = new Map();
   const context = {
-    SolarEnergy: require('../solar-energy.js'),
     window: { addEventListener() {} },
     document: { getElementById(id) {
       if (!elements.has(id)) elements.set(id, { style: {}, setAttribute(name, value) { this[name] = value; }, value: id === 'hourly-range' ? '14' : id === 'night-rate' ? '0' : 'import', getContext() { return {}; } });
@@ -22,18 +21,14 @@ function dashboard() {
   return { context, elements, run: code => vm.runInContext(code, context) };
 }
 const header = 'USAGE_DATE,REVISION_DATE,USAGE_START_TIME,USAGE_END_TIME,USAGE_KWH,ESTIMATED_ACTUAL,CONSUMPTION_SURPLUSGENERATION';
-test('solar sync summaries distinguish usable success, mapping and failures in both views',()=>{
-  const {run,elements}=dashboard();
-  for(const [status,pattern,color] of [['synced',/Successful.*7 usable day/,'#3fb950'],['mapping-required',/Integration incomplete/,'var(--accent)'],['failed',/Failed/,'#ff4444'],['partial',/Incomplete/,'var(--accent)'],['running',/completion has not been recorded/,'var(--accent)']]){
-    run(`renderSolarSyncHistory({status:${JSON.stringify(status)},mappedDays:7,startedAt:'2026-10-14T18:00:00Z',completedAt:'2026-10-14T18:01:00Z',lastSuccessfulAt:'2026-10-13T08:00:00Z'})`);
-    const graph=elements.get('solar-sync-history'),table=elements.get('solar-table-sync-history');
-    assert.match(graph.textContent,pattern);assert.match(graph.textContent,/Central/);assert.equal(table.textContent,graph.textContent);assert.equal(graph.style.color,color);
-    if(status!=='synced')assert.match(graph.textContent,/Last successful sync:/);
-  }
-  run('renderSolarSyncHistory(null)');assert.match(elements.get('solar-sync-history').textContent,/no recorded attempt/);
-  run('renderSolarSyncHistory(null,true)');assert.match(elements.get('solar-sync-history').textContent,/temporarily unavailable/);
-});
 function csv(rows) { return header + '\n' + rows.map(r => '10/13/2026,' + r).join('\n'); }
+
+test('SMT balance graph restores import/export/net and colors exports green, imports red',()=>{
+  const {run}=dashboard();
+  run("readings=new Map([['2026-10-12',[{time:'12:00',kwh:1,exportKwh:3}]],['2026-10-13',[{time:'12:00',kwh:4,exportKwh:1}]],['2026-10-14',[{time:'12:00',kwh:2}]]]);renderBalanceChart([...readings.keys()]);");
+  assert.deepEqual(JSON.parse(run("JSON.stringify(charts['chart-balance'].config.data.datasets.map(d=>d.data))")),[[1,4,2],[3,1,null],[-2,3,null]]);
+  assert.deepEqual(JSON.parse(run("JSON.stringify(charts['chart-balance'].config.data.datasets[2].backgroundColor)")),['#3fb950','#f85149','#7d8590']);
+});
 
 test('SMT keeps both directions, estimated flags, zeros, and newest revisions independently', () => {
   const { context: c } = dashboard();
@@ -80,7 +75,7 @@ test('hourly table highlights net export green, import red, and balance gray', (
     ['2026-10-11', [{time:'00:00',kwh:2,exportKwh:4}]],
     ['2026-10-12', [{time:'00:00',kwh:4,exportKwh:2}]],
     ['2026-10-13', [{time:'00:00',kwh:2,exportKwh:2}]]
-  ]); renderGridBalanceStats([...readings.keys()]);`);
+  ]); renderBalanceChart([...readings.keys()]);`);
   elements.get('hourly-metric') || c.document.getElementById('hourly-metric');
   elements.get('hourly-metric').value = 'net';
   run('renderHourlyTable([...readings.keys()])');
@@ -226,52 +221,4 @@ test('nighttime windows include both ends of the same calendar day and update wi
   run('freeEndHour=8;');
   assert.equal(c.periodEnergyCost(intervals,10,true).kwh, 3);
   assert.equal(c.gridEnergyCost(intervals,25,10).cost, 1.05);
-});
-
-test('energy profile and solar table keep mismatched sources separate and integrate kW to kWh', () => {
-  const {context:c,run}=dashboard();
-  c.document.getElementById('solar-metric').value='all';
-  run("readings = new Map([['2026-10-13',[{time:'12:00',kwh:0.25,exportKwh:0.5}]]]); sigData = new Map([['2026-10-12',{date:'2026-10-12',samples:[{minute:720,solarKw:2,socPct:40},{minute:735,solarKw:2,socPct:45}]}]]); energyDay='2026-10-12'; renderEnergyViews();");
-  assert.equal(run("charts['chart-energy'].config.data.datasets[0].data[0].y"),2);
-  assert.equal(run("charts['chart-energy'].config.data.datasets.some(d=>d.label.includes('SMT'))"),false);
-  assert.match(c.document.getElementById('solar-table-body').innerHTML,/0.500 \*/);
-  assert.doesNotMatch(c.document.getElementById('solar-table-body').innerHTML,/SMT · Grid import/);
-  assert.match(c.document.getElementById('energy-profile-note').textContent,/SMT data unavailable/);
-  run("energyDay='2026-10-13'; renderEnergyViews();");
-  assert.equal(run("charts['chart-energy'].config.data.datasets.some(d=>d.label.includes('Sigenergy'))"),false);
-  assert.equal(run("charts['chart-energy'].config.data.datasets.find(d=>d.label.startsWith('Grid import')).data[0].y"),1);
-  assert.equal(run("charts['chart-energy'].config.data.datasets.find(d=>d.label.startsWith('Grid export')).data[0].y"),-2);
-  assert.match(c.document.getElementById('energy-profile-note').textContent,/Sigenergy data unavailable/);
-});
-
-test('solar table metric/range filters preserve the original hourly table and chart gaps remain gaps',()=>{
-  const {context:c,run}=dashboard();
-  c.document.getElementById('solar-metric').value='socPct';
-  c.document.getElementById('solar-range').value='all';
-  run("readings=new Map(); sigData=new Map([['2026-10-12',{samples:[{minute:0,socPct:20}]}],['2026-10-13',{samples:[{minute:0,socPct:30}]}]]); energyDay='2026-10-13'; renderEnergyViews();");
-  const body=c.document.getElementById('solar-table-body').innerHTML;
-  assert.equal((body.match(/<tr>/g)||[]).length,2);
-  assert.match(body,/20.0/);assert.match(body,/30.0/);
-  assert.doesNotMatch(body,/Home consumption/);
-  const points=c.tracePoints([{minute:0,solarKw:1},{minute:30,solarKw:2}],'solarKw');
-  assert.equal(points[1].y,null);
-});
-
-test('SMT power traces include the full measured interval but leave missing intervals blank',()=>{
-  const {context:c}=dashboard();
-  const points=c.smtPowerPoints([{time:'00:00',kwh:1},{time:'00:30',kwh:2}],'import');
-  assert.equal(points[0].y,4);assert.equal(points[1].x,15);assert.equal(points[2].y,null);
-  assert.equal(points[3].x,30);assert.equal(points.at(-1).x,45);
-});
-
-test('SMT-only view never presents empty solar legends, battery panels, or unavailable rows',()=>{
-  const {context:c,run}=dashboard();c.document.getElementById('solar-metric').value='all';
-  run("readings=new Map([['2026-10-13',[{time:'12:00',kwh:1,exportKwh:2}]]]);sigData=new Map([['2026-10-13',{samples:[],unmappedSeriesCount:7}]]);energyDay='2026-10-13';renderEnergyViews();");
-  assert.equal(c.document.getElementById('energy-profile-title').textContent,'Grid Import / Export — SMT Only');
-  assert.equal(c.document.getElementById('energy-soc-panel').style.display,'none');
-  assert.equal(run("charts['chart-energy'].config.data.datasets.length"),2);
-  assert.doesNotMatch(c.document.getElementById('solar-table-body').innerHTML,/Sigenergy ·/);
-  c.document.getElementById('solar-metric').value='solarKw';run('renderEnergyTable(energyDays());');
-  assert.match(c.document.getElementById('solar-table-body').innerHTML,/Sigenergy · Solar produced/);
-  assert.match(c.document.getElementById('solar-table-body').innerHTML,/—/);
 });
