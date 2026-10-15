@@ -18,6 +18,7 @@ test('deployment and browser contain no retired provider endpoints, login code, 
   }
   const html=fs.readFileSync('index.html','utf8');
   assert.doesNotMatch(html,/sigen|sigData|solar-energy|tab-solar|solar-sync|battery/i);
-  assert.match(html,/Daily Grid Import \/ Export \/ Net/);
+  assert.doesNotMatch(html,/chart-balance|Daily Grid Import \/ Export \/ Net/);
+  assert.match(html,/Daily Grid Import/);
   assert.match(html,/Hourly Profile Table/);
 });

@@ -20,7 +20,7 @@ will reject download requests for files that are not direct children of that fol
 The dashboard reads SMT exports from the configured Google Drive folder. It has no
 Sigenergy login, history requests, scheduled collection, Blob dependency, solar sync
 button, or solar/battery table. Builds only validate code and publish static assets;
-they do not contact an inverter provider. Import/export/net charts and costs use SMT.
+they do not contact an inverter provider. The daily import chart, Import/Export/Net table, summary cards, and costs use SMT.
 
 After upgrading from the retired integration, remove all SIGEN_* variables from every
 Vercel environment. CRON_SECRET and BLOB_READ_WRITE_TOKEN can also be removed if no

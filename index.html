@@ -500,11 +500,6 @@
 
   <div id="tab-daily">
     <div class="chart-panel">
-      <div class="chart-header"><div class="chart-title">Daily Grid Import / Export / Net</div><div class="chart-note">kWh · net = import − export · green = net export · red = net import · gray = balanced · gaps = unavailable data</div></div>
-      <div class="chart-wrap"><canvas id="chart-balance"></canvas></div>
-      <div class="chart-note">SMT exports are surplus sent to the grid, not total solar production. * includes estimated readings. Incomplete days show available totals.</div>
-    </div>
-    <div class="chart-panel">
       <div class="chart-header">
         <div class="chart-title">Daily Grid Import</div>
         <div class="chart-note">Previous week vs current week, side-by-side by day (stacked Free + Paid)</div>
@@ -799,7 +794,6 @@ async function fetchWithRetry(url, options = {}, retries = DRIVE_FETCH_RETRIES) 
 
 function clearDashboard() {
   document.getElementById('grid-balance-stats').style.display = 'none';
-  destroyChart('chart-balance');
   document.getElementById('stats-row').style.display = 'none';
   document.getElementById('section-tabs').style.display = 'none';
   document.getElementById('header-meta').textContent = 'No data loaded';
@@ -1191,28 +1185,9 @@ function netColor(value) {
   return value == null || Math.abs(value) < 0.000001 ? '#7d8590' : value < 0 ? '#3fb950' : '#f85149';
 }
 
-function renderBalanceChart(days) {
+// Summary cards remain available independently of the daily import chart.
+function renderGridBalanceStats(days) {
   const totals = days.map(day => gridTotals(readings.get(day)));
-  destroyChart('chart-balance');
-  const options = chartOptions({ yLabel: 'kWh · net = import − export' });
-  options.plugins.legend = { display: true, labels: { color: '#e6edf3' } };
-  options.plugins.tooltip.callbacks = {
-    label: context => {
-      const value = context.raw;
-      return context.dataset.label + ': ' + (value == null ? 'Unavailable' : value.toFixed(3) + ' kWh');
-    }
-  };
-  charts['chart-balance'] = new Chart(document.getElementById('chart-balance').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: days.map((day, i) => fmtDate(day) + (totals[i].estimated ? ' *' : '')),
-      datasets: [
-        { label: 'Import', data: totals.map(t => t.imported), backgroundColor: '#58a6ff' },
-        { label: 'Export', data: totals.map(t => t.exported), backgroundColor: '#d2a8ff' },
-        { label: 'Net (import − export)', data: totals.map(t => t.net), backgroundColor: totals.map(t => netColor(t.net)) }
-      ]
-    }, options
-  });
   const complete = totals.filter(t => t.complete);
   const exportCard = document.getElementById('stat-export');
   const netCard = document.getElementById('stat-net');
@@ -1398,7 +1373,7 @@ function renderAll() {
 
   renderStats(sortedDays);
   renderDailyChart(sortedDays);
-  renderBalanceChart(sortedDays);
+  renderGridBalanceStats(sortedDays);
   renderDetailChart(sortedDays, currentDayIndex);
   renderDaySelect(sortedDays);
   renderHourlyTable(sortedDays);
