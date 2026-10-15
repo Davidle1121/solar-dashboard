@@ -23,13 +23,6 @@ function dashboard() {
 const header = 'USAGE_DATE,REVISION_DATE,USAGE_START_TIME,USAGE_END_TIME,USAGE_KWH,ESTIMATED_ACTUAL,CONSUMPTION_SURPLUSGENERATION';
 function csv(rows) { return header + '\n' + rows.map(r => '10/13/2026,' + r).join('\n'); }
 
-test('SMT balance graph restores import/export/net and colors exports green, imports red',()=>{
-  const {run}=dashboard();
-  run("readings=new Map([['2026-10-12',[{time:'12:00',kwh:1,exportKwh:3}]],['2026-10-13',[{time:'12:00',kwh:4,exportKwh:1}]],['2026-10-14',[{time:'12:00',kwh:2}]]]);renderBalanceChart([...readings.keys()]);");
-  assert.deepEqual(JSON.parse(run("JSON.stringify(charts['chart-balance'].config.data.datasets.map(d=>d.data))")),[[1,4,2],[3,1,null],[-2,3,null]]);
-  assert.deepEqual(JSON.parse(run("JSON.stringify(charts['chart-balance'].config.data.datasets[2].backgroundColor)")),['#3fb950','#f85149','#7d8590']);
-});
-
 test('SMT keeps both directions, estimated flags, zeros, and newest revisions independently', () => {
   const { context: c } = dashboard();
   const data = c.parseCSV(csv([
@@ -75,7 +68,7 @@ test('hourly table highlights net export green, import red, and balance gray', (
     ['2026-10-11', [{time:'00:00',kwh:2,exportKwh:4}]],
     ['2026-10-12', [{time:'00:00',kwh:4,exportKwh:2}]],
     ['2026-10-13', [{time:'00:00',kwh:2,exportKwh:2}]]
-  ]); renderBalanceChart([...readings.keys()]);`);
+  ]); renderGridBalanceStats([...readings.keys()]);`);
   elements.get('hourly-metric') || c.document.getElementById('hourly-metric');
   elements.get('hourly-metric').value = 'net';
   run('renderHourlyTable([...readings.keys()])');
