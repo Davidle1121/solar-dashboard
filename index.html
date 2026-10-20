@@ -212,7 +212,32 @@
     font-weight: 300;
     color: var(--text);
   }
-  .chart-note { font-size: 10px; color: var(--muted); }
+  .chart-note { font-size: 10px; color: var(--muted); overflow-wrap: anywhere; }
+  .chart-panel, .energy-stat, .rate-control { min-width: 0; }
+  .energy-stat { overflow-wrap: anywhere; }
+  #daytime-review-result { overflow-wrap: anywhere; }
+  #daytime-review-result ul { padding-left: 20px; margin-top: 10px; }
+  #daytime-review-result li + li { margin-top: 8px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .chart-unavailable { padding: 16px 0; color: var(--muted); font-size: 12px; }
+  @media (pointer: coarse), (max-width: 1024px) {
+    .settings-bar input, .settings-bar select, .day-nav select,
+    .table-toolbar select { font-size: 16px; min-height: 44px; max-width: 100%; }
+    button, .table-action { min-height: 44px; }
+    .rate-control { flex-wrap: wrap; }
+  }
+  @media (max-width: 480px) {
+    .app { padding-left: 12px; padding-right: 12px; }
+    .chart-panel { padding: 14px; }
+    .settings-bar { padding: 10px; gap: 10px; }
+    .energy-stat { padding: 10px 8px; }
+    .energy-stat-value { font-size: 20px; }
+    .chart-note, .stat-sub { font-size: 11px; line-height: 1.5; }
+    #review-daytime-button { width: 100%; white-space: normal; }
+  }
+  @media (max-width: 359px) {
+    .latest-energy-grid, .energy-stats-row { grid-template-columns: minmax(0, 1fr); }
+  }
   .chart-wrap { position: relative; }
   .chart-wrap canvas { max-height: 280px; }
   .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
@@ -439,18 +464,15 @@
   </div>
 
   <div class="chart-panel" id="latest-energy-widget">
-    <div class="chart-header"><div class="chart-title">Latest SMT Day — <span id="latest-energy-date">No data loaded</span></div><div class="chart-note">Latest available day; SMT readings usually arrive one day later.</div></div>
+    <div class="chart-header"><div class="chart-title">Latest SMT Day &amp; Grid Energy Cost — <span id="latest-energy-date">No data loaded</span></div><div class="chart-note">Latest available day; SMT readings usually arrive one day later.</div></div>
     <div class="latest-energy-grid" aria-live="polite">
       <div class="energy-stat"><div class="energy-stat-label">Daytime Import</div><div class="energy-stat-value" id="latest-day-import" style="color:var(--accent)">—</div><div class="stat-sub" id="latest-day-import-note">9am–9pm</div></div>
       <div class="energy-stat"><div class="energy-stat-label">Daytime Cost</div><div class="energy-stat-value" id="latest-day-cost">—</div><div class="stat-sub" id="latest-day-cost-note">25¢/kWh</div></div>
       <div class="energy-stat"><div class="energy-stat-label">Nighttime Import</div><div class="energy-stat-value" id="latest-night-import" style="color:var(--accent3)">—</div><div class="stat-sub" id="latest-night-import-note">9pm–9am</div></div>
       <div class="energy-stat"><div class="energy-stat-label">Nighttime Cost</div><div class="energy-stat-value" id="latest-night-cost">—</div><div class="stat-sub" id="latest-night-cost-note">0¢/kWh</div></div>
     </div>
-    <div class="chart-note">Rates are editable below. Nighttime combines midnight to the night-end time and the night-start time to midnight on this date. Missing readings show —.</div>
-  </div>
-
-  <div class="chart-panel" id="cost-widget">
-    <div class="chart-header"><div class="chart-title">Estimated Grid Energy Cost</div><div class="chart-note" id="cost-period">Daytime: 9am–9pm · Nighttime: 9pm–9am</div></div>
+    <div class="chart-note" id="cost-period">Daytime: 9am–9pm · Nighttime: 9pm–9am</div>
+    <div id="cost-widget">
     <div class="settings-bar">
       <div class="rate-control"><label for="day-rate">Day rate (¢/kWh)</label>
       <input id="day-rate" type="number" min="0" step="any" value="25" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px"></div>
@@ -465,30 +487,18 @@
       <div class="energy-stat"><div class="energy-stat-label">Selected day</div><div class="energy-stat-value" id="cost-daily">—</div><div class="stat-sub" id="cost-daily-note">Load SMT data to calculate.</div></div>
       <div class="energy-stat"><div class="energy-stat-label">7 days ending on selected day</div><div class="energy-stat-value" id="cost-weekly">—</div><div class="stat-sub" id="cost-weekly-note">Available daytime + nighttime imports only.</div></div>
     </div>
-    <div class="chart-note">Energy charge only: excludes delivery charges, taxes, fixed fees, and export credits. Missing readings are not projected.</div>
-  </div>
-
-  <div class="stats-row" id="stats-row" style="display:none">
-    <div class="stat-card usage-color">
-      <div class="stat-label">Avg Grid Import / Day</div>
-      <div class="stat-value" id="stat-avg-total">—<span class="stat-unit">kWh</span></div>
-      <div class="stat-sub" id="stat-avg-total-sub">complete loaded days</div>
-    </div>
-    <div class="stat-card grid-color">
-      <div class="stat-label">Avg Free-Night Import / Day</div>
-      <div class="stat-value" id="stat-avg-free">—<span class="stat-unit">kWh</span></div>
-      <div class="stat-sub" id="stat-avg-free-sub">configured free period</div>
-    </div>
-    <div class="stat-card peak-color">
-      <div class="stat-label">Avg Paid Import / Day</div>
-      <div class="stat-value" id="stat-avg-paid">—<span class="stat-unit">kWh</span></div>
-      <div class="stat-sub" id="stat-avg-paid-sub">outside free period</div>
+    <div class="chart-note">Energy charge only: excludes delivery charges, taxes, fixed fees, and export credits. Missing readings are not projected. Nighttime combines both nighttime portions of each calendar date.</div>
     </div>
   </div>
 
-  <div class="stats-row" id="grid-balance-stats" style="display:none">
-    <div class="stat-card"><div class="stat-label">Avg Grid Export / Day</div><div class="stat-value" id="stat-export">—</div><div class="stat-sub">matched complete import/export days</div></div>
-    <div class="stat-card"><div class="stat-label">Avg Net Grid Import / Day</div><div class="stat-value" id="stat-net">—</div><div class="stat-sub">import − export · negative = net export</div></div>
+  <div class="chart-panel" id="daytime-review-widget">
+    <div class="chart-header">
+      <div class="chart-title">Daytime Energy Check</div>
+      <button class="table-action" id="review-daytime-button" onclick="runDaytimeReview()" disabled>Review latest SMT day</button>
+    </div>
+    <div class="chart-note">On-demand automated review · Uses your configured paid hours · Nighttime activity is summarized separately from daytime alerts</div>
+    <div id="daytime-review-result" aria-live="polite" style="margin:18px 0;line-height:1.8">Load SMT data, then review the latest available day.</div>
+    <div class="chart-note">Checks charging-window imports, overnight imports, paid-hours imports and exports, recent history, and data quality. SMT alone cannot identify the equipment or cause. This is a rules-based check, not a connected AI service.</div>
   </div>
 
   <div class="section-tabs" id="section-tabs" style="display:none">
@@ -546,7 +556,6 @@
           <option value="7">Last 7 days</option>
           <option value="14" selected>Last 14 days</option>
           <option value="30">Last 30 days</option>
-          <option value="all">All loaded data</option>
         </select>
         <button class="table-action" type="button" onclick="copyHourlyTable()">Copy table</button>
       </div>
@@ -658,12 +667,13 @@ let dailyChartDays = [];
 let dailyChartLookup = { previous: Array(7).fill(null), current: Array(7).fill(null) };
 let freeStartHour = 21;
 let freeEndHour = 9;
-let monthSummaries = new Map();
 const AUTO_SYNC_MODE = 'smart';
 const AUTO_SYNC_INTERVAL_HOURS = 6;
 const DASHBOARD_CACHE_KEY = 'energyDashboardCacheV3';
 const DRIVE_FETCH_TIMEOUT_MS = 30000;
 const DRIVE_FETCH_RETRIES = 2;
+const DRIVE_DOWNLOAD_CONCURRENCY = 4;
+const SMT_HISTORY_DAYS = 30;
 const DRIVE_SYNC_VERSION = 'smt-import-export-v2';
 const ALERT_THRESHOLDS = { weekPct: 10, dayPct: 15, monthPct: 10 };
 
@@ -672,33 +682,32 @@ function getTodayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function readSyncPreference(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
 function shouldAutoSync() {
-  if (localStorage.getItem('driveSyncVersion') !== DRIVE_SYNC_VERSION) return true;
-  if (AUTO_SYNC_MODE === 'daily') {
-    return localStorage.getItem('lastSyncDate') !== getTodayKey();
-  }
-  const last = localStorage.getItem('lastSyncTime');
-  if (!last) return true;
-  const elapsed = Date.now() - parseInt(last, 10);
-  const intervalMs = AUTO_SYNC_INTERVAL_HOURS * 60 * 60 * 1000;
-  return elapsed > intervalMs;
+  if (readSyncPreference('driveSyncVersion') !== DRIVE_SYNC_VERSION) return true;
+  if (AUTO_SYNC_MODE === 'daily') return readSyncPreference('lastSyncDate') !== getTodayKey();
+  const last = Number(readSyncPreference('lastSyncTime'));
+  const elapsed = Date.now() - last;
+  return !last || !Number.isFinite(elapsed) || elapsed < 0 || elapsed > AUTO_SYNC_INTERVAL_HOURS * 60 * 60 * 1000;
 }
 
 function markSyncedNow() {
-  localStorage.setItem('driveSyncVersion', DRIVE_SYNC_VERSION);
-  localStorage.setItem('lastSyncTime', Date.now().toString());
-  localStorage.setItem('lastSyncDate', getTodayKey());
+  try {
+    localStorage.setItem('driveSyncVersion', DRIVE_SYNC_VERSION);
+    localStorage.setItem('lastSyncTime', Date.now().toString());
+    localStorage.setItem('lastSyncDate', getTodayKey());
+  } catch { /* Storage may be disabled; keep the successfully loaded data in memory. */ }
 }
 
 function updateLastSyncLabel() {
   const label = document.getElementById('last-sync-label');
   if (!label) return;
-  const last = localStorage.getItem('lastSyncTime');
-  if (!last) {
-    label.textContent = 'Last sync: never';
-    return;
-  }
-  const dt = new Date(parseInt(last, 10));
+  const last = readSyncPreference('lastSyncTime');
+  if (!last) { label.textContent = 'Last sync: unavailable / not recorded'; return; }
+  const dt = new Date(Number(last));
   label.textContent = Number.isNaN(dt.getTime()) ? 'Last sync: unknown' : `Last sync: ${dt.toLocaleString()}`;
 }
 
@@ -706,12 +715,32 @@ function serializeReadingsMap(source) {
   return Object.fromEntries([...source.entries()].map(([date, intervals]) => [date, intervals.map(r => ({ ...r }))]));
 }
 
+function validDateKey(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + 'T12:00:00Z');
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0,10) === value;
+}
+
+function validIntervalTime(value) {
+  return typeof value === 'string' && /^(?:[01]\d|2[0-3]):(?:00|15|30|45)$/.test(value);
+}
+
 function deserializeReadingsMap(source) {
   const restored = new Map();
-  if (!source || typeof source !== 'object') return restored;
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return restored;
   for (const [date, intervals] of Object.entries(source)) {
-    if (!Array.isArray(intervals)) continue;
-    restored.set(date, intervals.map(r => ({ ...r })));
+    if (!validDateKey(date) || !Array.isArray(intervals)) continue;
+    const clean = [];
+    for (const r of intervals) {
+      if (!r || !validIntervalTime(r.time)) continue;
+      const hasImport = r.hasImport !== false && Number.isFinite(r.kwh) && r.kwh >= 0;
+      const hasExport = Number.isFinite(r.exportKwh) && r.exportKwh >= 0;
+      if (!hasImport && !hasExport) continue;
+      const reading = { ...r, kwh: hasImport ? r.kwh : 0, hasImport };
+      if (!hasExport) delete reading.exportKwh;
+      mergeInterval(clean, reading);
+    }
+    if (clean.length) restored.set(date, clean.sort((a,b) => a.time.localeCompare(b.time)));
   }
   return restored;
 }
@@ -719,8 +748,7 @@ function deserializeReadingsMap(source) {
 function buildDashboardCachePayload() {
   return {
     cachedAt: Date.now(),
-    readings: serializeReadingsMap(readings),
-    monthSummaries: Object.fromEntries(monthSummaries.entries()),
+    readings: serializeReadingsMap(retainRecentReadings(readings)),
     loadedFiles: []
   };
 }
@@ -757,10 +785,7 @@ function restoreDashboardData() {
     if (!parsed) return false;
     const restoredReadings = deserializeReadingsMap(parsed.readings);
     if (restoredReadings.size === 0) return false;
-    readings = restoredReadings;
-    monthSummaries = parsed.monthSummaries && typeof parsed.monthSummaries === 'object'
-      ? new Map(Object.entries(parsed.monthSummaries).map(([key, value]) => [key, Number(value)]).filter(([, value]) => Number.isFinite(value)))
-      : new Map();
+    readings = retainRecentReadings(restoredReadings);
     loadedFiles = Array.isArray(parsed.loadedFiles) ? parsed.loadedFiles : [];
     currentDayIndex = 0;
     renderAll();
@@ -793,8 +818,12 @@ async function fetchWithRetry(url, options = {}, retries = DRIVE_FETCH_RETRIES) 
 }
 
 function clearDashboard() {
-  document.getElementById('grid-balance-stats').style.display = 'none';
-  document.getElementById('stats-row').style.display = 'none';
+  clearTimeout(_renderAllTimer);
+  renderCostEstimates();
+  Object.keys(charts).forEach(destroyChart);
+  document.getElementById('empty-state').style.display = 'flex';
+  document.getElementById('day-select').replaceChildren();
+  document.getElementById('hourly-table-body').replaceChildren();
   document.getElementById('section-tabs').style.display = 'none';
   document.getElementById('header-meta').textContent = 'No data loaded';
   const freshness = document.getElementById('freshness-badge');
@@ -911,13 +940,20 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 function updateFreeHours() {
-  freeStartHour = parseInt(document.getElementById('free-start').value);
-  freeEndHour = parseInt(document.getElementById('free-end').value);
+  const start = Number(document.getElementById('free-start').value);
+  const end = Number(document.getElementById('free-end').value);
+  if (![start, end].every(hour => Number.isInteger(hour) && hour >= 0 && hour < 24) || start === end) {
+    document.getElementById('free-start').value = String(freeStartHour);
+    document.getElementById('free-end').value = String(freeEndHour);
+    showToast('Choose different free-night start and end hours.', 'error');
+    return;
+  }
+  freeStartHour = start;
+  freeEndHour = end;
   if (readings.size > 0) {
     // Reclassify the readings already in memory. Avoid renderAll() here because it
     // would unnecessarily reset the user from the hourly tab back to the daily tab.
     const days = [...readings.keys()].sort();
-    renderStats(days);
     renderDailyChart(days);
     renderDetailChart(days, currentDayIndex);
     renderHourlyTable(days);
@@ -980,6 +1016,7 @@ function renderLatestEnergyDay(days, dayRate, nightRate) {
 }
 
 function renderCostEstimates() {
+  invalidateDaytimeReview();
   const days = [...readings.keys()].sort();
   const day = days[Math.max(0, Math.min(days.length - 1, currentDayIndex))];
   const selector = document.getElementById('cost-day');
@@ -1089,8 +1126,8 @@ async function parseXLSX(file) {
 function parseXLSXRows(rows, filename) {
   const result = new Map();
   const header = rows[0] ? rows[0].map(h => String(h||'').replace(/['"]/g,'').trim().toLowerCase()) : [];
-  const isVariantB = header.some(h => h === 'usage_date' || h === 'usage_kwh');
-  if (isVariantB) return parseCSV(rows.map(r => r.join(',')).join('\n'), filename);
+  const isVariantB = rows.some(row => Array.isArray(row) && row.some(h => String(h).trim().toLowerCase() === 'usage_start_time') && row.some(h => String(h).trim().toLowerCase() === 'usage_kwh'));
+  if (isVariantB) return parseCSV(rows.filter(Array.isArray).map(row => row.map(cell => '"' + String(cell ?? '').replace(/"/g, '""') + '"').join(',')).join('\n'), filename);
 
   const timeStartIdx   = header.findIndex(h => h.includes('start'));
   const consumptionIdx = header.findIndex(h => h.includes('consumption'));
@@ -1142,9 +1179,11 @@ function splitCSVLine(line) {
   let cur = '', inQuote = false;
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
-    if (ch === '"' || ch === "'") { inQuote = !inQuote; continue; }
-    if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; continue; }
-    cur += ch;
+    if (ch === '"') {
+      if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQuote = !inQuote;
+    } else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+    else cur += ch;
   }
   result.push(cur.trim());
   return result;
@@ -1185,24 +1224,18 @@ function netColor(value) {
   return value == null || Math.abs(value) < 0.000001 ? '#7d8590' : value < 0 ? '#3fb950' : '#f85149';
 }
 
-// Summary cards remain available independently of the daily import chart.
-function renderGridBalanceStats(days) {
-  const totals = days.map(day => gridTotals(readings.get(day)));
-  const complete = totals.filter(t => t.complete);
-  const exportCard = document.getElementById('stat-export');
-  const netCard = document.getElementById('stat-net');
-  document.getElementById('grid-balance-stats').style.display = 'grid';
-  exportCard.textContent = complete.length ? (complete.reduce((sum, t) => sum + t.exported, 0) / complete.length).toFixed(2) + ' kWh' : '—';
-  const net = complete.length ? complete.reduce((sum, t) => sum + t.net, 0) / complete.length : null;
-  netCard.textContent = net == null ? '—' : net.toFixed(2) + ' kWh';
-  netCard.style.color = netColor(net);
-}
 
 function parseCSV(text, filename) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return new Map();
 
-  const header = splitCSVLine(lines[0]).map(h => h.replace(/^\uFEFF/, '').trim().toLowerCase());
+  const normalizeHeader = line => splitCSVLine(line).map(h => h.replace(/^\uFEFF/, '').trim().toLowerCase());
+  const detectedHeader = lines.findIndex(line => {
+    const names = normalizeHeader(line);
+    return names.includes('usage_start_time') && names.includes('usage_kwh');
+  });
+  const headerIndex = detectedHeader >= 0 ? detectedHeader : 0;
+  const header = normalizeHeader(lines[headerIndex]);
   const dateIdx  = header.findIndex(h => h === 'usage_date');
   const startIdx = header.findIndex(h => h === 'usage_start_time');
   const kwhIdx   = header.findIndex(h => h === 'usage_kwh');
@@ -1217,25 +1250,31 @@ function parseCSV(text, filename) {
   }
 
   const result = new Map();
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = headerIndex + 1; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) continue;
     const cells = splitCSVLine(line.replace(/^'/, ''));
     const kind = typeIdx >= 0 ? (cells[typeIdx] || '').trim().toLowerCase() : 'consumption';
     if (!['consumption', 'surplus generation'].includes(kind)) continue;
 
-    const kwh = parseFloat(cells[safeKwhIdx]);
+    const kwhText = (cells[safeKwhIdx] || '').trim();
+    if (!kwhText) continue;
+    const kwh = Number(kwhText);
     if (!Number.isFinite(kwh) || kwh < 0) continue;
 
     const timeRaw = (cells[safeStartIdx] || '').trim();
-    const tMatch = timeRaw.match(/^(\d{1,2}):(\d{2})/);
+    const tMatch = timeRaw.match(/^(\d{1,2}):(\d{2})$/);
     if (!tMatch) continue;
     const timeStr = String(parseInt(tMatch[1])).padStart(2,'0') + ':' + tMatch[2];
+    if (!validIntervalTime(timeStr)) continue;
 
     let dateStr = null;
     if (safeDateIdx >= 0 && cells[safeDateIdx]) {
-      const dm = cells[safeDateIdx].match(/(\d{2})\/(\d{2})\/(\d{4})/);
-      if (dm) dateStr = dm[3] + '-' + dm[1] + '-' + dm[2];
+      const dateRaw = cells[safeDateIdx].trim();
+      const dm = dateRaw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (dm) dateStr = dm[3] + '-' + dm[1].padStart(2,'0') + '-' + dm[2].padStart(2,'0');
+      else if (validDateKey(dateRaw)) dateStr = dateRaw;
+      if (!dateStr || !validDateKey(dateStr)) continue;
     }
     if (!dateStr) {
       const fm = filename.match(/(\d{8})/);
@@ -1244,7 +1283,7 @@ function parseCSV(text, filename) {
         dateStr = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8);
       }
     }
-    if (!dateStr) dateStr = new Date().toISOString().slice(0,10);
+    if (!dateStr || !validDateKey(dateStr)) continue;
 
     if (!result.has(dateStr)) result.set(dateStr, []);
     const direction = kind === 'surplus generation' ? 'export' : 'import';
@@ -1360,8 +1399,10 @@ function renderAllDebounced() {
 }
 
 function renderAll() {
+  readings = retainRecentReadings(readings);
+  if (!readings.size) { clearDashboard(); return; }
+  renderCostEstimates();
   document.getElementById('empty-state').style.display = 'none';
-  document.getElementById('stats-row').style.display = 'grid';
   document.getElementById('section-tabs').style.display = 'flex';
   ['tab-daily','tab-hourly'].forEach(id => {
     const el = document.getElementById(id);
@@ -1371,9 +1412,7 @@ function renderAll() {
   const sortedDays = [...readings.keys()].sort();
   currentDayIndex = sortedDays.length - 1;
 
-  renderStats(sortedDays);
   renderDailyChart(sortedDays);
-  renderGridBalanceStats(sortedDays);
   renderDetailChart(sortedDays, currentDayIndex);
   renderDaySelect(sortedDays);
   renderHourlyTable(sortedDays);
@@ -1381,29 +1420,94 @@ function renderAll() {
   updateDataFreshness(sortedDays);
 }
 
-function renderStats(days) {
-  // Ninety-two quarter-hour readings represents a complete 23-hour DST day. This
-  // threshold excludes partial imports without rejecting the spring transition day.
-  const completeDays = days.filter(day => isCompleteDay(readings.get(day)));
-  const averageDays = completeDays.length ? completeDays : days;
-  let total = 0, free = 0, paid = 0;
-  averageDays.forEach(day => {
-    (readings.get(day) || []).forEach(reading => {
-      const hour = parseInt(reading.time.split(':')[0], 10);
-      total += reading.kwh;
-      if (isFreeHour(hour)) free += reading.kwh;
-      else paid += reading.kwh;
-    });
+function invalidateDaytimeReview() {
+  const hasData = readings.size > 0;
+  document.getElementById('review-daytime-button').disabled = !hasData;
+  document.getElementById('daytime-review-result').textContent = hasData
+    ? 'Ready to review the latest SMT day. Click Review latest SMT day.'
+    : 'Load SMT data, then review the latest available day.';
+}
+
+// Windows are start-inclusive, end-exclusive and refer to the selected calendar date.
+function reviewWindow(intervals, matches, direction = 'import') {
+  const expected = Array.from({length:96}, (_,i) => i * 15).filter(matches);
+  const present = intervals.filter(r => {
+    const [hour, minute] = r.time.split(':').map(Number);
+    return matches(hour * 60 + minute) && (direction === 'import' ? r.hasImport !== false : Number.isFinite(r.exportKwh));
   });
-  const divisor = averageDays.length || 1;
-  const unit = '<span class="stat-unit">kWh</span>';
-  document.getElementById('stat-avg-total').innerHTML = (total / divisor).toFixed(1) + unit;
-  document.getElementById('stat-avg-free').innerHTML = (free / divisor).toFixed(1) + unit;
-  document.getElementById('stat-avg-paid').innerHTML = (paid / divisor).toFixed(1) + unit;
-  const dayLabel = `${averageDays.length} complete day${averageDays.length === 1 ? '' : 's'}`;
-  document.getElementById('stat-avg-total-sub').textContent = dayLabel;
-  document.getElementById('stat-avg-free-sub').textContent = `${formatHour(freeStartHour)}–${formatHour(freeEndHour)} · ${dayLabel}`;
-  document.getElementById('stat-avg-paid-sub').textContent = `outside free period · ${dayLabel}`;
+  const times = new Set(present.map(r => r.time));
+  return {
+    kwh: present.length ? present.reduce((sum,r) => sum + (direction === 'import' ? r.kwh : r.exportKwh), 0) : expected.length ? null : 0,
+    complete: expected.every(minute => times.has(String(Math.floor(minute/60)).padStart(2,'0') + ':' + String(minute%60).padStart(2,'0'))),
+    estimated: present.some(r => direction === 'import' ? r.importEstimated : r.exportEstimated),
+    expected: expected.length, observed: times.size
+  };
+}
+
+function reviewBehaviors(intervals) {
+  const paid = minute => !isFreeHour(Math.floor(minute / 60));
+  const opening = minute => isFreeHour(Math.floor(minute / 60)) && (minute - freeStartHour * 60 + 1440) % 1440 < 60;
+  const overnight = minute => minute >= 60 && minute < 420 && isFreeHour(Math.floor(minute / 60));
+  const describe = (label, period) => label + ': ' + (period.kwh == null ? 'unavailable' : period.kwh.toFixed(3) + ' kWh') +
+    (period.expected === 0 ? ' · no intervals in configured free window' : ' · ' + (period.complete ? 'complete' : 'partial (' + period.observed + '/' + period.expected + ' intervals)')) +
+    (period.estimated ? ' · includes estimated readings' : '');
+  const firstHour = reviewWindow(intervals, opening);
+  const overnightLoad = reviewWindow(intervals, overnight);
+  const paidImport = reviewWindow(intervals, paid);
+  const paidExport = reviewWindow(intervals, paid, 'export');
+  return {firstHour, overnightLoad, paidImport, paidExport, lines: [
+    describe('Free-window opening (' + formatHour(freeStartHour) + '–' + formatHour(freeStartHour + 1) + ') grid import', firstHour),
+    describe('Overnight grid import (1am–7am, free hours only)', overnightLoad),
+    describe('Paid-hours grid import (' + formatHour(freeEndHour) + '–' + formatHour(freeStartHour) + ')', paidImport),
+    describe('Paid-hours grid export (' + formatHour(freeEndHour) + '–' + formatHour(freeStartHour) + ')', paidExport),
+    'All windows use this calendar date, not a stitched overnight session. Imports cannot identify charging equipment or house-only load; exports measure energy sent to the grid, not total generation.'
+  ]};
+}
+
+function daytimeReview(days) {
+  const day = days[days.length - 1];
+  const intervals = day ? readings.get(day) || [] : [];
+  const behavior = reviewBehaviors(intervals);
+  const period = behavior.paidImport;
+  const paid = intervals.filter(r => r.hasImport !== false && !isFreeHour(Number(r.time.split(':')[0]))).sort((a,b) => a.time.localeCompare(b.time));
+  if (period.kwh == null || !paid.length) return { day, status: 'Insufficient data', lines: ['No paid-hours import readings available for this date.', ...behavior.lines] };
+  const lines = [period.kwh.toFixed(3) + ' kWh imported during paid hours (' + formatHour(freeEndHour) + '–' + formatHour(freeStartHour) + ').'];
+  let status = 'Looks normal';
+  if (!period.complete || period.estimated) {
+    status = 'Insufficient data';
+    lines.push(!period.complete ? 'Paid-hours readings are incomplete; missing intervals are not treated as zero.' : 'Paid-hours readings include estimates; review again when actual readings arrive.');
+  }
+  const peak = paid.reduce((a,b) => a.kwh > b.kwh ? a : b);
+  const minutes = time => Number(time.slice(0,2)) * 60 + Number(time.slice(3,5));
+  const sustained = paid.some((r,i) => i > 0 && r.kwh >= 0.125 && paid[i-1].kwh >= 0.125 && minutes(r.time) - minutes(paid[i-1].time) === 15);
+  const prior = days.filter(d => d < day).slice(-28).map(d => periodEnergyCost(readings.get(d), 0)).filter(p => p.complete && !p.estimated && p.kwh != null);
+  const baseline = prior.map(p => p.kwh).sort((a,b) => a-b);
+  const median = baseline.length ? (baseline[Math.floor((baseline.length-1)/2)] + baseline[Math.floor(baseline.length/2)]) / 2 : null;
+  const elevated = baseline.length >= 7 && period.kwh > Math.max(median * 2, median + 0.5);
+  if (period.kwh > 1 || peak.kwh >= 0.5 || sustained || elevated) {
+    if (status !== 'Insufficient data') status = 'Worth checking';
+    lines.push('Highest paid-hours interval: ' + peak.time + ' — ' + peak.kwh.toFixed(3) + ' kWh (' + (peak.kwh * 4).toFixed(2) + ' kW average).');
+    if (sustained) lines.push('Sustained grid draw: at least 0.5 kW average across two consecutive paid-hours intervals.');
+    if (period.kwh > 1) lines.push('Paid-hours imports exceed the initial 1 kWh daily review threshold.');
+    if (elevated) lines.push('Imports exceed both twice the recent median and the median plus 0.5 kWh.');
+  } else if (status === 'Looks normal') lines.push('No substantial paid-hours grid draw stands out under the initial review thresholds.');
+  lines.push(baseline.length >= 7 ? 'Recent baseline: ' + median.toFixed(3) + ' kWh median across ' + baseline.length + ' previous complete, actual paid periods.' : 'Baseline not established: at least 7 previous complete, actual paid periods are needed.');
+  lines.push(...behavior.lines);
+  lines.push('Expected nighttime charging is excluded from daytime alerts.');
+  return { day, status, lines };
+}
+
+function runDaytimeReview() {
+  const result = daytimeReview([...readings.keys()].sort());
+  const container = document.getElementById('daytime-review-result');
+  container.replaceChildren();
+  const title = document.createElement('strong');
+  title.textContent = result.status + (result.day ? ' — ' + fmtDate(result.day) : '');
+  title.style.color = result.status === 'Looks normal' ? 'var(--accent2)' : 'var(--accent)';
+  container.appendChild(title);
+  const list = document.createElement('ul');
+  result.lines.forEach(line => { const item = document.createElement('li'); item.textContent = line; list.appendChild(item); });
+  container.appendChild(list);
 }
 
 function isCompleteDay(intervals) {
@@ -1486,6 +1590,7 @@ function renderDailyChart(days) {
       }
     }
   });
+  if (!chartLibraryAvailable('chart-daily')) return;
   charts['chart-daily'] = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1560,6 +1665,7 @@ function renderDetailChart(days, idx) {
 
   destroyChart('chart-detail');
   const ctx = document.getElementById('chart-detail').getContext('2d');
+  if (!chartLibraryAvailable('chart-detail')) return;
   charts['chart-detail'] = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1657,11 +1763,29 @@ function detectLikelyEvSessions(intervals) {
 
 let hourlyWeatherRenderId = 0;
 
+function calendarWindowStart(anchor, count) {
+  const start = parseDateKey(anchor);
+  start.setDate(start.getDate() - count + 1);
+  return toDateKey(start);
+}
+
+function recentCalendarDays(days, count) {
+  const sorted = days.filter(validDateKey).sort();
+  if (!sorted.length) return [];
+  const cutoff = calendarWindowStart(sorted[sorted.length - 1], count);
+  return sorted.filter(day => day >= cutoff);
+}
+
+function retainRecentReadings(source) {
+  return new Map(recentCalendarDays([...source.keys()], SMT_HISTORY_DAYS).map(day => [day, source.get(day)]));
+}
+
 function getVisibleHourlyDays(days) {
-  // Fourteen days is the default compromise between useful context, table size,
-  // and the number of historical weather requests made on initial rendering.
-  const value = document.getElementById('hourly-range')?.value || '14';
-  return value === 'all' ? [...days] : days.slice(-Number(value));
+  const selector = document.getElementById('hourly-range');
+  const value = selector?.value;
+  const count = ['7', '14', '30'].includes(value) ? Number(value) : 14;
+  if (selector && String(count) !== value) selector.value = String(count);
+  return recentCalendarDays(days, count);
 }
 
 function renderHourlyTable(days) {
@@ -1893,12 +2017,15 @@ function renderDaySelect(days) {
 
 function selectDay(dateStr) {
   const days = [...readings.keys()].sort();
-  currentDayIndex = days.indexOf(dateStr);
+  const index = days.indexOf(dateStr);
+  if (index < 0) return;
+  currentDayIndex = index;
   renderDetailChart(days, currentDayIndex);
 }
 
 function shiftDay(dir) {
   const days = [...readings.keys()].sort();
+  if (!days.length || !Number.isFinite(dir)) return;
   currentDayIndex = Math.max(0, Math.min(days.length - 1, currentDayIndex + dir));
   renderDetailChart(days, currentDayIndex);
   document.getElementById('day-select').value = days[currentDayIndex];
@@ -1912,6 +2039,22 @@ function showTab(name, btn) {
   });
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+}
+
+function chartLibraryAvailable(id) {
+  const canvas = document.getElementById(id);
+  const parent = canvas.parentElement;
+  if (typeof Chart === 'function') {
+    parent?.querySelector('.chart-unavailable')?.remove();
+    return true;
+  }
+  if (parent && !parent.querySelector('.chart-unavailable')) {
+    const note = document.createElement('p');
+    note.className = 'chart-unavailable';
+    note.textContent = 'Chart unavailable. Usage reports and the hourly table are still available.';
+    parent.appendChild(note);
+  }
+  return false;
 }
 
 function destroyChart(id) {
@@ -1967,16 +2110,62 @@ function inferFileMonthKey(fileMeta) {
 function inferFileDateKey(fileMeta) {
   const name = String(fileMeta?.name || '');
   const isoMatch = name.match(/(20\d{2})[-_]?([01]\d)[-_]?([0-3]\d)/);
-  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  if (isoMatch) {
+    const date = `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    if (validDateKey(date)) return date;
+  }
   if (fileMeta?.modifiedTime) {
     const mod = String(fileMeta.modifiedTime).slice(0, 10);
-    if (/^20\d{2}-[01]\d-[0-3]\d$/.test(mod)) return mod;
+    if (validDateKey(mod)) return mod;
   }
   return null;
 }
 
+function selectRecentDriveFiles(files) {
+  const dates = files.map(inferFileDateKey).filter(Boolean).sort();
+  const anchor = dates[dates.length - 1] || getTodayKey();
+  // One extra file-date day accommodates the normal next-day SMT delivery.
+  // Undated files remain eligible; rows are trimmed using actual USAGE_DATE.
+  const cutoff = calendarWindowStart(anchor, SMT_HISTORY_DAYS + 1);
+  return files.filter(file => { const date = inferFileDateKey(file); return !date || date >= cutoff; });
+}
+
+async function mapWithConcurrency(items, concurrency, task) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      try { results[index] = { value: await task(items[index], index) }; }
+      catch (error) { results[index] = { error }; }
+    }
+  };
+  const count = Math.min(items.length, Math.max(1, Math.floor(concurrency) || 1));
+  await Promise.all(Array.from({ length: count }, worker));
+  return results;
+}
+
+async function downloadSmtFile(driveFile) {
+  const isGoogleSheet = driveFile.mimeType === 'application/vnd.google-apps.spreadsheet';
+  const downloadUrl = `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&token=${encodeURIComponent(driveFile.token)}` + (isGoogleSheet ? '&exportCsv=1' : '');
+  const response = await fetchWithRetry(downloadUrl, { credentials: 'same-origin' });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(`HTTP ${response.status}` + (body?.error ? ': ' + body.error : ''));
+  }
+  const blob = await response.blob();
+  const ext = driveFile.name.split('.').pop().toLowerCase();
+  const mime = { xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv', xml: 'application/xml' };
+  const file = new File([blob], driveFile.name, { type: mime[ext] || 'application/octet-stream' });
+  const data = await parseFile(file);
+  if (!data.size) throw new Error('Parser found no interval readings');
+  return { file, data };
+}
+
 async function syncFromDrive(forceRefresh = false, source = 'manual') {
   const btn = document.getElementById('drive-btn');
+  if (btn.disabled) return;
+  invalidateDaytimeReview();
   const status = document.getElementById('drive-status');
   btn.disabled = true;
   status.className = 'drive-status syncing';
@@ -1984,7 +2173,6 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
 
   const previousReadings = cloneReadingsMap(readings);
   const previousLoadedFiles = [...loadedFiles];
-  const previousMonthSummariesState = new Map(monthSummaries);
   const hadExistingData = previousReadings.size > 0;
   const nextReadings = forceRefresh ? new Map() : cloneReadingsMap(readings);
   const nextLoadedFiles = forceRefresh ? [] : [...loadedFiles];
@@ -2017,34 +2205,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
       return name.endsWith('.xlsx') || name.endsWith('.csv') || name.endsWith('.xml');
     });
 
-    const inferredDateKeys = smtFiles
-      .map(inferFileDateKey)
-      .filter(Boolean)
-      .sort();
-    const anchorDateKey = inferredDateKeys.length > 0 ? inferredDateKeys[inferredDateKeys.length - 1] : getTodayKey();
-    const anchorDate = parseDateKey(anchorDateKey);
-    const currentMonthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
-    const previousMonthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth() - 1, 1);
-    const currentMonthKey = getMonthKeyFromDate(currentMonthStart);
-    const previousMonthKey = getMonthKeyFromDate(previousMonthStart);
-    const weekStart = new Date(anchorDate);
-    weekStart.setDate(anchorDate.getDate() - anchorDate.getDay());
-    const previousWeekStart = new Date(weekStart);
-    previousWeekStart.setDate(weekStart.getDate() - 7);
-    // Historical-data guard from the prior dashboard iteration: only import
-    // readings needed for current-month totals plus the previous-week comparison.
-    // This keeps Drive sync bounded even if the folder later contains older exports.
-    const compareWindowStart = previousWeekStart < currentMonthStart ? previousWeekStart : currentMonthStart;
-    const compareWindowStartKey = toDateKey(compareWindowStart);
-
-    // File-level companion to the date guard above: download only the anchor
-    // month and previous month when filenames/modified times reveal a month.
-    const scopedFiles = smtFiles.filter(file => {
-      const monthKey = inferFileMonthKey(file);
-      if (!monthKey) return true;
-      return monthKey === currentMonthKey || monthKey === previousMonthKey;
-    });
-    const monthlyIntervals = new Map();
+    const scopedFiles = selectRecentDriveFiles(smtFiles);
 
     if (smtFiles.length === 0) {
       status.className = 'drive-status err';
@@ -2057,7 +2218,6 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
     if (scopedFiles.length === 0) {
       readings = previousReadings;
       loadedFiles = previousLoadedFiles;
-      monthSummaries = previousMonthSummariesState;
       if (readings.size > 0) {
         renderAllDebounced();
       } else {
@@ -2065,98 +2225,49 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
         document.getElementById('empty-state').style.display = 'flex';
       }
       status.className = 'drive-status err';
-      status.textContent = 'No files matched the active month window — showing previously loaded data';
+      status.textContent = 'No files matched the active 30-day window — showing previously loaded data';
       btn.disabled = false;
       return;
     }
 
     status.textContent = `Found ${scopedFiles.length} file(s) in active window — downloading…`;
 
-    let loaded = 0, skipped = 0;
+    let loaded = 0, skipped = 0, completed = 0;
     const failures = [];
-    for (const driveFile of scopedFiles) {
-      if (!forceRefresh && nextLoadedFiles.find(f => f.name === driveFile.name)) {
-        skipped++;
+    const pendingFiles = scopedFiles.filter(file => {
+      if (!forceRefresh && nextLoadedFiles.some(loaded => loaded.name === file.name)) { skipped++; return false; }
+      return true;
+    });
+    const results = await mapWithConcurrency(pendingFiles, DRIVE_DOWNLOAD_CONCURRENCY, async driveFile => {
+      try { return await downloadSmtFile(driveFile); }
+      finally {
+        completed++;
+        status.textContent = `Downloading SMT data: ${completed}/${pendingFiles.length} files processed…`;
+      }
+    });
+    // Merge in listing order, regardless of which network requests finish first.
+    // This preserves the established result when equal-revision exports overlap.
+    for (let index = 0; index < results.length; index++) {
+      const result = results[index];
+      if (result.error) {
+        failures.push(`${pendingFiles[index].name}: ${result.error.message}`);
         continue;
       }
-
-      status.textContent = `Downloading ${driveFile.name}…`;
-
-      const isGoogleSheet = driveFile.mimeType === 'application/vnd.google-apps.spreadsheet';
-      const downloadUrl = isGoogleSheet
-        ? `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&token=${encodeURIComponent(driveFile.token)}&exportCsv=1`
-        : `/api/drive-file?id=${encodeURIComponent(driveFile.id)}&token=${encodeURIComponent(driveFile.token)}`;
-
-      let fileRes;
-      try {
-        fileRes = await fetchWithRetry(downloadUrl, { credentials: 'same-origin' });
-      } catch (err) {
-        failures.push(`${driveFile.name}: request failed (${err.message})`);
-        showToast(`Could not download ${driveFile.name}: ${err.message}`, 'error');
-        continue;
-      }
-      if (!fileRes.ok) {
-        const errorBody = await fileRes.json().catch(() => null);
-        const reason = errorBody?.error ? `: ${errorBody.error}` : '';
-        failures.push(`${driveFile.name}: HTTP ${fileRes.status}${reason}`);
-        showToast(`Could not download ${driveFile.name} (${fileRes.status})${reason}`, 'error');
-        continue;
+      const { file, data } = result.value;
+      for (const [date, intervals] of data.entries()) {
+        if (!nextReadings.has(date)) nextReadings.set(date, []);
+        for (const r of intervals) mergeInterval(nextReadings.get(date), r);
+        nextReadings.get(date).sort((a, b) => a.time.localeCompare(b.time));
       }
 
-      const blob = await fileRes.blob();
-      const ext = driveFile.name.split('.').pop().toLowerCase();
-      const mimeMap = {
-        xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        csv: 'text/csv',
-        xml: 'application/xml'
-      };
-      const file = new File([blob], driveFile.name, { type: mimeMap[ext] || 'application/octet-stream' });
-
-      try {
-        const data = await parseFile(file);
-        if (data.size === 0) {
-          failures.push(`${file.name}: parser found no interval readings`);
-          showToast('No data in ' + file.name, 'error');
-          continue;
-        }
-        for (const [date, intervals] of data.entries()) {
-          const monthKey = date.slice(0, 7);
-
-          if (!monthlyIntervals.has(monthKey)) monthlyIntervals.set(monthKey, new Map());
-          const monthlyByDate = monthlyIntervals.get(monthKey);
-          if (!monthlyByDate.has(date)) monthlyByDate.set(date, new Map());
-          const monthlyByTime = monthlyByDate.get(date);
-          for (const r of intervals) {
-            const merged = [];
-            if (monthlyByTime.has(r.time)) merged.push(monthlyByTime.get(r.time));
-            mergeInterval(merged, r);
-            monthlyByTime.set(r.time, merged[0]);
-          }
-
-          if (date >= compareWindowStartKey) {
-            if (!nextReadings.has(date)) nextReadings.set(date, []);
-            for (const r of intervals) mergeInterval(nextReadings.get(date), r);
-            nextReadings.get(date).sort((a, b) => a.time.localeCompare(b.time));
-          }
-        }
-        nextLoadedFiles.push(file);
-        loaded++;
-      } catch (err) {
-        failures.push(`${file.name}: ${err.message}`);
-        showToast('Parse error: ' + file.name, 'error');
-      }
+      nextLoadedFiles.push(file);
+      loaded++;
     }
 
-    monthSummaries = new Map();
-    for (const [monthKey, byDate] of monthlyIntervals.entries()) {
-      const monthTotal = [...byDate.values()].reduce((sum, byTime) => {
-        return sum + [...byTime.values()].reduce((sub, reading) => sub + reading.kwh, 0);
-      }, 0);
-      monthSummaries.set(monthKey, monthTotal);
-    }
 
     if (loaded > 0) {
-      readings = nextReadings;
+      readings = retainRecentReadings(nextReadings);
+      renderCostEstimates();
       loadedFiles = nextLoadedFiles;
       currentDayIndex = 0;
 
@@ -2166,7 +2277,7 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
         clearDashboard();
       }
 
-      markSyncedNow();
+      if (!failures.length) markSyncedNow();
       updateLastSyncLabel();
       cacheDashboardData();
 
@@ -2179,13 +2290,13 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
           : `✓ ${loaded} file(s) loaded from Drive`;
       }
 
-      status.className = 'drive-status ok';
+      if (failures.length) msg += ` · ${failures.length} file(s) failed; totals may be incomplete. Retry refresh. First issue: ${failures[0]}`;
+      status.className = failures.length ? 'drive-status err' : 'drive-status ok';
       status.textContent = msg;
       if (source === 'manual' || source === 'auto') showToast(msg, 'success');
     } else {
       readings = previousReadings;
       loadedFiles = previousLoadedFiles;
-      monthSummaries = previousMonthSummariesState;
       if (readings.size > 0) {
         renderAllDebounced();
         status.className = 'drive-status err';
@@ -2207,7 +2318,6 @@ async function syncFromDrive(forceRefresh = false, source = 'manual') {
   } catch (err) {
     readings = previousReadings;
     loadedFiles = previousLoadedFiles;
-    monthSummaries = previousMonthSummariesState;
     if (readings.size > 0) {
       renderAllDebounced();
     } else {

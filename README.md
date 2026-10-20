@@ -20,7 +20,7 @@ will reject download requests for files that are not direct children of that fol
 The dashboard reads SMT exports from the configured Google Drive folder. It has no
 Sigenergy login, history requests, scheduled collection, Blob dependency, solar sync
 button, or solar/battery table. Builds only validate code and publish static assets;
-they do not contact an inverter provider. The daily import chart, Import/Export/Net table, summary cards, and costs use SMT.
+they do not contact an inverter provider. The daily import chart, Import/Export/Net table, daytime review, and costs use SMT.
 
 After upgrading from the retired integration, remove all SIGEN_* variables from every
 Vercel environment. CRON_SECRET and BLOB_READ_WRITE_TOKEN can also be removed if no
@@ -42,14 +42,27 @@ No changes to the SMT/Drive variables or files are required.
   The former Weekly view and the chat assistant were removed because they were not part of the
   regular workflow. Their rendering code was removed as well, rather than merely hidden, to avoid
   maintaining and running unused features.
-- The summary strip intentionally shows three daily averages: total usage, usage during the
-  configured free-night period, and usage during the paid period. Changing either free-night
-  selector recalculates these cards, chart segments, and table colors immediately from the readings
-  already in memory; a Drive refresh is not required.
-- Summary averages prefer complete days. A day with at least 92 quarter-hour readings is considered
-  complete so the 23-hour daylight-saving transition is accepted while genuinely partial imports
-  are kept out of the headline averages. If no complete day exists, available data is shown rather
-  than leaving every card blank.
+- Usage and estimated cost share one panel. The latest SMT date remains independent
+  of historical day selection, and trailing seven-day costs remain available.
+- The five average summary cards have been removed. The charts and hourly table
+  retain detailed usage and import/export information for the latest 30 calendar days.
+- **Daytime Energy Check** reviews the newest SMT day on demand using configured
+  paid hours. It is explicitly a local rules-based check, not an AI integration.
+  Initial thresholds flag more than 1 kWh paid-period import, a 0.5 kWh
+  quarter-hour spike, or two consecutive 0.125 kWh intervals. With at least seven
+  complete actual prior paid periods (up to 28 previous available days), it also
+  flags imports exceeding both twice the median and the median plus 0.5 kWh.
+  Incomplete or estimated paid-period readings yield insufficient data. Nighttime
+  charging is excluded from daytime alerts. The report also summarizes grid imports
+  in the first hour of the configured free window, 1 AM–7 AM imports restricted
+  to free hours, and paid-hours imports and exports. Each summary independently
+  reports missing intervals and estimated readings. End times are exclusive;
+  all windows refer to the same calendar date, not a stitched overnight session.
+  SMT cannot assign imports to equipment or measure total generation from exports.
+  Data, rate, or free-hour changes invalidate the result.
+- CSV parsing detects the SMT header after optional report metadata and also supports
+  header-first files. Headers and time fields are trimmed; import/export directions
+  and their revision and quality flags remain separate.
 
 ### Free nights and estimated energy charges
 
@@ -74,14 +87,13 @@ No changes to the SMT/Drive variables or files are required.
 - SMT CSV files (and XLSX files with the same columns) retain Consumption as grid
   import and Surplus Generation as grid export. Export is surplus sent to the grid,
   not total solar production or total household consumption.
-- Net grid import is **import minus export**. The net summary card and hourly net cells use green for net export, red for net import,
+- Net grid import is **import minus export**. Hourly net cells use green for net export, red for net import,
   and gray for balance.
 - The hourly table offers Import, Export, and Net views and always includes all three
   daily totals. The selected metric and kWh units are included when copying the table.
   Existing free-night and paid-period figures continue to use imports only.
 - Missing export readings remain unavailable, rather than becoming zero. Net values
-  require matching import/export coverage; the export/net average cards use only
-  matching complete days. Asterisks flag estimated readings. Partial-day graph/table
+  require matching import/export coverage. Asterisks flag estimated readings. Partial-day graph/table
   totals represent the available intervals.
 - Overlapping files merge each direction independently, preferring newer SMT revision
   timestamps. The cache/sync version forces an initial refresh after this update so
@@ -138,3 +150,54 @@ npm run check
 
 The tests exercise the complete mocked Drive flow—listing, filename sanitization, folder-membership
 verification, and media download—plus denial/error behavior and normalized weather output.
+
+## Regression checks
+
+- `npm test`: parser, energy/cost/review, cache, and API regressions.
+- `npm run build`: validates server scripts, compiles the inline dashboard JavaScript
+  for syntax errors, checks unique element IDs, then prepares browser assets.
+- `npm run test:browser`: optional real-browser regression suite. Requires Playwright
+  and a Chromium executable in the test environment. Uses `/usr/bin/chromium` when
+  available, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. All API responses and
+  energy records are synthetic; no connected account is used. The suite binds an
+  ephemeral localhost port.
+- Set `CHART_JS_TEST_PATH` to a local copy of the dashboard's Chart.js 4.4.1 UMD
+  bundle to exercise actual chart rendering; otherwise charts are stubbed and the
+  suite prints that limitation. Optional `BROWSER_QA_OUTPUT` captures phone/tablet
+  screenshots outside the published assets.
+
+Browser scenarios cover cold and delayed startup, failed/partial syncs, manual
+retry, duplicate refresh requests, disabled storage, bad cache, clearing data,
+missing chart assets, rate/date/free-hour edits, and incomplete/estimated data.
+Phone/tablet layout checks cover widths 320, 375, 390, 430, 768, 820, 1024, and
+1180 pixels, touch targets, input font sizing, and report overflow. This is
+Chromium viewport testing, not validation on physical iOS devices or Safari.
+Free-night start and end must differ; an ambiguous equal-time edit is rejected
+without changing the current settings. Failed/partial downloads remain visible
+and do not record a fully successful sync. Valid previously loaded data remains
+available after a failed refresh. Browser storage is optional.
+
+### Drive download performance
+
+Reports retain the latest 30 calendar days ending on the newest actual SMT data
+date. File selection uses a rolling 31-day export/upload-date window to allow
+for next-day delivery; undated files are included and actual usage dates determine
+which readings remain. Recently uploaded historical exports may still need to be
+downloaded before their contents can be filtered. Up to four SMT files download and parse concurrently. Results
+merge in listing order, preserving equal-revision overlap behavior regardless of
+network completion order. Per-file retries, folder membership checks, partial
+failure warnings, and the session-only energy cache remain in place. Progress
+shows completed files out of the pending total. This reduces sequential network
+waiting; Google Drive latency and folder verification still contribute to load time.
+
+### History and hourly table ranges
+
+The hourly selector offers only 7, 14 (default), and 30 calendar days, ending on
+its newest data date. Missing days do not extend the date range to fill rows.
+Restored session data and newly synchronized readings are limited to 30 days;
+cache payloads also retain only those days. This covers the weekly chart,
+latest/selected-day costs, and review's 28-prior-period baseline when enough actual
+readings are available. A seven-day cost estimate for a day near the oldest
+retained date can be partial and remains labeled with its available coverage.
+The removed All loaded data option and obsolete monthly aggregate calculations
+are no longer used. Files in Google Drive are never deleted by this cutoff.
