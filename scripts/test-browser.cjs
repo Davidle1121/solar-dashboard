@@ -29,7 +29,7 @@ async function main() {
     async function check(name, options, action) {
       total++;
       const width = options.width || 390;
-      const context = await browser.newContext({ viewport: { width, height: options.height || 1024 }, isMobile: width < 600, hasTouch: true });
+      const context = await browser.newContext({ viewport: { width, height: options.height || 1024 }, isMobile: width < 600, hasTouch: true, timezoneId: options.timezone || 'UTC' });
       try {
         const page = await context.newPage();
         page.setDefaultTimeout(5000);
@@ -63,11 +63,17 @@ async function main() {
           if (requestUrl.includes('/api/drive-file')) return requestUrl.includes('synthetic-fail')
             ? route.fulfill({ status: 400, json: { error: 'Synthetic download failure' } })
             : route.fulfill({ contentType: 'text/csv', body: csv });
-          if (requestUrl.includes('/api/weather')) return route.fulfill({ status: 400, body: 'Unavailable' });
+          if (requestUrl.includes('/api/weather')) {
+            const date = new URL(requestUrl).searchParams.get('date');
+            if (options.weatherDelay && date === '2026-10-19') await new Promise(resolve => setTimeout(resolve,options.weatherDelay));
+            if (options.weather) return route.fulfill({json:{condition:options.weather==='html' ? '<img src=x onerror=window.weatherInjected=true>' : options.weather==='unknown' ? 'Unknown' : date==='2026-10-19' ? 'Overcast' : date==='2026-10-20' ? 'Rain' : 'Clear',rainInches:0,postalCode:'77494',...(options.weatherDetails || {highF:81.6,lowF:64.2,sunrise:'07:31',sunset:'18:40'})}});
+            return route.fulfill({ status: 400, body: 'Unavailable' });
+          }
           if (requestUrl.includes('chart.umd')) return options.missingChart ? route.abort() : route.fulfill({ contentType: 'application/javascript', body: chartScript });
           return route.abort();
         });
-        await page.addInitScript(({ cache, storageBlocked }) => {
+        await page.addInitScript(({ cache, storageBlocked, legacyWeather }) => {
+          if (legacyWeather) localStorage.setItem('energyWeatherCacheV2',JSON.stringify({'2026-10-19':{cachedAt:Date.now(),data:{condition:'Old weather record'}}}));
           if (cache !== undefined) sessionStorage.setItem('energyDashboardCacheV3', typeof cache === 'string' ? cache : JSON.stringify(cache));
           if (storageBlocked) {
             Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('Blocked', 'SecurityError'); } });
@@ -100,7 +106,7 @@ async function main() {
     });
     await check('empty render, navigation and review calls', {}, async ({ page, ready }) => {
       await ready(); await page.evaluate(() => { renderAll(); selectDay('missing'); shiftDay(1); runDaytimeReview(); });
-      assert.match(await page.locator('#daytime-review-result').textContent(), /Insufficient data/);
+      assert.match(await page.locator('#daytime-review-result').textContent(), /Incomplete data/);
     });
     await check('delayed data arrival after first render', { drive: 'success', delay: 200 }, async ({ page }) => {
       assert.equal(await page.locator('#review-daytime-button').isDisabled(), true);
@@ -183,7 +189,7 @@ async function main() {
     await check('latest review remains pinned while historical day changes', {}, async ({ page, load, ready }) => {
       await ready(); await load(); await page.locator('#cost-day').selectOption('2026-10-18');
       await page.locator('#review-daytime-button').click();
-      assert.match(await page.locator('#daytime-review-result').textContent(), /Oct 19/);
+      assert.match(await page.locator('#insights-date').textContent(), /Oct 19/);
       assert.equal(await page.locator('#day-select').inputValue(), '2026-10-18');
     });
     await check('rolling 30-day retention and 7/14/30 table choices cover all current reports', {}, async ({page,ready}) => {
@@ -205,7 +211,7 @@ async function main() {
       }
       assert.match(await page.locator('#cost-weekly-note').textContent(),/7\/7 complete days/);
       await page.locator('#review-daytime-button').click();
-      assert.match(await page.locator('#daytime-review-result').textContent(),/28 previous complete/);
+      assert.equal(await page.evaluate(() => analyzeEnergyInsights(readings.get('2026-10-19'), {day:'2026-10-19',freeStart:21,freeEnd:9,history:[...readings.entries()].filter(([day])=>day<'2026-10-19').map(([day,intervals])=>({day,intervals}))}).measurements.baselineDays),28);
     });
     await check('partial, estimated and export-only data never get false reassurance', {}, async ({ page, ready }) => {
       await ready();
@@ -216,7 +222,7 @@ async function main() {
           if (mode === 'export-only') data.forEach(r => { r.hasImport = false; r.kwh = 0; });
           readings = new Map([['2026-10-19', data]]); renderAll(); runDaytimeReview();
         }, { data: sample, mode });
-        assert.match(await page.locator('#daytime-review-result').textContent(), /Insufficient data/);
+        assert.match(await page.locator('#daytime-review-result').textContent(), /Incomplete data/);
       }
     });
     for (const width of [390, 820]) {
@@ -240,9 +246,84 @@ async function main() {
         assert.equal(await page.locator('#hourly-metric').inputValue(), 'import');
       });
     }
+    await check('insights reuse weather for the SMT date instead of today', {weather:'known'}, async ({page,load,ready}) => {
+      await ready(); await load(); await page.locator('#review-daytime-button').click();
+      await page.waitForFunction(()=>!document.getElementById('insights-weather').hidden);
+      assert.match(await page.locator('#insights-weather').textContent(),/77494 · Overcast/);
+      assert.match(await page.locator('#insights-weather').textContent(),/High 82°F \/ Low 64°F/);
+      assert.match(await page.locator('#insights-weather').textContent(),/Sunrise 7:31am · Sunset 6:40pm/);
+      assert.match(await page.locator('#insights-date').textContent(),/Oct 19, 2026/);
+      assert.equal(await page.locator('.insight-row').count(),3);
+    });
+    for (const weather of [undefined,'unknown']) await check('weather unavailable/unknown is omitted: '+weather,{weather},async ({page,load,ready})=>{
+      await ready();await load();await page.locator('#review-daytime-button').click();await page.waitForTimeout(100);
+      assert.equal(await page.locator('#insights-weather').isVisible(),false);
+      assert.match(await page.locator('#daytime-review-result').textContent(),/Looks normal/);
+    });
+    await check('late weather response cannot overwrite a newer report',{weather:'known',weatherDelay:500},async ({page,load,ready})=>{
+      await ready();await load();await page.locator('#review-daytime-button').click();
+      await page.evaluate(data=>{readings=new Map([['2026-10-20',data]]);renderAll();runDaytimeReview()},sample);
+      await page.waitForFunction(()=>document.getElementById('insights-weather').textContent.includes('Rain'));
+      await page.waitForTimeout(650);
+      assert.match(await page.locator('#insights-weather').textContent(),/Rain/);
+      assert.match(await page.locator('#insights-date').textContent(),/Oct 20/);
+    });
+    await check('late weather response stays hidden after clearing data',{weather:'known',weatherDelay:500},async ({page,load,ready})=>{
+      await ready();await load();await page.locator('#review-daytime-button').click();
+      await page.evaluate(()=>{readings.clear();clearDashboard()});await page.waitForTimeout(650);
+      assert.equal(await page.locator('#insights-weather').isVisible(),false);
+      assert.equal(await page.locator('#review-daytime-button').isDisabled(),true);
+    });
+    await check('late weather response stays hidden after a rate edit',{weather:'known',weatherDelay:500},async ({page,load,ready})=>{
+      await ready();await load();await page.locator('#review-daytime-button').click();await page.locator('#day-rate').fill('50');
+      await page.waitForTimeout(650);assert.equal(await page.locator('#insights-weather').isVisible(),false);
+      assert.match(await page.locator('#daytime-review-result').textContent(),/Ready to review/);
+      await page.locator('#review-daytime-button').click();assert.match(await page.locator('#daytime-review-result').textContent(),/2.4¢ at 50¢/);
+    });
+    await check('weather content is text, never injected HTML',{weather:'html'},async ({page,load,ready})=>{
+      await ready();await load();await page.locator('#review-daytime-button').click();
+      await page.waitForFunction(()=>!document.getElementById('insights-weather').hidden);
+      assert.equal(await page.locator('#insights-weather img').count(),0);
+      assert.equal(await page.evaluate(()=>window.weatherInjected),undefined);
+    });
+    await check('repeated reviews do not duplicate sections or modify charts, costs, or data',{},async ({page,load,ready})=>{
+      await ready();await load();
+      const before=await page.evaluate(()=>JSON.stringify({readings:[...readings],daily:document.getElementById('cost-daily').textContent,weekly:document.getElementById('cost-weekly').textContent,chart:charts['chart-daily'].config.data}));
+      for(let i=0;i<5;i++)await page.locator('#review-daytime-button').click();
+      assert.equal(await page.locator('.insight-row').count(),3);
+      const after=await page.evaluate(()=>JSON.stringify({readings:[...readings],daily:document.getElementById('cost-daily').textContent,weekly:document.getElementById('cost-weekly').textContent,chart:charts['chart-daily'].config.data}));
+      assert.equal(after,before);
+    });
+    await check('an analysis failure stays within its panel and preserves dashboard controls',{},async ({page,load,ready})=>{
+      await ready();await load();await page.evaluate(()=>{analyzeEnergyInsights=()=>{throw new Error('synthetic analysis failure')}});
+      await page.locator('#review-daytime-button').click();
+      assert.match(await page.locator('#daytime-review-result').textContent(),/temporarily unavailable/);
+      await page.locator('#day-rate').fill('50');assert.equal(await page.locator('#cost-daily').textContent(),'$0.02');
+      await page.getByRole('button',{name:'Hourly Profile Table',exact:true}).click();assert.equal(await page.locator('#hourly-table-body tr').count(),2);
+    });
+    for (const weatherDetails of [{},{highF:null,lowF:'0',sunrise:'25:00',sunset:'bad'}]) {
+      await check('optional weather omissions preserve condition and energy report '+JSON.stringify(weatherDetails),{weather:'known',weatherDetails},async ({page,load,ready})=>{
+        await ready();await load();await page.locator('#review-daytime-button').click();
+        await page.waitForFunction(()=>!document.getElementById('insights-weather').hidden);
+        const text=await page.locator('#insights-weather').textContent();
+        assert.match(text,/Overcast/);assert.doesNotMatch(text,/High|Low|Sunrise|Sunset/);
+        assert.match(await page.locator('#daytime-review-result').textContent(),/Looks normal/);
+      });
+    }
+    await check('old condition-only weather cache does not hide new daily details',{weather:'known',legacyWeather:true},async ({page,load,ready})=>{
+      await ready();await load();await page.locator('#review-daytime-button').click();
+      await page.waitForFunction(()=>document.getElementById('insights-weather').textContent.includes('Sunrise'));
+      assert.doesNotMatch(await page.locator('#insights-weather').textContent(),/Old weather record/);
+    });
+    await check('Tokyo browser displays the same America/Chicago sun times',{weather:'known',timezone:'Asia/Tokyo'},async ({page,load,ready})=>{
+      await ready();await load();await page.locator('#review-daytime-button').click();
+      await page.waitForFunction(()=>document.getElementById('insights-weather').textContent.includes('Sunrise'));
+      assert.match(await page.locator('#insights-weather').textContent(),/Sunrise 7:31am · Sunset 6:40pm/);
+    });
     for (const [width, height] of [[320, 568], [375, 667], [390, 844], [430, 932], [768, 1024], [820, 1180], [1024, 768], [1180, 820]]) {
-      await check('touch layout ' + width + '×' + height, { width, height }, async ({ page, load, ready }) => {
+      await check('touch layout ' + width + '×' + height, { width, height, weather:'known' }, async ({ page, load, ready }) => {
         await ready(); await load(); await page.locator('#review-daytime-button').click();
+        await page.waitForFunction(()=>document.getElementById('insights-weather').textContent.includes('Sunrise'));
         const issues = await page.evaluate(() => {
           const issues = [];
           for (const id of ['latest-energy-widget', 'cost-widget', 'daytime-review-widget']) {

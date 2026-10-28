@@ -238,6 +238,21 @@
   @media (max-width: 359px) {
     .latest-energy-grid, .energy-stats-row { grid-template-columns: minmax(0, 1fr); }
   }
+  .insight-status { display:inline-block; font-size:11px; padding:4px 8px; border:1px solid var(--border); border-radius:6px; }
+  .insight-status.good, .insight-row.good .insight-heading { color:var(--accent2); }
+  .insight-status.attention, .insight-row.attention .insight-heading { color:var(--accent); }
+  .insight-summary { margin:12px 0 16px; font-size:14px; }
+  .insight-row { border-top:1px solid var(--border); padding:16px 0; }
+  .insight-heading { display:flex; align-items:baseline; gap:10px; font-size:14px; font-weight:500; margin-bottom:6px; }
+  .insight-icon { flex:none; color:var(--accent3); }
+  .insight-row.good .insight-icon { color:var(--accent2); }
+  .insight-row.attention .insight-icon { color:var(--accent); }
+  .insight-detail, .insight-exports { color:var(--muted); font-size:12px; }
+  .insight-detail { margin-top:4px; }
+  .insight-exports { border-top:1px solid var(--border); padding-top:12px; }
+  #insights-date { margin-top:6px; }
+  #insights-weather { margin-bottom:12px; white-space:pre-line; line-height:1.7; }
+  @media (max-width:480px) { .insight-heading { flex-wrap:wrap; gap:6px; } .insight-summary, .insight-row p { font-size:13px; } }
   .chart-wrap { position: relative; }
   .chart-wrap canvas { max-height: 280px; }
   .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
@@ -493,12 +508,12 @@
 
   <div class="chart-panel" id="daytime-review-widget">
     <div class="chart-header">
-      <div class="chart-title">Daytime Energy Check</div>
-      <button class="table-action" id="review-daytime-button" onclick="runDaytimeReview()" disabled>Review latest SMT day</button>
+      <div><div class="chart-title">Energy Insights</div><div class="chart-note" id="insights-date">No SMT data loaded</div></div>
+      <button class="table-action" id="review-daytime-button" onclick="runDaytimeReview()" disabled>Review latest day</button>
     </div>
-    <div class="chart-note">On-demand automated review · Uses your configured paid hours · Nighttime activity is summarized separately from daytime alerts</div>
+    <div class="chart-note" id="insights-weather" hidden></div>
     <div id="daytime-review-result" aria-live="polite" style="margin:18px 0;line-height:1.8">Load SMT data, then review the latest available day.</div>
-    <div class="chart-note">Checks charging-window imports, overnight imports, paid-hours imports and exports, recent history, and data quality. SMT alone cannot identify the equipment or cause. This is a rules-based check, not a connected AI service.</div>
+    <div class="chart-note">Based on SMT grid readings · Uses your free-night hours and rates · Energy charges only</div>
   </div>
 
   <div class="section-tabs" id="section-tabs" style="display:none">
@@ -852,7 +867,8 @@ async function fetchWeather() {
   }
 }
 
-const WEATHER_CACHE_KEY = 'energyWeatherCacheV2';
+// Refresh old condition-only storage and HTTP caches once; the SMT cache is unchanged.
+const WEATHER_CACHE_KEY = 'energyWeatherCacheV3';
 const WEATHER_CACHE_MS = 12 * 60 * 60 * 1000;
 
 function readWeatherCache(dateKey) {
@@ -885,7 +901,7 @@ function writeWeatherCache(dateKey, data) {
 async function fetchWeatherForDate(dateKey) {
   const cached = readWeatherCache(dateKey);
   if (cached) return cached;
-  const response = await fetch(`/api/weather?date=${encodeURIComponent(dateKey)}`);
+  const response = await fetch(`/api/weather?date=${encodeURIComponent(dateKey)}&v=3`);
   if (!response.ok) throw new Error(`Weather API ${response.status}`);
   const weather = await response.json();
   writeWeatherCache(dateKey, weather);
@@ -1421,10 +1437,15 @@ function renderAll() {
 }
 
 function invalidateDaytimeReview() {
+  energyInsightsVersion++;
+  const days = [...readings.keys()].sort(), day = days[days.length - 1];
+  document.getElementById('insights-date').textContent = day ? new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', {timeZone:'America/Chicago', month:'short',day:'numeric',year:'numeric'}) : 'No SMT data loaded';
+  document.getElementById('insights-weather').hidden = true;
+  document.getElementById('insights-weather').textContent = '';
   const hasData = readings.size > 0;
   document.getElementById('review-daytime-button').disabled = !hasData;
   document.getElementById('daytime-review-result').textContent = hasData
-    ? 'Ready to review the latest SMT day. Click Review latest SMT day.'
+    ? 'Ready to review the latest SMT day. Select Review latest day.'
     : 'Load SMT data, then review the latest available day.';
 }
 
@@ -1464,6 +1485,8 @@ function reviewBehaviors(intervals) {
   ]};
 }
 
+// Detailed compatibility helper retained for existing diagnostic tests. The
+// user-facing, concise report is built by analyzeEnergyInsights below.
 function daytimeReview(days) {
   const day = days[days.length - 1];
   const intervals = day ? readings.get(day) || [] : [];
@@ -1497,17 +1520,196 @@ function daytimeReview(days) {
   return { day, status, lines };
 }
 
+// Local rules only. Thresholds are in kWh per paid period / 15-minute interval.
+// Keep routine free-window charging informational; no equipment identification.
+const ENERGY_INSIGHT_RULES = Object.freeze({ lowPaid: 0.1, paidDaily: 1, peakInterval: 0.5, sustainedInterval: 0.125, baselineMinimum: 7, baselineExtra: 0.5 });
+let energyInsightsVersion = 0;
+const insightClockCache = new Map();
+
+function insightExpectedTimes(day) {
+  if (insightClockCache.has(day)) return insightClockCache.get(day);
+  if (!validDateKey(day)) return [];
+  // SMT timestamps are local America/Chicago wall times, never browser-local UTC
+  // conversions. Enumerating the actual day handles the 23/25-hour DST dates.
+  const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const start = Date.parse(day + 'T00:00:00Z');
+  const times = [];
+  for (let offset = 0; offset < 33 * 60; offset += 15) {
+    const parts = Object.fromEntries(formatter.formatToParts(start + offset * 60000).map(p => [p.type, p.value]));
+    if (parts.year + '-' + parts.month + '-' + parts.day === day) times.push(parts.hour + ':' + parts.minute);
+  }
+  if (insightClockCache.size >= 40) insightClockCache.delete(insightClockCache.keys().next().value);
+  insightClockCache.set(day, times);
+  return times;
+}
+
+function insightPeriod(intervals, day, matches, direction = 'import') {
+  const minutes = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+  const expected = insightExpectedTimes(day).filter(time => matches(minutes(time)));
+  const present = intervals.filter(r => matches(minutes(r.time)) && (direction === 'import' ? r.hasImport !== false : Number.isFinite(r.exportKwh)));
+  const times = new Set(present.map(r => r.time));
+  const sum = present.reduce((total,r) => total + (direction === 'import' ? r.kwh : r.exportKwh), 0);
+  const kwh = present.length ? Number.isFinite(sum) ? sum : null : expected.length ? null : 0;
+  return {
+    kwh,
+    // The existing parser keys readings by wall time. On the autumn clock change
+    // it cannot prove both repeated hours are present: report partial, not zero.
+    complete: kwh != null && times.size === expected.length && expected.every(time => times.has(time)),
+    estimated: present.some(r => direction === 'import' ? r.importEstimated : r.exportEstimated),
+    expected: expected.length, observed: times.size
+  };
+}
+
+function insightTime(minute) {
+  if (minute === 0 || minute === 1440) return 'midnight';
+  const hour = Math.floor(minute / 60), remainder = minute % 60;
+  return String(hour % 12 || 12) + (remainder ? ':' + String(remainder).padStart(2, '0') : '') + (hour < 12 ? 'am' : 'pm');
+}
+
+function insightCost(kwh, rate) {
+  if (kwh == null || !Number.isFinite(rate) || rate < 0 || !Number.isFinite(kwh * rate)) return '';
+  const cents = kwh * rate;
+  // Dollar rounding hides sub-cent costs. Show cents below $1 without claiming
+  // tiny nonzero charges are zero, and keep the normal cost cards unchanged.
+  const amount = cents === 0 ? '0¢' : cents < 0.01 ? 'less than 0.01¢' : cents < 100 ? Number(cents.toFixed(2)) + '¢' : '$' + (cents / 100).toFixed(2);
+  return 'Estimated energy cost: ' + amount + ' at ' + rate + '¢/kWh.';
+}
+
+function analyzeEnergyInsights(rawIntervals, options = {}) {
+  options = options && typeof options === 'object' ? options : {};
+  const day = validDateKey(options.day) ? options.day : null;
+  const unavailable = { day, status: 'Incomplete data', summary: 'No usable SMT import readings are available for this date.', rows: [], exports: 'Grid exports: unavailable.', measurements: {} };
+  if (!day || !Array.isArray(rawIntervals)) return unavailable;
+  // Work on sanitized copies. Analysis must not change charts, cost inputs,
+  // cached revisions, or export-only readings in the dashboard's data map.
+  const clean = data => deserializeReadingsMap({ [day]: Array.isArray(data) ? data : [] }).get(day) || [];
+  const intervals = clean(rawIntervals);
+  let start = options.freeStart, end = options.freeEnd;
+  if (![start, end].every(h => Number.isInteger(h) && h >= 0 && h < 24) || start === end) { start = 21; end = 9; }
+  const free = minute => start < end ? minute >= start * 60 && minute < end * 60 : minute >= start * 60 || minute < end * 60;
+  const paid = minute => !free(minute);
+  const period = (matches, direction = 'import') => insightPeriod(intervals, day, matches, direction);
+  const total = period(() => true), paidTotal = period(paid), exported = period(() => true, 'export');
+  const imports = intervals.filter(r => r.hasImport !== false);
+  const paidIntervals = imports.filter(r => paid(Number(r.time.slice(0, 2)) * 60 + Number(r.time.slice(3))));
+  const peak = paidIntervals.reduce((best, r) => !best || r.kwh > best.kwh ? r : best, null);
+  const peakImport = imports.reduce((best,r) => !best || r.kwh > best.kwh ? r : best, null);
+  const minutes = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+  const sustained = paidIntervals.some((r, i) => i && r.kwh >= ENERGY_INSIGHT_RULES.sustainedInterval && paidIntervals[i-1].kwh >= ENERGY_INSIGHT_RULES.sustainedInterval && minutes(r.time) - minutes(paidIntervals[i-1].time) === 15);
+  const prior = [...new Map((Array.isArray(options.history) ? options.history : []).filter(item => item && validDateKey(item.day) && item.day < day && item.day >= calendarWindowStart(day, 29)).map(item => [item.day,item])).values()].sort((a,b) => a.day.localeCompare(b.day)).slice(-28);
+  const baseline = prior.map(item => insightPeriod(clean(item.intervals), item.day, paid)).filter(p => p.complete && !p.estimated && p.kwh != null).map(p => p.kwh).sort((a,b) => a-b);
+  const median = baseline.length ? (baseline[Math.floor((baseline.length-1)/2)] + baseline[Math.floor(baseline.length/2)]) / 2 : null;
+  const elevated = baseline.length >= ENERGY_INSIGHT_RULES.baselineMinimum && paidTotal.kwh > Math.max(median * 2, median + ENERGY_INSIGHT_RULES.baselineExtra);
+  const concerning = paidTotal.kwh > ENERGY_INSIGHT_RULES.paidDaily || (peak && peak.kwh >= ENERGY_INSIGHT_RULES.peakInterval) || sustained || elevated;
+  const complete = total.complete && !total.estimated;
+  const status = !complete ? 'Incomplete data' : concerning ? 'Worth checking' : 'Looks normal';
+  const daytimePaid = end < start;
+  let summary = !complete ? 'Some import readings are missing or estimated. These figures cover the available readings.' : concerning
+    ? 'Paid-hours grid use is worth checking. The times and amounts are shown below.'
+    : paidTotal.kwh <= ENERGY_INSIGHT_RULES.lowPaid
+      ? (daytimePaid ? 'Daytime' : 'Paid-hours') + ' grid use stayed very low.'
+      : 'No substantial paid-hours grid draw stood out.';
+  if (!imports.length) summary = unavailable.summary;
+  // Normal schedules follow the configured boundaries. If the free period is
+  // moved into daytime, keep chronological rows and label mixed periods honestly.
+  const spans = daytimePaid ? [[0, end * 60, 'Morning', '☀'], [end * 60, start * 60, end ? 'Daytime' : 'Paid hours', '☼'], [start * 60, 1440, 'Night', '☾']]
+    : [[0, 540, 'Morning', '☀'], [540, 1260, 'Daytime', '☼'], [1260, 1440, 'Night', '☾']];
+  const rows = spans.filter(([from,to]) => to > from).map(([from,to,name,icon]) => {
+    const inside = minute => minute >= from && minute < to;
+    const measured = period(inside), paidInRow = period(minute => inside(minute) && paid(minute));
+    const allFree = insightExpectedTimes(day).filter(time => inside(minutes(time))).every(time => free(minutes(time)));
+    const allPaid = insightExpectedTimes(day).filter(time => inside(minutes(time))).every(time => paid(minutes(time)));
+    const quality = (!measured.complete ? ' Partial readings.' : '') + (measured.estimated ? ' Includes estimates.' : '');
+    const text = measured.kwh == null ? 'No import readings available.' : measured.kwh.toFixed(3) + ' kWh imported' + (allFree ? ' during free hours.' : allPaid ? ' during paid hours.' : '; ' + (paidInRow.kwh == null ? 'paid-hours usage unavailable.' : paidInRow.kwh.toFixed(3) + ' kWh during paid hours.')) + quality;
+    const hours = Array.from({length:24},(_,hour) => ({hour, data: period(minute => inside(minute) && Math.floor(minute / 60) === hour)})).filter(item => item.data.expected && item.data.kwh != null);
+    const highest = hours.reduce((best, item) => !best || item.data.kwh > best.data.kwh ? item : best, null);
+    const attention = !!concerning && paidInRow.kwh != null && paidInRow.kwh > 0 && ((peak && inside(minutes(peak.time))) || paidInRow.kwh > ENERGY_INSIGHT_RULES.paidDaily);
+    let detail = '';
+    if (attention && peak && inside(minutes(peak.time))) detail = 'Largest paid-hours draw: ' + peak.kwh.toFixed(3) + ' kWh from ' + insightTime(minutes(peak.time)) + '–' + insightTime(minutes(peak.time) + 15) + '.' + (elevated ? ' Daily paid-hours use is above your recent pattern.' : '');
+    else if (highest && highest.data.kwh >= 0.1 && !allPaid) detail = (highest.data.complete ? 'Largest hour: ' : 'Largest observed hour: ') + highest.data.kwh.toFixed(3) + ' kWh from ' + insightTime(highest.hour * 60) + '–' + insightTime((highest.hour + 1) * 60) + (allFree ? ', within your free window.' : '.');
+    if (name === 'Morning' && daytimePaid && end > 0) {
+      const before = period(minute => minute >= (end-1)*60 && minute < end*60);
+      const after = period(minute => minute >= end*60 && minute < (end+1)*60);
+      if (before.complete && after.complete && !before.estimated && !after.estimated && before.kwh >= 0.25 && after.kwh <= 0.025 && after.kwh < before.kwh * 0.1) detail = 'Imports dropped sharply around ' + insightTime(end*60) + '.';
+    }
+    const rate = allFree ? options.nightRate : allPaid ? options.dayRate : null;
+    const cost = !allFree && allPaid ? insightCost(measured.kwh, rate) : '';
+    return { category: name.toLowerCase(), priority: attention ? 1 : 2, headline: name + ' · ' + insightTime(from) + '–' + insightTime(to), icon,
+      text, detail, cost, tone: attention ? 'attention' : allPaid && measured.complete && !measured.estimated && measured.kwh <= ENERGY_INSIGHT_RULES.lowPaid ? 'good' : 'neutral', measurements: { ...measured, paidKwh: paidInRow.kwh } };
+  });
+  // An unexpected paid-period event comes first. Other rows remain chronological;
+  // routine night charging never creates a warning solely because it is large.
+  rows.sort((a,b) => a.priority - b.priority);
+  return { day, status, summary, rows, exports: exported.kwh == null ? 'Grid exports: unavailable.' : 'Grid exports: ' + exported.kwh.toFixed(3) + ' kWh for the day.' + (!exported.complete ? ' Partial readings.' : '') + (exported.estimated ? ' Includes estimates.' : ''),
+    measurements: { total, paid: paidTotal, exported, baselineDays: baseline.length, baselineMedian: median, peakImport: peakImport ? {time:peakImport.time, kwh:peakImport.kwh, averageKw:peakImport.kwh*4} : null, peakPaid: peak ? { time: peak.time, kwh: peak.kwh, averageKw: Number.isFinite(peak.kwh*4) ? peak.kwh*4 : null } : null } };
+}
+
 function runDaytimeReview() {
-  const result = daytimeReview([...readings.keys()].sort());
+  const version = ++energyInsightsVersion;
+  const days = [...readings.keys()].sort(), day = days[days.length - 1];
   const container = document.getElementById('daytime-review-result');
-  container.replaceChildren();
-  const title = document.createElement('strong');
-  title.textContent = result.status + (result.day ? ' — ' + fmtDate(result.day) : '');
-  title.style.color = result.status === 'Looks normal' ? 'var(--accent2)' : 'var(--accent)';
-  container.appendChild(title);
-  const list = document.createElement('ul');
-  result.lines.forEach(line => { const item = document.createElement('li'); item.textContent = line; list.appendChild(item); });
-  container.appendChild(list);
+  const weather = document.getElementById('insights-weather');
+  weather.hidden = true;
+  try {
+    const result = analyzeEnergyInsights(day ? readings.get(day) : [], { day, freeStart: freeStartHour, freeEnd: freeEndHour,
+      dayRate: readEnergyRate('day-rate'), nightRate: readEnergyRate('night-rate'), history: days.filter(date => date < day).map(date => ({day:date, intervals:readings.get(date)})) });
+    container.replaceChildren();
+    const add = (parent, tag, text, className) => { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; parent.appendChild(node); return node; };
+    add(container, 'span', result.status, 'insight-status ' + (result.status === 'Looks normal' ? 'good' : 'attention'));
+    add(container, 'p', result.summary, 'insight-summary');
+    result.rows.forEach(row => {
+      const section = add(container, 'section', '', 'insight-row ' + row.tone);
+      const heading = add(section, 'h3', '', 'insight-heading');
+      const icon = add(heading, 'span', row.icon, 'insight-icon'); icon.setAttribute('aria-hidden', 'true');
+      add(heading, 'span', row.headline);
+      add(section, 'p', row.text);
+      if (row.detail) add(section, 'p', row.detail, 'insight-detail');
+      if (row.cost) add(section, 'p', row.cost, 'insight-detail');
+    });
+    add(container, 'p', result.exports, 'insight-exports');
+    if (day) loadInsightWeather(day, version);
+  } catch (error) {
+    // A report failure must remain inside this panel; charts, tables and rates
+    // stay usable. Avoid exposing household intervals in diagnostic output.
+    container.textContent = 'Energy insights are temporarily unavailable. Your charts and tables are still available.';
+    console.warn('Could not render energy insights', error?.message);
+  }
+}
+
+function insightWeatherLines(data) {
+  const condition = data?.condition;
+  if (typeof condition !== 'string' || !condition.trim() || condition === 'Unknown' || condition.length > 80) return [];
+  // Only a configured label may name the postal area; the browser does not
+  // geocode or infer that the configured coordinates match a ZIP code.
+  const label = /^\d{5}$/.test(String(data.postalCode || '')) ? data.postalCode : 'Local weather';
+  const validTemperature = value => typeof value === 'number' && Number.isFinite(value) && value >= -150 && value <= 160;
+  const inverted = validTemperature(data.highF) && validTemperature(data.lowF) && data.highF < data.lowF;
+  const temperatures = [];
+  if (!inverted && validTemperature(data.highF)) temperatures.push('High ' + Math.round(data.highF) + '°F');
+  if (!inverted && validTemperature(data.lowF)) temperatures.push('Low ' + Math.round(data.lowF) + '°F');
+  const lines = [weatherIcon(condition) + ' ' + label + ' · ' + condition + (temperatures.length ? ' · ' + temperatures.join(' / ') : '') + ' (approx.)'];
+  const validTime = value => typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+  const sunTimes = [];
+  const invertedTimes = validTime(data.sunrise) && validTime(data.sunset) && data.sunrise >= data.sunset;
+  const displayTime = value => insightTime(Number(value.slice(0,2)) * 60 + Number(value.slice(3)));
+  // API times are already local to WEATHER_TIMEZONE (America/Chicago by default).
+  // Do not feed these wall times into Date: phone/browser timezones must not shift them.
+  if (!invertedTimes && validTime(data.sunrise)) sunTimes.push('Sunrise ' + displayTime(data.sunrise));
+  if (!invertedTimes && validTime(data.sunset)) sunTimes.push('Sunset ' + displayTime(data.sunset));
+  if (sunTimes.length) lines.push(sunTimes.join(' · '));
+  return lines;
+}
+
+async function loadInsightWeather(day, version) {
+  try {
+    const data = await fetchWeatherForDate(day);
+    if (version !== energyInsightsVersion) return; // A refresh/rate edit/newer review superseded this request.
+    const lines = insightWeatherLines(data);
+    if (!lines.length) return;
+    const target = document.getElementById('insights-weather');
+    target.textContent = lines.join('\n');
+    target.hidden = false;
+  } catch { /* Weather is optional context, never a reason to block the report. */ }
 }
 
 function isCompleteDay(intervals) {
