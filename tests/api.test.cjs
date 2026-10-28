@@ -4,7 +4,7 @@ const { pathToFileURL } = require('node:url');
 const test = require('node:test');
 
 const originalFetch = globalThis.fetch;
-const configNames = ['DRIVE_API_KEY', 'DRIVE_FOLDER_ID', 'WEATHER_LAT', 'WEATHER_LON'];
+const configNames = ['DRIVE_API_KEY', 'DRIVE_FOLDER_ID', 'WEATHER_LAT', 'WEATHER_LON', 'WEATHER_POSTAL_CODE'];
 const originalConfig = Object.fromEntries(configNames.map(name => [name, process.env[name]]));
 test.beforeEach(() => {
   process.env.DRIVE_API_KEY = 'test-key';
@@ -244,4 +244,69 @@ test('weather rejects invalid dates and reports upstream outages without leaking
   res = await invoke(handler, { date: '2026-10-13' });
   assert.equal(res.statusCode, 502);
   assert.equal(res.body.error, 'Weather service unavailable');
+});
+
+
+test('weather omits missing/unknown conditions instead of treating null as clear skies', async () => {
+  process.env.WEATHER_LAT='0'; process.env.WEATHER_LON='0';
+  for (const code of [null, undefined, '', 999]) {
+    const handler = await loadHandler('api/weather.js', async () => ({ ok:true, json:async()=>({daily:{weather_code:[code],precipitation_sum:[null]}}) }));
+    const result = await invoke(handler,{date:'2026-10-27'});
+    assert.equal(result.statusCode,502);
+    assert.equal(result.body.condition,undefined);
+  }
+});
+
+test('weather rejects impossible dates without requesting the provider', async () => {
+  let calls=0;
+  const handler=await loadHandler('api/weather.js',async()=>{calls++;throw new Error('should not fetch')});
+  for(const date of ['2026-02-30','2026-13-01','2026-00-00'])assert.equal((await invoke(handler,{date})).statusCode,400);
+  assert.equal(calls,0);
+});
+
+test('weather optionally labels owner-configured postal area without disclosing coordinates', async () => {
+  process.env.WEATHER_LAT='0'; process.env.WEATHER_LON='0';
+  process.env.WEATHER_POSTAL_CODE='77494';
+  const handler=await loadHandler('api/weather.js',async()=>({ok:true,json:async()=>({daily:{weather_code:[3],precipitation_sum:[0]}})}));
+  const result=await invoke(handler,{date:'2026-10-27'});
+  assert.equal(result.body.postalCode,'77494');assert.equal(result.body.condition,'Overcast');
+  assert.equal(result.body.latitude,undefined);assert.equal(result.body.longitude,undefined);
+  process.env.WEATHER_POSTAL_CODE='unverified';
+  assert.equal((await invoke(handler,{date:'2026-10-27'})).body.postalCode,undefined);
+});
+
+test('weather requests Fahrenheit high/low and local sun times for the SMT date', async () => {
+  process.env.WEATHER_LAT='0';process.env.WEATHER_LON='0';
+  const handler=await loadHandler('api/weather.js',async url=>{
+    const params=new URL(url).searchParams;
+    assert.equal(params.get('temperature_unit'),'fahrenheit');
+    assert.equal(params.get('timezone'),'America/Chicago');
+    assert.equal(params.get('start_date'),'2026-10-27');
+    for(const field of ['temperature_2m_max','temperature_2m_min','sunrise','sunset'])assert.ok(params.get('daily').split(',').includes(field));
+    return {ok:true,json:async()=>({daily:{weather_code:[3],precipitation_sum:[0],temperature_2m_max:[81.6],temperature_2m_min:[64.2],sunrise:['2026-10-27T07:31'],sunset:['2026-10-27T18:40']}})};
+  });
+  const result=await invoke(handler,{date:'2026-10-27'});
+  assert.equal(result.statusCode,200);assert.equal(result.body.highF,81.6);assert.equal(result.body.lowF,64.2);
+  assert.equal(result.body.sunrise,'07:31');assert.equal(result.body.sunset,'18:40');
+});
+
+test('weather omits unavailable, malformed, inverted or wrong-date optional fields',async()=>{
+  process.env.WEATHER_LAT='0';process.env.WEATHER_LON='0';
+  for(const fields of [
+    {temperature_2m_max:[null],temperature_2m_min:[null],sunrise:[null],sunset:[null]},
+    {temperature_2m_max:['82'],temperature_2m_min:[999],sunrise:['2026-10-27T25:00'],sunset:['2026-10-26T18:40']},
+    {temperature_2m_max:[40],temperature_2m_min:[80],sunrise:['2026-10-27T19:00'],sunset:['2026-10-27T07:00']}
+  ]) {
+    const handler=await loadHandler('api/weather.js',async()=>({ok:true,json:async()=>({daily:{weather_code:[3],precipitation_sum:[0],...fields}})}));
+    const result=await invoke(handler,{date:'2026-10-27'});
+    assert.equal(result.statusCode,200);assert.equal(result.body.highF,undefined);assert.equal(result.body.lowF,undefined);
+    assert.equal(result.body.sunrise,undefined);assert.equal(result.body.sunset,undefined);
+  }
+});
+
+test('weather preserves measured freezing temperatures and valid optional partial data',async()=>{
+  process.env.WEATHER_LAT='0';process.env.WEATHER_LON='0';
+  const handler=await loadHandler('api/weather.js',async()=>({ok:true,json:async()=>({daily:{weather_code:[0],precipitation_sum:[0],temperature_2m_max:[0],temperature_2m_min:[-5],sunrise:['2026-10-27T07:31:00']}})}));
+  const result=await invoke(handler,{date:'2026-10-27'});
+  assert.equal(result.body.highF,0);assert.equal(result.body.lowF,-5);assert.equal(result.body.sunrise,'07:31');assert.equal(result.body.sunset,undefined);
 });

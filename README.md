@@ -46,20 +46,29 @@ No changes to the SMT/Drive variables or files are required.
   of historical day selection, and trailing seven-day costs remain available.
 - The five average summary cards have been removed. The charts and hourly table
   retain detailed usage and import/export information for the latest 30 calendar days.
-- **Daytime Energy Check** reviews the newest SMT day on demand using configured
-  paid hours. It is explicitly a local rules-based check, not an AI integration.
-  Initial thresholds flag more than 1 kWh paid-period import, a 0.5 kWh
-  quarter-hour spike, or two consecutive 0.125 kWh intervals. With at least seven
-  complete actual prior paid periods (up to 28 previous available days), it also
-  flags imports exceeding both twice the median and the median plus 0.5 kWh.
-  Incomplete or estimated paid-period readings yield insufficient data. Nighttime
-  charging is excluded from daytime alerts. The report also summarizes grid imports
-  in the first hour of the configured free window, 1 AM–7 AM imports restricted
-  to free hours, and paid-hours imports and exports. Each summary independently
-  reports missing intervals and estimated readings. End times are exclusive;
-  all windows refer to the same calendar date, not a stitched overnight session.
-  SMT cannot assign imports to equipment or measure total generation from exports.
-  Data, rate, or free-hour changes invalidate the result.
+- **Energy Insights** reviews the newest SMT day on demand, using local rules and
+  the configured free-night hours and rates. It shows one short assessment, up to
+  three morning/daytime/night rows with exact hours, and a daily export line.
+  Unexpected paid-hour activity is shown first; expected free-window charging is
+  informational. Percentages and extra graphs are deliberately omitted.
+- Initial paid-use rules remain: over 1 kWh per paid period, a 0.5 kWh quarter-hour
+  peak, or two consecutive 0.125 kWh intervals. With at least seven complete,
+  actual prior paid periods (up to 28 within the 30-day history), paid imports also
+  flag when above both twice the median and the median plus 0.5 kWh. Low paid use
+  is at most 0.1 kWh. Constants are documented in `ENERGY_INSIGHT_RULES`; there are
+  no additional user controls. No equipment or solar-production cause is inferred.
+- Missing or estimated imports prevent a whole-day normal verdict. Import/export
+  quality is independent, unknown exports remain unavailable, and partial figures
+  represent observed intervals only. Very small energy charges use cents to avoid
+  hiding sub-cent differences. Existing cost cards keep their original formatting.
+- Historical weather is optional context for the SMT date, using the existing
+  weather endpoint and configured `WEATHER_LAT`/`WEATHER_LON`. For the requested
+  77494 area, those existing coordinates must correspond to that area. An optional
+  `WEATHER_POSTAL_CODE=77494` labels the configured location; it does not geocode or
+  verify coordinates. Without it the label is Local weather. Missing/unknown
+  conditions are omitted; no guessed cloudiness or weather-based cause is shown.
+- Data, date/rate/free-hour changes invalidate an old report. A generation counter
+  prevents delayed weather responses from updating newer or cleared reports.
 - CSV parsing detects the SMT header after optional report metadata and also supports
   header-first files. Headers and time fields are trimmed; import/export directions
   and their revision and quality flags remain separate.
@@ -102,7 +111,7 @@ No changes to the SMT/Drive variables or files are required.
 ### Hourly table and weather
 
 - The hourly table defaults to the most recent 14 days to stay readable and avoid unnecessary
-  weather requests. The selector can show 7, 30, or all loaded days when a larger export is needed.
+  weather requests. The selector offers only 7, 14, and 30 calendar days.
 - Weather is plain text in the date cell (`condition | Rain 0.00 in`) so copied output remains useful
   in spreadsheets and AI prompts. The Copy button emits tab-separated text and includes a daily
   total column.
@@ -201,3 +210,44 @@ readings are available. A seven-day cost estimate for a day near the oldest
 retained date can be partial and remains labeled with its available coverage.
 The removed All loaded data option and obsolete monthly aggregate calculations
 are no longer used. Files in Google Drive are never deleted by this cutoff.
+
+### Energy Insights maintenance and test notes
+
+`analyzeEnergyInsights` returns structured results and runs on sanitized copies;
+it never changes the dashboard readings, chart data, existing cost estimates,
+Drive sync, or table selection. The existing `daytime-review-*` IDs and review
+entry point remain for compatibility. Detailed legacy diagnostic helpers retain
+separate tests; the visible panel uses the new concise engine.
+
+Insight periods use America/Chicago wall times and end-exclusive boundaries.
+The spring clock-change day expects 92 quarters. The fall day expects 100;
+since wall-time keyed SMT data cannot prove that both repeated hours are present,
+that case remains conservatively partial. Inverted/daytime free windows use
+chronological morning/day/night spans and explicitly label free, paid, or mixed
+usage. No fixed 9 AM/9 PM assumptions are used for paid-use detection.
+
+The October 27 regression fixture is synthetic data matching the owner's supplied
+aggregates (15.174 kWh import, 0.093 export, 7.234 morning, 0.048 paid, 6.175 from
+9–10 PM, 2.905 at 9:15 PM / 11.62 kW). It validates arithmetic, not that day's
+unavailable original interval readings or weather. Other cases cover zero usage,
+partial/estimated/export-only data, invalid rates, duplicate revisions, missing
+weather, clock changes, duplicate history, and malformed inputs. Browser tests
+exercise stale weather responses, repeated clicks, safe text rendering, isolated
+analysis failures, unchanged charts/costs, and phone/tablet layouts.
+
+### Approximate daily weather and daylight context
+
+Energy Insights adds the existing provider's Fahrenheit daily high/low and local
+sunrise/sunset beneath the SMT date. These are approximate values for the
+configured location, not measurements at the house or indicators of actual solar
+production. The existing weather request includes the four extra daily fields;
+there is no new provider, geocoding request, or additional per-panel API call.
+Temperatures round to whole °F. Times retain the provider's local wall time
+(`WEATHER_TIMEZONE`, default America/Chicago), independent of the viewer's phone
+or browser timezone. Missing, malformed, inverted, or wrong-date optional values
+are omitted individually, never replaced with zero or invented estimates.
+Weather cache V3 and the versioned request URL refresh previous condition-only
+storage/HTTP records once; SMT caching and
+Drive downloads are unchanged. Old API responses without the new fields remain
+compatible. Model/weather differences must not alter energy classifications or
+claim that sunrise/sunset equals the useful solar-production window.
