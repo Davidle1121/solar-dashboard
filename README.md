@@ -49,7 +49,7 @@ No changes to the SMT/Drive variables or files are required.
 - **Energy Insights** reviews the newest SMT day on demand, using local rules and
   the configured free-night hours and rates. It shows one short assessment, up to
   three morning/daytime/night rows with exact hours, and a daily export line.
-  Unexpected paid-hour activity is shown first; expected free-window charging is
+  Unexpected paid-hour activity is identified in the takeaway and its section; expected free-window charging is
   informational. Percentages and extra graphs are deliberately omitted.
 - Initial paid-use rules remain: over 1 kWh per paid period, a 0.5 kWh quarter-hour
   peak, or two consecutive 0.125 kWh intervals. With at least seven complete,
@@ -251,3 +251,18 @@ storage/HTTP records once; SMT caching and
 Drive downloads are unchanged. Old API responses without the new fields remain
 compatible. Model/weather differences must not alter energy classifications or
 claim that sunrise/sunset equals the useful solar-production window.
+
+### Insight section ownership and wording
+
+The top takeaway is explicitly scoped to **paid-hours grid use**, not a verdict on
+solar output, battery health, or all-day system operation. The internal status
+remains available to the engine/tests but is not displayed as a vague Looks normal
+badge. Missing/estimated readings instead get a clearly named meter-data notice.
+
+Morning, Daytime, and Night always remain stacked in chronological order. Each
+has its own bordered background, a consistent white heading, explicit hours, a
+From the grid reading, and explanatory text inside the same labelled section.
+Desktop sections align the reading and explanation across the available width;
+phones stack them inside each section. Warnings use Check this period and a border,
+not heading colors. The 9 AM transition explanation belongs to Daytime and is
+shown only when complete actual paid-period readings support the low-use claim.

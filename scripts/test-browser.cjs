@@ -30,10 +30,13 @@ async function main() {
       total++;
       const width = options.width || 390;
       const context = await browser.newContext({ viewport: { width, height: options.height || 1024 }, isMobile: width < 600, hasTouch: true, timezoneId: options.timezone || 'UTC' });
+      let diagnosticPage;
+      const errors = [];
       try {
         const page = await context.newPage();
-        page.setDefaultTimeout(5000);
-        const errors = [];
+        diagnosticPage = page;
+        // CI rendering can be busy; wait for state rather than relying on sleeps.
+        page.setDefaultTimeout(10000);
         page.on('pageerror', error => errors.push(error.message));
         let driveMode = options.drive || 'empty';
         let listCalls = 0, activeDownloads = 0, peakDownloads = 0;
@@ -91,6 +94,8 @@ async function main() {
       } catch (error) {
         failures++;
         console.error('FAIL ' + name + '\n' + error.stack);
+        if(errors.length) console.error('Browser exceptions:',errors);
+        if(diagnosticPage && !diagnosticPage.isClosed()) console.error('Report state:',await diagnosticPage.locator('#daytime-review-result').textContent().catch(()=>''),'Weather:',await diagnosticPage.locator('#insights-weather').textContent().catch(()=>''));
       } finally { await context.close(); }
     }
     const empty = async ({ page, ready }) => {
@@ -106,13 +111,13 @@ async function main() {
     });
     await check('empty render, navigation and review calls', {}, async ({ page, ready }) => {
       await ready(); await page.evaluate(() => { renderAll(); selectDay('missing'); shiftDay(1); runDaytimeReview(); });
-      assert.match(await page.locator('#daytime-review-result').textContent(), /Incomplete data/);
+      assert.match(await page.locator('#daytime-review-result').textContent(), /Meter readings are incomplete/);
     });
     await check('delayed data arrival after first render', { drive: 'success', delay: 200 }, async ({ page }) => {
       assert.equal(await page.locator('#review-daytime-button').isDisabled(), true);
       await page.waitForFunction(() => document.getElementById('latest-day-import').textContent === '0.048 kWh');
       await page.locator('#review-daytime-button').click();
-      assert.match(await page.locator('#daytime-review-result').textContent(), /Looks normal/);
+      assert.match(await page.locator('#daytime-review-result').textContent(), /grid electricity during paid hours/);
     });
     await check('cold startup Drive failure', { drive: 'failure' }, async ({ page, ready }) => {
       await ready(); assert.equal(await page.locator('#review-daytime-button').isDisabled(), true);
@@ -161,7 +166,7 @@ async function main() {
     });
     await check('missing chart library leaves reports and table usable', { missingChart: true }, async ({ page, load, ready }) => {
       await ready(); await load(); await page.locator('#review-daytime-button').click();
-      assert.match(await page.locator('#daytime-review-result').textContent(), /Looks normal/);
+      assert.match(await page.locator('#daytime-review-result').textContent(), /grid electricity during paid hours/);
       assert.match(await page.locator('#hourly-table-body').textContent(), /Oct/);
       assert.equal(await page.locator('.chart-unavailable').count(), 2);
     });
@@ -222,7 +227,7 @@ async function main() {
           if (mode === 'export-only') data.forEach(r => { r.hasImport = false; r.kwh = 0; });
           readings = new Map([['2026-10-19', data]]); renderAll(); runDaytimeReview();
         }, { data: sample, mode });
-        assert.match(await page.locator('#daytime-review-result').textContent(), /Incomplete data/);
+        assert.match(await page.locator('#daytime-review-result').textContent(), /Meter readings are incomplete/);
       }
     });
     for (const width of [390, 820]) {
@@ -258,7 +263,7 @@ async function main() {
     for (const weather of [undefined,'unknown']) await check('weather unavailable/unknown is omitted: '+weather,{weather},async ({page,load,ready})=>{
       await ready();await load();await page.locator('#review-daytime-button').click();await page.waitForTimeout(100);
       assert.equal(await page.locator('#insights-weather').isVisible(),false);
-      assert.match(await page.locator('#daytime-review-result').textContent(),/Looks normal/);
+      assert.match(await page.locator('#daytime-review-result').textContent(),/grid electricity during paid hours/);
     });
     await check('late weather response cannot overwrite a newer report',{weather:'known',weatherDelay:500},async ({page,load,ready})=>{
       await ready();await load();await page.locator('#review-daytime-button').click();
@@ -307,7 +312,7 @@ async function main() {
         await page.waitForFunction(()=>!document.getElementById('insights-weather').hidden);
         const text=await page.locator('#insights-weather').textContent();
         assert.match(text,/Overcast/);assert.doesNotMatch(text,/High|Low|Sunrise|Sunset/);
-        assert.match(await page.locator('#daytime-review-result').textContent(),/Looks normal/);
+        assert.match(await page.locator('#daytime-review-result').textContent(),/grid electricity during paid hours/);
       });
     }
     await check('old condition-only weather cache does not hide new daily details',{weather:'known',legacyWeather:true},async ({page,load,ready})=>{
@@ -320,9 +325,32 @@ async function main() {
       await page.waitForFunction(()=>document.getElementById('insights-weather').textContent.includes('Sunrise'));
       assert.match(await page.locator('#insights-weather').textContent(),/Sunrise 7:31am · Sunset 6:40pm/);
     });
+    await check('paid-hours takeaway and visibly separate sections replace ambiguous overall badges', {width:1100}, async ({page,load,ready})=>{
+      await ready();await load();await page.locator('#review-daytime-button').click();
+      assert.equal(await page.locator('.insight-status').count(),0);
+      assert.equal(await page.locator('.insight-takeaway-label').textContent(),'Paid-hours grid use · 9am–9pm');
+      assert.match(await page.locator('.insight-summary').textContent(),/only 0.048 kWh of grid electricity during paid hours/);
+      assert.doesNotMatch(await page.locator('#daytime-review-result').textContent(),/Looks normal|Imports dropped/);
+      assert.deepEqual(await page.locator('.insight-heading').allTextContents(),['Morning','Daytime','Night']);
+      const sections=await page.locator('.insight-row').evaluateAll(rows=>rows.map(row=>({
+        border:parseFloat(getComputedStyle(row).borderTopWidth),radius:parseFloat(getComputedStyle(row).borderRadius),
+        background:getComputedStyle(row).backgroundColor,parentBackground:getComputedStyle(row.parentElement.parentElement).backgroundColor,
+        headingColor:getComputedStyle(row.querySelector('h3')).color,headingId:row.querySelector('h3').id,label:row.getAttribute('aria-labelledby'),
+        top:row.getBoundingClientRect().top,bottom:row.getBoundingClientRect().bottom
+      })));
+      assert.equal(new Set(sections.map(row=>row.headingColor)).size,1);
+      sections.forEach((row,index)=>{assert.ok(row.border>=1&&row.radius>=8);assert.notEqual(row.background,row.parentBackground);assert.equal(row.headingId,row.label);if(index)assert.ok(row.top>sections[index-1].bottom)});
+      assert.doesNotMatch(await page.locator('.insight-row').nth(0).textContent(),/paid hours began/);
+      assert.match(await page.locator('.insight-row').nth(1).textContent(),/Grid use dropped when paid hours began/);
+      await page.evaluate(data=>{data[40].kwh=0.6;readings=new Map([['2026-10-19',data]]);renderAll();runDaytimeReview()},sample);
+      assert.deepEqual(await page.locator('.insight-heading').allTextContents(),['Morning','Daytime','Night']);
+      assert.equal(await page.locator('.insight-attention-label').textContent(),'Check this period');
+      assert.equal(await page.locator('.insight-attention-label').evaluate(node=>node.closest('section').querySelector('h3').textContent),'Daytime');
+    });
     for (const [width, height] of [[320, 568], [375, 667], [390, 844], [430, 932], [768, 1024], [820, 1180], [1024, 768], [1180, 820]]) {
       await check('touch layout ' + width + '×' + height, { width, height, weather:'known' }, async ({ page, load, ready }) => {
         await ready(); await load(); await page.locator('#review-daytime-button').click();
+        await page.locator('.insight-takeaway').waitFor({state:'visible'});
         await page.waitForFunction(()=>document.getElementById('insights-weather').textContent.includes('Sunrise'));
         const issues = await page.evaluate(() => {
           const issues = [];
@@ -339,9 +367,9 @@ async function main() {
           return issues;
         });
         assert.deepEqual(issues, []);
-        if (process.env.BROWSER_QA_OUTPUT && [390, 820].includes(width)) {
+        if (process.env.BROWSER_QA_OUTPUT && [390, 820, 1024].includes(width)) {
           fs.mkdirSync(process.env.BROWSER_QA_OUTPUT, { recursive: true });
-          await page.screenshot({ path: path.join(process.env.BROWSER_QA_OUTPUT, 'dashboard-' + width + '.png'), fullPage: true });
+          await page.locator('#daytime-review-widget').screenshot({ path: path.join(process.env.BROWSER_QA_OUTPUT, 'dashboard-' + width + '.png') });
         }
       });
     }

@@ -238,21 +238,30 @@
   @media (max-width: 359px) {
     .latest-energy-grid, .energy-stats-row { grid-template-columns: minmax(0, 1fr); }
   }
-  .insight-status { display:inline-block; font-size:11px; padding:4px 8px; border:1px solid var(--border); border-radius:6px; }
-  .insight-status.good, .insight-row.good .insight-heading { color:var(--accent2); }
-  .insight-status.attention, .insight-row.attention .insight-heading { color:var(--accent); }
-  .insight-summary { margin:12px 0 16px; font-size:14px; }
-  .insight-row { border-top:1px solid var(--border); padding:16px 0; }
-  .insight-heading { display:flex; align-items:baseline; gap:10px; font-size:14px; font-weight:500; margin-bottom:6px; }
-  .insight-icon { flex:none; color:var(--accent3); }
-  .insight-row.good .insight-icon { color:var(--accent2); }
-  .insight-row.attention .insight-icon { color:var(--accent); }
-  .insight-detail, .insight-exports { color:var(--muted); font-size:12px; }
-  .insight-detail { margin-top:4px; }
-  .insight-exports { border-top:1px solid var(--border); padding-top:12px; }
+  #daytime-review-widget { font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+  .insight-takeaway { padding:14px 16px; margin-bottom:16px; background:var(--surface2); border:1px solid #344052; border-radius:8px; }
+  .insight-takeaway.attention { border-color:var(--accent); }
+  .insight-takeaway-label { display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--text); }
+  .insight-summary { font-size:15px; line-height:1.6; color:var(--text); }
+  .insight-row { border:1px solid #344052; border-radius:8px; background:var(--surface2); padding:16px; margin:12px 0; }
+  .insight-row.attention { border-color:var(--accent); }
+  .insight-row-header { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px 16px; margin-bottom:12px; }
+  .insight-heading { font-size:16px; font-weight:600; color:var(--text); }
+  .insight-period { font-size:13px; color:var(--text); }
+  .insight-row-body { display:grid; grid-template-columns:160px minmax(0,1fr); gap:12px 24px; align-items:start; }
+  .insight-amount { display:block; font-size:22px; font-weight:600; line-height:1.3; }
+  .insight-amount-label { display:block; font-size:12px; color:var(--muted); margin-top:3px; }
+  .insight-explanation { font-size:14px; line-height:1.6; }
+  .insight-detail { font-size:13px; color:var(--text); margin-top:6px; line-height:1.6; }
+  .insight-attention-label { display:block; font-weight:600; color:var(--accent); font-size:13px; margin-bottom:6px; }
+  .insight-exports { color:var(--text); font-size:13px; padding:4px 0; }
   #insights-date { margin-top:6px; }
-  #insights-weather { margin-bottom:12px; white-space:pre-line; line-height:1.7; }
-  @media (max-width:480px) { .insight-heading { flex-wrap:wrap; gap:6px; } .insight-summary, .insight-row p { font-size:13px; } }
+  #insights-weather { margin-bottom:12px; white-space:pre-line; font-size:12px; line-height:1.7; }
+  @media (max-width:600px) {
+    .insight-row { padding:14px; }
+    .insight-row-body { grid-template-columns:minmax(0,1fr); gap:10px; }
+    .insight-summary, .insight-explanation { font-size:14px; }
+  }
   .chart-wrap { position: relative; }
   .chart-wrap canvas { max-height: 280px; }
   .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
@@ -1572,13 +1581,13 @@ function insightCost(kwh, rate) {
   // Dollar rounding hides sub-cent costs. Show cents below $1 without claiming
   // tiny nonzero charges are zero, and keep the normal cost cards unchanged.
   const amount = cents === 0 ? '0¢' : cents < 0.01 ? 'less than 0.01¢' : cents < 100 ? Number(cents.toFixed(2)) + '¢' : '$' + (cents / 100).toFixed(2);
-  return 'Estimated energy cost: ' + amount + ' at ' + rate + '¢/kWh.';
+  return 'Cost for this period: ' + amount + ' at ' + rate + '¢/kWh.';
 }
 
 function analyzeEnergyInsights(rawIntervals, options = {}) {
   options = options && typeof options === 'object' ? options : {};
   const day = validDateKey(options.day) ? options.day : null;
-  const unavailable = { day, status: 'Incomplete data', summary: 'No usable SMT import readings are available for this date.', rows: [], exports: 'Grid exports: unavailable.', measurements: {} };
+  const unavailable = { day, status: 'Incomplete data', takeawayLabel: 'Meter readings are incomplete', summary: 'No grid usage readings are available for this day.', rows: [], exports: 'Electricity sent back to the grid: unavailable.', measurements: {} };
   if (!day || !Array.isArray(rawIntervals)) return unavailable;
   // Work on sanitized copies. Analysis must not change charts, cost inputs,
   // cached revisions, or export-only readings in the dashboard's data map.
@@ -1604,11 +1613,12 @@ function analyzeEnergyInsights(rawIntervals, options = {}) {
   const complete = total.complete && !total.estimated;
   const status = !complete ? 'Incomplete data' : concerning ? 'Worth checking' : 'Looks normal';
   const daytimePaid = end < start;
-  let summary = !complete ? 'Some import readings are missing or estimated. These figures cover the available readings.' : concerning
-    ? 'Paid-hours grid use is worth checking. The times and amounts are shown below.'
-    : paidTotal.kwh <= ENERGY_INSIGHT_RULES.lowPaid
-      ? (daytimePaid ? 'Daytime' : 'Paid-hours') + ' grid use stayed very low.'
-      : 'No substantial paid-hours grid draw stood out.';
+  const paidRange = insightTime(end * 60) + '–' + insightTime(start * 60);
+  const takeawayLabel = !complete ? 'Meter readings are incomplete' : 'Paid-hours grid use · ' + paidRange;
+  let summary = !complete ? 'Some meter readings are missing or estimated. The totals below may not cover the full day.'
+    : concerning ? 'You used ' + paidTotal.kwh.toFixed(3) + ' kWh of grid electricity during paid hours. Check the highlighted period below.'
+    : 'You used ' + (paidTotal.kwh <= ENERGY_INSIGHT_RULES.lowPaid ? 'only ' : '') + paidTotal.kwh.toFixed(3) + ' kWh of grid electricity during paid hours.';
+
   if (!imports.length) summary = unavailable.summary;
   // Normal schedules follow the configured boundaries. If the free period is
   // moved into daytime, keep chronological rows and label mixed periods honestly.
@@ -1620,27 +1630,28 @@ function analyzeEnergyInsights(rawIntervals, options = {}) {
     const allFree = insightExpectedTimes(day).filter(time => inside(minutes(time))).every(time => free(minutes(time)));
     const allPaid = insightExpectedTimes(day).filter(time => inside(minutes(time))).every(time => paid(minutes(time)));
     const quality = (!measured.complete ? ' Partial readings.' : '') + (measured.estimated ? ' Includes estimates.' : '');
-    const text = measured.kwh == null ? 'No import readings available.' : measured.kwh.toFixed(3) + ' kWh imported' + (allFree ? ' during free hours.' : allPaid ? ' during paid hours.' : '; ' + (paidInRow.kwh == null ? 'paid-hours usage unavailable.' : paidInRow.kwh.toFixed(3) + ' kWh during paid hours.')) + quality;
+    const text = measured.kwh == null ? 'No grid readings available.' : measured.kwh.toFixed(3) + ' kWh from the grid' + (allFree ? ' during free hours.' : allPaid ? ' during paid hours.' : '; ' + (paidInRow.kwh == null ? 'paid-hours usage unavailable.' : paidInRow.kwh.toFixed(3) + ' kWh during paid hours.')) + quality;
     const hours = Array.from({length:24},(_,hour) => ({hour, data: period(minute => inside(minute) && Math.floor(minute / 60) === hour)})).filter(item => item.data.expected && item.data.kwh != null);
     const highest = hours.reduce((best, item) => !best || item.data.kwh > best.data.kwh ? item : best, null);
     const attention = !!concerning && paidInRow.kwh != null && paidInRow.kwh > 0 && ((peak && inside(minutes(peak.time))) || paidInRow.kwh > ENERGY_INSIGHT_RULES.paidDaily);
     let detail = '';
-    if (attention && peak && inside(minutes(peak.time))) detail = 'Largest paid-hours draw: ' + peak.kwh.toFixed(3) + ' kWh from ' + insightTime(minutes(peak.time)) + '–' + insightTime(minutes(peak.time) + 15) + '.' + (elevated ? ' Daily paid-hours use is above your recent pattern.' : '');
-    else if (highest && highest.data.kwh >= 0.1 && !allPaid) detail = (highest.data.complete ? 'Largest hour: ' : 'Largest observed hour: ') + highest.data.kwh.toFixed(3) + ' kWh from ' + insightTime(highest.hour * 60) + '–' + insightTime((highest.hour + 1) * 60) + (allFree ? ', within your free window.' : '.');
-    if (name === 'Morning' && daytimePaid && end > 0) {
+    if (attention && peak && inside(minutes(peak.time))) detail = 'Most grid electricity used during paid hours: ' + peak.kwh.toFixed(3) + ' kWh from ' + insightTime(minutes(peak.time)) + '–' + insightTime(minutes(peak.time) + 15) + '.' + (elevated ? ' Daily paid-hours use is above your recent pattern.' : '');
+    else if (highest && highest.data.kwh >= 0.1 && !allPaid) detail = (highest.data.complete ? 'Hour with the most grid use: ' : 'Highest hour with readings: ') + highest.data.kwh.toFixed(3) + ' kWh from ' + insightTime(highest.hour * 60) + '–' + insightTime((highest.hour + 1) * 60) + (allFree ? ', within your free window.' : '.');
+    if (name === 'Daytime' && daytimePaid && end > 0 && paidTotal.complete && !paidTotal.estimated && paidTotal.kwh <= ENERGY_INSIGHT_RULES.lowPaid) {
       const before = period(minute => minute >= (end-1)*60 && minute < end*60);
       const after = period(minute => minute >= end*60 && minute < (end+1)*60);
-      if (before.complete && after.complete && !before.estimated && !after.estimated && before.kwh >= 0.25 && after.kwh <= 0.025 && after.kwh < before.kwh * 0.1) detail = 'Imports dropped sharply around ' + insightTime(end*60) + '.';
+      if (before.complete && after.complete && !before.estimated && !after.estimated && before.kwh >= 0.25 && after.kwh <= 0.025 && after.kwh < before.kwh * 0.1) detail = 'Grid use dropped when paid hours began at ' + insightTime(end*60) + ' and stayed very low.';
     }
     const rate = allFree ? options.nightRate : allPaid ? options.dayRate : null;
     const cost = !allFree && allPaid ? insightCost(measured.kwh, rate) : '';
-    return { category: name.toLowerCase(), priority: attention ? 1 : 2, headline: name + ' · ' + insightTime(from) + '–' + insightTime(to), icon,
+    const explanation = measured.kwh == null ? 'No grid readings are available for these hours.' :
+      (allFree ? options.nightRate === 0 ? 'Electricity was free during these hours.' : 'These hours are inside your configured free-night window.' : allPaid ? 'These are your paid electricity hours.' : 'These hours include both free and paid electricity periods.') + quality;
+    return { name, timeRange:insightTime(from) + '–' + insightTime(to), explanation, category: name.toLowerCase(), priority: attention ? 1 : 2, headline: name + ' · ' + insightTime(from) + '–' + insightTime(to), icon,
       text, detail, cost, tone: attention ? 'attention' : allPaid && measured.complete && !measured.estimated && measured.kwh <= ENERGY_INSIGHT_RULES.lowPaid ? 'good' : 'neutral', measurements: { ...measured, paidKwh: paidInRow.kwh } };
   });
-  // An unexpected paid-period event comes first. Other rows remain chronological;
-  // routine night charging never creates a warning solely because it is large.
-  rows.sort((a,b) => a.priority - b.priority);
-  return { day, status, summary, rows, exports: exported.kwh == null ? 'Grid exports: unavailable.' : 'Grid exports: ' + exported.kwh.toFixed(3) + ' kWh for the day.' + (!exported.complete ? ' Partial readings.' : '') + (exported.estimated ? ' Includes estimates.' : ''),
+  // Keep the three periods in predictable chronological order. The takeaway and
+  // explicit section label highlight paid-use concerns without moving sections.
+  return { day, status, takeawayLabel, summary, rows, exports: exported.kwh == null ? 'Electricity sent back to the grid: unavailable.' : 'Electricity sent back to the grid: ' + exported.kwh.toFixed(3) + ' kWh for the day.' + (!exported.complete ? ' Partial readings.' : '') + (exported.estimated ? ' Includes estimates.' : ''),
     measurements: { total, paid: paidTotal, exported, baselineDays: baseline.length, baselineMedian: median, peakImport: peakImport ? {time:peakImport.time, kwh:peakImport.kwh, averageKw:peakImport.kwh*4} : null, peakPaid: peak ? { time: peak.time, kwh: peak.kwh, averageKw: Number.isFinite(peak.kwh*4) ? peak.kwh*4 : null } : null } };
 }
 
@@ -1655,16 +1666,25 @@ function runDaytimeReview() {
       dayRate: readEnergyRate('day-rate'), nightRate: readEnergyRate('night-rate'), history: days.filter(date => date < day).map(date => ({day:date, intervals:readings.get(date)})) });
     container.replaceChildren();
     const add = (parent, tag, text, className) => { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; parent.appendChild(node); return node; };
-    add(container, 'span', result.status, 'insight-status ' + (result.status === 'Looks normal' ? 'good' : 'attention'));
-    add(container, 'p', result.summary, 'insight-summary');
-    result.rows.forEach(row => {
-      const section = add(container, 'section', '', 'insight-row ' + row.tone);
-      const heading = add(section, 'h3', '', 'insight-heading');
-      const icon = add(heading, 'span', row.icon, 'insight-icon'); icon.setAttribute('aria-hidden', 'true');
-      add(heading, 'span', row.headline);
-      add(section, 'p', row.text);
-      if (row.detail) add(section, 'p', row.detail, 'insight-detail');
-      if (row.cost) add(section, 'p', row.cost, 'insight-detail');
+    const takeaway = add(container, 'div', '', 'insight-takeaway' + (result.status !== 'Looks normal' ? ' attention' : ''));
+    add(takeaway, 'strong', result.takeawayLabel, 'insight-takeaway-label');
+    add(takeaway, 'p', result.summary, 'insight-summary');
+    result.rows.forEach((row, index) => {
+      const section = add(container, 'section', '', 'insight-row ' + (row.tone === 'attention' ? 'attention' : ''));
+      section.setAttribute('aria-labelledby', 'insight-period-' + index);
+      const header = add(section, 'div', '', 'insight-row-header');
+      const heading = add(header, 'h3', row.name, 'insight-heading');
+      heading.id = 'insight-period-' + index;
+      add(header, 'span', row.timeRange, 'insight-period');
+      const body = add(section, 'div', '', 'insight-row-body');
+      const reading = add(body, 'div', '', 'insight-reading');
+      add(reading, 'span', row.measurements.kwh == null ? 'Unavailable' : row.measurements.kwh.toFixed(3) + ' kWh', 'insight-amount');
+      add(reading, 'span', 'From the grid', 'insight-amount-label');
+      const explanation = add(body, 'div', '', 'insight-row-content');
+      if (row.tone === 'attention') add(explanation, 'span', 'Check this period', 'insight-attention-label');
+      add(explanation, 'p', row.explanation, 'insight-explanation');
+      if (row.detail) add(explanation, 'p', row.detail, 'insight-detail');
+      if (row.cost) add(explanation, 'p', row.cost, 'insight-detail');
     });
     add(container, 'p', result.exports, 'insight-exports');
     if (day) loadInsightWeather(day, version);

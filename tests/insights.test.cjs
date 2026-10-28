@@ -42,8 +42,8 @@ test('large free-night charging remains informational while paid spikes take pri
   assert.equal(c.analyzeEnergyInsights(rows,options).status,'Looks normal');
   rows[56].kwh=0.6;
   const result=c.analyzeEnergyInsights(rows,options);
-  assert.equal(result.status,'Worth checking');assert.equal(result.rows[0].category,'daytime');
-  assert.equal(result.rows[0].tone,'attention');assert.match(result.rows[0].detail,/2pm–2:15pm/);
+  assert.equal(result.status,'Worth checking');assert.equal(result.rows[1].category,'daytime');
+  assert.equal(result.rows[1].tone,'attention');assert.match(result.rows[1].detail,/2pm–2:15pm/);
   assert.ok(result.rows.every(row=>!/caused|powered by|battery state/i.test(row.text+row.detail)));
 });
 
@@ -59,7 +59,7 @@ test('recent baseline catches increased paid use and excludes incomplete or esti
   const c=engine();
   const history=Array.from({length:8},(_,i)=>({day:'2026-10-'+(19+i),intervals:intervals(0,0)}));
   const result=c.analyzeEnergyInsights(intervals(0.015,0),{...options,history});
-  assert.equal(result.status,'Worth checking');assert.match(result.rows[0].detail,/above your recent pattern/);
+  assert.equal(result.status,'Worth checking');assert.match(result.rows[1].detail,/above your recent pattern/);
   history.forEach(item=>{item.intervals[40].importEstimated=true});
   const excluded=c.analyzeEnergyInsights(intervals(0.015,0),{...options,history});
   assert.equal(excluded.measurements.baselineDays,0);assert.equal(excluded.status,'Looks normal');
@@ -86,7 +86,7 @@ test('export-only data and absent data never invent zero imports or clear-weathe
   const c=engine(),rows=intervals();rows.forEach(r=>{r.hasImport=false;r.kwh=0;r.exportKwh=1});
   const result=c.analyzeEnergyInsights(rows,options);
   assert.equal(result.status,'Incomplete data');assert.equal(result.measurements.total.kwh,null);
-  assert.match(result.exports,/96.000/);assert.ok(result.rows.every(row=>/No import readings/.test(row.text)));
+  assert.match(result.exports,/96.000/);assert.ok(result.rows.every(row=>/No grid readings/.test(row.text)));
   for(const value of [null,undefined,{},[],[null,{},'x']])assert.equal(c.analyzeEnergyInsights(value,options).status,'Incomplete data');
   for(const value of [null,undefined,'bad',{}])assert.doesNotThrow(()=>c.analyzeEnergyInsights(rows,value));
 });
@@ -181,4 +181,22 @@ test('versioned weather request bypasses condition-only HTTP caches and reuses t
   assert.equal((await c.fetchWeatherForDate('2026-10-27')).highF,82);
   assert.equal((await c.fetchWeatherForDate('2026-10-27')).sunrise,'07:31');
   assert.equal(calls,1);
+});
+
+test('takeaway names paid-hours scope and sections keep a stable chronological order',()=>{
+  const c=engine(), rows=intervals();
+  const result=c.analyzeEnergyInsights(rows,options);
+  assert.equal(result.takeawayLabel,'Paid-hours grid use · 9am–9pm');
+  assert.match(result.summary,/only 0.048 kWh of grid electricity during paid hours/);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.rows.map(row=>row.name))),['Morning','Daytime','Night']);
+  assert.equal(result.rows[0].timeRange,'midnight–9am');
+  assert.equal(result.rows[0].explanation,'Electricity was free during these hours.');
+  assert.doesNotMatch(result.rows[0].detail,/Imports dropped|paid hours began/);
+  assert.match(result.rows[1].detail,/Grid use dropped when paid hours began at 9am and stayed very low/);
+  rows[40].kwh=0.6;
+  const warning=c.analyzeEnergyInsights(rows,options);
+  assert.deepEqual(JSON.parse(JSON.stringify(warning.rows.map(row=>row.name))),['Morning','Daytime','Night']);
+  assert.equal(warning.rows[1].tone,'attention');assert.match(warning.summary,/highlighted period/);
+  rows.splice(0,1);
+  assert.equal(c.analyzeEnergyInsights(rows,options).takeawayLabel,'Meter readings are incomplete');
 });
