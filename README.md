@@ -100,6 +100,24 @@ No changes to the SMT/Drive variables or files are required.
 - Navigating away from Plan & Rates discards an unsaved draft, including an
   invalid one, so the controls can never disagree with the figures shown
   everywhere else.
+- Every numeric field is described once in `PLAN_NUMERIC_FIELDS` (minimum,
+  maximum, decimal places) and that one description drives the typing guard, the
+  blur tidy-up and the save-time validation, so the three cannot drift apart.
+  Rates accept 0–1000 cents per kWh to three decimals; alert limits accept
+  $0.01–$1,000,000 in whole cents, deliberately matching what
+  `validAlertLimits()` accepts — anything finer would save and then silently
+  stop the banner colouring.
+- The fields are `type="text"` with `inputmode="decimal"` rather than
+  `type="number"`. A number input reports an empty value for content like `abc`
+  and refuses the selection APIs, which makes it impossible to refuse a
+  keystroke; with text, a sign, an exponent, a letter, a fifth decimal place or
+  a value past the ceiling simply never appears in the box. Leaving a field
+  trims it, drops leading zeros and clamps to the allowed range; an empty field
+  is left empty so Save can say it is required.
+- Free-night hours come from pick lists, but `planProblems()` still checks they
+  are distinct whole hours of the day, so a tampered value cannot be applied.
+- `tests/plan-input.test.cjs` covers these rules, including a case asserting that
+  every alert limit the form accepts is one `validAlertLimits()` also accepts.
 - Validation moved out of toasts and into the form. Equal free-night hours are
   refused in place rather than silently reverted with a toast.
 - A stored plan that no longer validates is discarded on load rather than

@@ -208,7 +208,7 @@ async function main() {
       await page.locator('#day-rate').fill('');
       // An unusable rate cannot be applied at all, so nothing downstream changes.
       assert.equal(await page.locator('#plan-save').isDisabled(), true);
-      assert.match(await page.locator('#plan-errors').textContent(), /rate must be 0 or more/);
+      assert.match(await page.locator('#plan-errors').textContent(), /Day rate is required/);
       await savePlanEdits(page);
       assert.equal(await page.locator('#latest-day-import').textContent(), '0.048 kWh');
       await page.locator('#day-rate').fill('50');
@@ -243,7 +243,7 @@ async function main() {
       await openPlan(page);
       await page.locator('#day-rate').fill('');
       assert.equal(await page.locator('#plan-save').isDisabled(),true);
-      assert.match(await page.locator('#plan-errors').textContent(),/Electricity rate must be 0 or more/);
+      assert.match(await page.locator('#plan-errors').textContent(),/Electricity rate is required/);
       assert.equal(await page.locator('#cost-daily').textContent(),'$12.01');
       await page.locator('#day-rate').fill('30');
       await savePlanEdits(page);

@@ -898,9 +898,9 @@
           <div class="chart-note">Cents per kWh, energy charge only</div>
           <div class="plan-row" style="margin-top:14px">
             <div class="plan-field" id="field-day"><label for="day-rate" id="day-rate-label">Day rate (&cent;/kWh)</label>
-              <input id="day-rate" type="number" min="0" step="any" value="25" inputmode="decimal" autocomplete="off" oninput="onPlanChanged()"></div>
+              <input id="day-rate" type="text" value="25" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="rate-help" oninput="onPlanChanged()"></div>
             <div class="plan-field" id="field-night"><label for="night-rate">Night rate (&cent;/kWh)</label>
-              <input id="night-rate" type="number" min="0" step="any" value="0" inputmode="decimal" autocomplete="off" oninput="onPlanChanged()"></div>
+              <input id="night-rate" type="text" value="0" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="rate-help" oninput="onPlanChanged()"></div>
           </div>
           <div id="rate-validation" role="alert" style="color:var(--danger);margin-top:10px"></div>
           <div class="chart-note" id="rate-help" style="margin-top:10px">Excludes delivery charges, taxes, fixed fees and export credits, so these figures are lower than your bill. Changing a rate recalculates your history at the new rate; it does not show what you were actually billed on past days.</div>
@@ -911,9 +911,9 @@
           <div class="chart-note">Daily limits that colour the banner</div>
           <div class="plan-row" style="margin-top:14px">
             <div class="plan-field" id="field-yellow"><label for="alert-yellow">Yellow at ($/day)</label>
-              <input id="alert-yellow" type="number" min="0.01" step="0.01" value="1" inputmode="decimal" oninput="onPlanChanged()"></div>
+              <input id="alert-yellow" type="text" value="1" inputmode="decimal" autocomplete="off" spellcheck="false" oninput="onPlanChanged()"></div>
             <div class="plan-field" id="field-red"><label for="alert-red">Red at ($/day)</label>
-              <input id="alert-red" type="number" min="0.01" step="0.01" value="5" inputmode="decimal" oninput="onPlanChanged()"></div>
+              <input id="alert-red" type="text" value="5" inputmode="decimal" autocomplete="off" spellcheck="false" oninput="onPlanChanged()"></div>
           </div>
           <div id="alert-validation" role="alert" style="color:var(--danger);margin-top:10px"></div>
           <div class="chart-note" style="margin-top:10px">Red must be higher than yellow. Colours indicate spending, not equipment faults.</div>
@@ -1218,6 +1218,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   // Rates and free-night hours used to reset on every reload. A plan saved on
   // Plan & Rates is restored here instead, after the hour selects exist.
+  for (const id of Object.keys(PLAN_NUMERIC_FIELDS)) hardenNumericInput(id);
   restorePlanSettings();
   applyViewVisibility();
   renderCostEstimates();
@@ -3434,16 +3435,60 @@ function currentPlan() {
   };
 }
 
+/* The numeric fields, in one place, so the typing guard, the blur tidy-up and
+   the save-time validation can never drift apart.
+   decimals: a rate is quoted in cents per kWh, so thousandths of a cent is
+   already finer than any tariff; an alert limit is a dollar amount, which is
+   why readAlertLimits() only accepts whole cents. Allowing more precision here
+   than validAlertLimits() accepts would let a limit save and then silently
+   stop colouring anything. */
+const PLAN_NUMERIC_FIELDS = Object.freeze({
+  'day-rate':     { min: 0,    max: 1000,    decimals: 3, label: 'Day rate',        unit: 'cents per kWh' },
+  'night-rate':   { min: 0,    max: 1000,    decimals: 3, label: 'Night rate',      unit: 'cents per kWh' },
+  'alert-yellow': { min: 0.01, max: 1000000, decimals: 2, label: 'Yellow limit',    unit: 'dollars a day' },
+  'alert-red':    { min: 0.01, max: 1000000, decimals: 2, label: 'Red limit',       unit: 'dollars a day' }
+});
+
+/* A finished value: digits, at most one dot, no sign, no exponent, within range
+   and no finer than the unit allows. */
+function numericFieldProblem(raw, rules, label) {
+  const text = String(raw).trim();
+  if (text === '') return label + ' is required.';
+  if (!/^\d+(\.\d+)?$/.test(text)) {
+    return label + ' must be a plain number — digits only, no sign, letters or spaces.';
+  }
+  const value = Number(text);
+  if (!Number.isFinite(value)) return label + ' must be a plain number.';
+  if (value < rules.min) return label + ' must be at least ' + rules.min + ' ' + rules.unit + '.';
+  if (value > rules.max) return label + ' must be at most ' + rules.max.toLocaleString('en-US') + ' ' + rules.unit + '.';
+  const decimals = (text.split('.')[1] || '').length;
+  if (decimals > rules.decimals) {
+    return label + ' cannot be finer than ' + (rules.decimals === 2 ? 'whole cents' : rules.decimals + ' decimal places') + '.';
+  }
+  return null;
+}
+
 function planProblems(plan) {
   const problems = [];
-  const rate = value => value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
-  const money = value => value !== '' && Number.isFinite(Number(value)) && Number(value) > 0;
-  if (plan.freeNights && plan.freeStart === plan.freeEnd) problems.push('Free night start and end must be different hours.');
-  if (!rate(plan.dayRate)) problems.push((plan.freeNights ? 'Day rate' : 'Electricity rate') + ' must be 0 or more cents per kWh.');
-  if (plan.freeNights && !rate(plan.nightRate)) problems.push('Night rate must be 0 or more cents per kWh.');
-  if (!money(plan.yellow)) problems.push('Yellow limit must be more than $0.');
-  if (!money(plan.red)) problems.push('Red limit must be more than $0.');
-  if (money(plan.yellow) && money(plan.red) && Number(plan.red) <= Number(plan.yellow)) problems.push('Red limit must be higher than the yellow limit.');
+  const field = (id, raw, label) => {
+    const problem = numericFieldProblem(raw, PLAN_NUMERIC_FIELDS[id], label);
+    if (problem) problems.push(problem);
+    return !problem;
+  };
+  // Hours come from pick lists, but a tampered value must still be refused.
+  const hour = value => Number.isInteger(value) && value >= 0 && value < 24;
+  if (plan.freeNights && (!hour(plan.freeStart) || !hour(plan.freeEnd))) {
+    problems.push('Free night hours must be whole hours of the day.');
+  } else if (plan.freeNights && plan.freeStart === plan.freeEnd) {
+    problems.push('Free night start and end must be different hours.');
+  }
+  field('day-rate', plan.dayRate, plan.freeNights ? 'Day rate' : 'Electricity rate');
+  if (plan.freeNights) field('night-rate', plan.nightRate, 'Night rate');
+  const yellowOk = field('alert-yellow', plan.yellow, 'Yellow limit');
+  const redOk = field('alert-red', plan.red, 'Red limit');
+  if (yellowOk && redOk && Number(plan.red) <= Number(plan.yellow)) {
+    problems.push('Red limit must be higher than the yellow limit.');
+  }
   return problems;
 }
 
@@ -3582,6 +3627,45 @@ function discardUnsavedPlan() {
   if (samePlan(currentPlan(), appliedPlanState)) return;
   writeCurrentPlanToForm();
   onPlanChanged();
+}
+
+/* True while a value is still being typed: allows "", "0." and a partial
+   decimal, but never a sign, an exponent, a letter, or more precision than the
+   unit allows. Keeping this separate from numericFieldProblem() means we do not
+   shout at someone mid-keystroke. */
+function acceptableNumericDraft(text, rules) {
+  if (text === '') return true;
+  if (!/^\d*(\.\d*)?$/.test(text)) return false;
+  const decimals = (text.split('.')[1] || '').length;
+  if (decimals > rules.decimals) return false;
+  const value = Number(text);
+  return !Number.isFinite(value) || value <= rules.max;
+}
+
+/* Refuses the keystroke outright rather than letting an impossible value sit in
+   the box: typing "-", "e" or a letter simply does not appear, and neither does
+   a fifth decimal place or a value past the ceiling. */
+function hardenNumericInput(id) {
+  const input = byId(id), rules = PLAN_NUMERIC_FIELDS[id];
+  if (!input || !rules || typeof input.addEventListener !== 'function') return;
+  let lastAccepted = String(input.value);
+  input.addEventListener('input', () => {
+    if (acceptableNumericDraft(String(input.value), rules)) { lastAccepted = String(input.value); return; }
+    input.value = lastAccepted;
+  });
+  // On the way out, tidy what was typed: trim, drop leading zeros, clamp to the
+  // allowed range. An empty box is left empty so Save can say it is required.
+  input.addEventListener('blur', () => {
+    const text = String(input.value).trim();
+    if (text === '' || !/^\d*(\.\d*)?$/.test(text)) { onPlanChanged(); return; }
+    let value = Number(text);
+    if (!Number.isFinite(value)) { onPlanChanged(); return; }
+    value = Math.min(rules.max, Math.max(rules.min, value));
+    const rounded = Number(value.toFixed(rules.decimals));
+    input.value = String(rounded);
+    lastAccepted = input.value;
+    onPlanChanged();
+  });
 }
 
 /* Called during boot, after the hour selects exist. */
