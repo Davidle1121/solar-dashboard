@@ -26,14 +26,14 @@ test('October 27 arithmetic fixture matches supplied daily, period, export and p
   near(result.rows[0].measurements.kwh,7.234);near(result.rows[2].measurements.kwh,7.892);
   assert.match(result.rows[2].detail,/6.175 kWh from 9pm–10pm/);
   assert.equal(result.measurements.peakImport.time,'21:15');near(result.measurements.peakImport.averageKw,11.62);
-  assert.match(result.rows[1].cost,/1.2¢ at 25¢/);assert.match(result.exports,/0.093 kWh/);
-  assert.match(c.analyzeEnergyInsights(rows,{...options,dayRate:15}).rows[1].cost,/0.72¢ at 15¢/);
+  assert.match(result.rows[1].cost,/\$0\.012 at 25¢/);assert.match(result.exports,/0.093 kWh/);
+  assert.match(c.analyzeEnergyInsights(rows,{...options,dayRate:15}).rows[1].cost,/\$0\.0072 at 15¢/);
 });
 
 test('zero imports and exports are measured zero, without invented percentages or anomalies',()=>{
   const result=engine().analyzeEnergyInsights(intervals(0,0),options);
   assert.equal(result.status,'Looks normal');assert.equal(result.rows.length,3);
-  assert.match(result.exports,/0.000 kWh/);assert.match(result.rows[1].cost,/0¢/);
+  assert.match(result.exports,/0.000 kWh/);assert.match(result.rows[1].cost,/\$0\.00 at/);
   assert.doesNotMatch(JSON.stringify(result),/NaN|Infinity|%/);
 });
 
@@ -99,7 +99,7 @@ test('invalid rates omit cost without changing measured imports and tiny valid c
     const result=c.analyzeEnergyInsights(intervals(),{...options,dayRate:rate});
     assert.equal(result.rows[1].cost,'');near(result.measurements.paid.kwh,0.048);
   }
-  assert.match(c.insightCost(0.000001,25),/less than 0.01¢/);
+  assert.match(c.insightCost(0.000001,25),/under \$0\.0001/);
   assert.equal(c.insightCost(1e308,1e308),'');
 });
 
@@ -206,7 +206,7 @@ test('takeaway names paid-hours scope and sections keep a stable chronological o
 
 test('paid-hours color bands include exact boundaries and match 25-cent costs',()=>{
   const c=engine();
-  for(const [kwh,level,cost] of [[0,'good','0¢'],[1,'good','25¢'],[4,'review','$1.00'],[8,'review','$2.00'],[20,'high','$5.00'],[80,'high','$20.00']]) {
+  for(const [kwh,level,cost] of [[0,'good','$0.00'],[1,'good','$0.25'],[4,'review','$1.00'],[8,'review','$2.00'],[20,'high','$5.00'],[80,'high','$20.00']]) {
     const rows=intervals(0,0);rows[40].kwh=kwh;
     const result=c.analyzeEnergyInsights(rows,options);
     assert.equal(result.rows[1].level,level);assert.ok(result.rows[1].cost.includes(cost));

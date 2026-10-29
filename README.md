@@ -128,10 +128,22 @@ No changes to the SMT/Drive variables or files are required.
   averaging conditions would say very little. The daily line above the rows is
   kept because it carries sunrise, sunset and the location label, none of which
   are per-period.
-- The new cards use `formatCompactCost()`, which shows sub-dollar amounts in
-  cents. Dollar rounding made `$0.0048` and `$0.0100` both read as `$0.01`, so
-  Compared to Before reported a percentage change with no visible cause. The
-  original cost cards keep their dollar formatting deliberately.
+- **Every cost is a dollar amount.** An earlier version switched to cents below
+  a dollar so Compared to Before could explain a percentage between two figures
+  that both rounded to `$0.01`, but `0.68¢` is easily misread as 68 cents and
+  `45.75¢` as `$45.75` — the opposite of helpful on a page about money.
+  `formatCostDollars()` keeps one unit everywhere and carries up to four decimal
+  places below a dollar, trimmed back to the familiar two, which is what the
+  cents were really for: telling two small days apart. Anything that would still
+  round away reads "under $0.0001" rather than `$0.0000`.
+- `describeCost()` is the prose variant, used in the banner headline. A sentence
+  reading "$0.4575" looks like a typo, so prose rounds to cents and says "less
+  than a penny" when there is nothing to round to. The exact figure sits in the
+  row directly beneath it.
+- `insightCost()` follows the same rule, so a row no longer reads `$0.46` beside
+  "Cost for this period: 45.75¢". **Rates keep their cent sign** — `25¢/kWh` is
+  how a plan quotes them, and the Plan view spells each one back out in dollars
+  per kWh underneath.
 - No card names an appliance. The meter reports one whole-house figure per
   interval, so a large overnight draw is described by its shape ("a large
   sustained draw, the kind an EV or home energy storage makes while charging")
