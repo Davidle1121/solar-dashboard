@@ -526,7 +526,6 @@
 .verdict.warn{--tone:var(--accent);--tint:rgba(240,165,0,.12);--line:rgba(240,165,0,.32)}
 .verdict.alert{--tone:var(--danger);--tint:rgba(248,81,73,.12);--line:rgba(248,81,73,.32)}
 .verdict.neutral{--tone:var(--muted);--tint:rgba(125,133,144,.1);--line:rgba(125,133,144,.3)}
-.verdict-main{min-width:0}
 .v-label{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);
   font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--tone);margin-bottom:9px}
 .v-label i{width:7px;height:7px;border-radius:50%;background:var(--tone)}
@@ -537,15 +536,15 @@
   background:rgba(240,165,0,.09);border:1px solid rgba(240,165,0,.26);border-radius:8px;
   padding:9px 12px;max-width:56ch;line-height:1.5}
 .v-meter{flex:0 1 330px;min-width:190px;max-width:380px}
-.verdict-main{flex:1 1 420px}
+/* Takes the remaining width so the meter column cannot stretch and
+   squeeze the headline. */
+.verdict-main{min-width:0;flex:1 1 420px}
 .v-meter-top{display:flex;justify-content:space-between;gap:12px;font-family:var(--font-mono);
   font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
 .v-track{height:8px;border-radius:999px;background:var(--surface2);overflow:hidden}
 .v-track i{display:block;height:100%;background:var(--accent2)}
 .v-scale{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10.5px;
   color:var(--muted);margin-top:6px}
-.v-wx{display:block;margin-top:15px;padding-top:14px;
-  border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.6}
 
 /* ---- card grid ---- */
 .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-bottom:16px}
@@ -556,25 +555,11 @@
 /* ---- Morning / Daytime / Night ----
    One full-width row per period. Three side-by-side columns were tried first
    and read as squashed: each period only got a third of the card. */
-.period-list{display:flex;flex-direction:column;gap:12px}
-.prow{--tone:var(--accent3);background:var(--surface2);border-radius:10px;min-width:0;
-  border-left:3px solid var(--tone);padding:15px 17px 16px}
-.prow-head{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:flex-end;justify-content:space-between}
-.prow-name{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.15em;
-  text-transform:uppercase;color:var(--tone)}
-.prow-hours{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:5px}
-.prow-fig{display:flex;align-items:baseline;gap:8px 15px;flex-wrap:wrap}
-.prow-fig b{font-family:var(--font-display);font-size:22px;font-weight:600;line-height:1}
-.prow-fig u{text-decoration:none;font-family:var(--font-mono);font-size:13px;color:var(--tone)}
-.prow-chip{font-family:var(--font-mono);font-size:9px;letter-spacing:.11em;text-transform:uppercase;
-  padding:4px 9px;border-radius:999px;border:1px solid var(--tone);color:var(--tone);white-space:nowrap}
 .prow-bars{display:flex;align-items:flex-end;gap:3px;height:48px;margin-top:15px}
 .prow-bars i{flex:1 1 0;min-width:0;border-radius:3px 3px 0 0;min-height:2px;display:block}
 .prow-axis{display:flex;gap:3px;margin-top:7px}
 .prow-axis span{flex:1 1 0;min-width:0;text-align:center;overflow:hidden;
   font-family:var(--font-mono);font-size:9.5px;color:var(--muted)}
-.prow-foot{display:flex;flex-wrap:wrap;gap:7px 20px;align-items:center;margin-top:12px;
-  font-size:12px;color:var(--muted);line-height:1.55}
 .prow-wx{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap}
 /* Both columns are a stack of panels on the same 14px rhythm, each with the
    same border, radius and padding, so the two sides line up as one grid rather
@@ -607,6 +592,8 @@
   background:var(--surface2);white-space:pre-line;font-size:13px;color:var(--muted);
   line-height:1.7;max-width:74ch}
 .review-prompt::first-line{color:var(--text);font-size:14px}
+/* The figures line inside an analysis row: kWh, cost and that period's weather,
+   sitting above its hour bars. */
 .prow-figs{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 16px;margin:10px 0 2px}
 .prow-figs .insight-amount{font-family:var(--font-display);font-size:22px;font-weight:600;line-height:1}
 .prow-cost{text-decoration:none;font-family:var(--font-mono);font-size:13px;color:var(--muted)}
@@ -619,19 +606,6 @@
 .insight-row-header .insight-level{margin-left:auto}
 
 /* ---- donut, comparison, trend, export ---- */
-.donut-row{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
-.donut-wrap{position:relative;flex:0 0 auto}
-.donut-wrap svg{display:block;transform:rotate(-90deg)}
-.donut-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;pointer-events:none;text-align:center}
-.donut-mid b{font-family:var(--font-display);font-size:24px;font-weight:600;line-height:1}
-.donut-mid span{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--muted);margin-top:5px}
-.donut-keys{display:flex;flex-direction:column;gap:11px;min-width:0;flex:1 1 140px}
-.dkey{display:flex;gap:9px;align-items:flex-start}
-.dkey i{width:9px;height:9px;border-radius:2px;margin-top:4px;flex:0 0 9px}
-.dkey b{display:block;font-size:14.5px;font-weight:600}
-.dkey span{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
 .cmp-row{display:flex;gap:24px;align-items:flex-end;justify-content:center;padding:6px 0 2px}
 .cmp-bar{display:flex;flex-direction:column;align-items:center;gap:8px;width:62px}
 .cmp-bar b{font-family:var(--font-mono);font-size:13px}
@@ -642,23 +616,8 @@
 .cmp-delta b{font-family:var(--font-display);font-size:22px;font-weight:600}
 .cmp-delta span{font-family:var(--font-mono);font-size:10px;letter-spacing:.09em;
   text-transform:uppercase;color:var(--muted);line-height:1.5}
-.trend-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:11px}
-.trend-head b{font-family:var(--font-display);font-size:23px;font-weight:600}
-.trend-head span{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--muted);text-align:right}
-.trend-plot{width:100%;height:auto;display:block;overflow:visible}
 /* Date axis is HTML, not SVG text: the plot uses preserveAspectRatio="none" to
    fill the card, which would stretch any text drawn inside the viewBox. */
-.trend-axis{position:relative;height:14px;margin-top:8px;font-family:var(--font-mono);
-  font-size:9.5px;color:var(--muted)}
-.trend-axis span{position:absolute;top:0;white-space:nowrap}
-.exp-row{margin-bottom:15px}
-.exp-row:last-of-type{margin-bottom:0}
-.exp-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px}
-.exp-top span{font-size:12.5px;color:var(--muted)}
-.exp-top b{font-family:var(--font-mono);font-size:13.5px}
-.exp-track{height:8px;border-radius:999px;background:var(--surface2);overflow:hidden}
-.exp-track i{display:block;height:100%;background:var(--accent2)}
 
 /* ---- plan & rates ---- */
 .plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start}
@@ -698,6 +657,8 @@
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
 .plan-errors{margin:14px 0 0;padding-left:18px;font-size:12px;color:var(--danger);line-height:1.6}
 
+.top-bar-meta{display:flex;align-items:center;gap:14px;min-width:0}
+
 @media (max-width:820px){
   .app-shell{flex-direction:column}
   .rail{flex:0 0 auto;border-right:0;border-bottom:1px solid var(--border);
@@ -709,6 +670,18 @@
   .main-col{padding:18px 16px 30px}
   .v-head{font-size:21px}
   .top-bar h1{font-size:20px}
+}
+
+@media (max-width:720px){
+  .top-bar{flex-direction:column;align-items:stretch;gap:10px;margin-bottom:14px}
+  .range-seg{align-self:stretch;justify-content:space-between}
+  .range-seg button{flex:1 1 0;text-align:center;padding:9px 6px;letter-spacing:.06em}
+  .top-bar-meta{justify-content:space-between;gap:10px}
+  .top-bar .weather-widget{width:auto;padding:8px 12px;min-height:0}
+  .top-bar .weather-temp{font-size:14px}
+  .verdict{padding:16px 16px;gap:14px}
+  .v-meter{min-width:0;max-width:none;flex:1 1 100%}
+  .analysis-split{gap:12px}
 }
 
 </style>
@@ -742,12 +715,14 @@
         <button type="button" data-days="7" onclick="setRange(7,this)">7 Days</button>
         <button type="button" data-days="30" onclick="setRange(30,this)">30 Days</button>
       </div>
-      <div class="range-asof" id="range-asof">&mdash;</div>
-      <div class="weather-widget" id="weather-widget">
+      <div class="top-bar-meta">
+        <div class="range-asof" id="range-asof">&mdash;</div>
+        <div class="weather-widget" id="weather-widget">
         <div class="weather-icon" id="weather-icon">&#8987;</div>
         <div class="weather-info">
           <div class="weather-temp" id="weather-temp">--&deg;F</div>
           <div class="weather-loc">Local weather</div>
+        </div>
         </div>
       </div>
     </div>
@@ -766,7 +741,6 @@
           <div class="v-meter-top"><span id="v-meter-label">vs your limits</span><span id="v-tone">&mdash;</span></div>
           <div class="v-track"><i id="v-bar" style="width:0%"></i></div>
           <div class="v-scale"><span>$0</span><span id="v-yellow-label">$1 yellow</span><span id="v-red-label">$5 red</span></div>
-          <div class="v-wx" id="v-wx" style="display:none"></div>
         </div>
       </div>
 
@@ -1167,7 +1141,9 @@ async function fetchWeather() {
   }
 }
 
-// Refresh old condition-only storage and HTTP caches once; the SMT cache is unchanged.
+// V4 adds the per-hour series the period rows read. Entries stored under V3
+// hold only daily values, so bumping the key refetches them rather than leaving
+// rows silently without weather. The SMT reading cache is unaffected.
 const WEATHER_CACHE_KEY = 'energyWeatherCacheV4';
 const WEATHER_CACHE_MS = 12 * 60 * 60 * 1000;
 
@@ -2137,8 +2113,18 @@ function runDaytimeReview() {
 
       const figures = add(section, 'div', '', 'prow-figs');
       add(figures, 'b', row.measurements.kwh == null ? 'Unavailable' : row.measurements.kwh.toFixed(3) + ' kWh', 'insight-amount');
-      const periodCost = row.measurements.kwh == null ? null
-        : energyCharge(row.measurements.paidKwh == null ? 0 : row.measurements.paidKwh, readEnergyRate('day-rate'));
+      // Both halves of the period are costed. Charging only the paid kWh would
+      // report a free-window period as 0 whenever a night rate is set, which
+      // the Plan view allows; this mirrors what gridEnergyCost() does.
+      const periodDayRate = readEnergyRate('day-rate');
+      const periodNightRate = freeNightsEnabled ? readEnergyRate('night-rate') : periodDayRate;
+      const periodPaid = row.measurements.paidKwh;
+      const periodFree = row.measurements.kwh == null || periodPaid == null
+        ? null : row.measurements.kwh - periodPaid;
+      const paidCharge = energyCharge(periodPaid == null ? 0 : periodPaid, periodDayRate);
+      const freeCharge = energyCharge(periodFree == null ? 0 : periodFree, periodNightRate);
+      const periodCost = row.measurements.kwh == null || paidCharge == null || freeCharge == null
+        ? null : paidCharge + freeCharge;
       if (periodCost != null) add(figures, 'u', formatCompactCost(periodCost), 'prow-cost');
       const span = spans[index];
       const weather = span ? segmentWeather([day], span) : '';
@@ -3103,6 +3089,9 @@ function applyViewVisibility() {
     : activeView === 'plan' ? 'Plan & Rates' : 'Energy Dashboard';
 }
 
+/* Changing view also discards an unsaved plan draft (see discardUnsavedPlan).
+   That is deliberate: the controls must never show one plan while the figures
+   on every other view were calculated from another. */
 function showView(name) {
   const previous = activeView;
   activeView = name === 'hourly' || name === 'plan' ? name : 'dashboard';
@@ -3120,6 +3109,9 @@ function showView(name) {
   else if (previous === 'plan') discardUnsavedPlan();
 }
 
+/* The range drives Compared to Before only. Morning/Daytime/Night is tied to
+   the newest SMT day because the insights engine analyses one day, and the
+   two charts below keep their own fixed windows. */
 function setRange(count, button) {
   rangeDays = count;
   const seg = byId('range-seg');
@@ -3198,11 +3190,18 @@ function formatCompactCost(dollars) {
   return cents < 0.01 ? 'under 0.01¢' : Number(cents.toFixed(2)) + '¢';
 }
 
+/* Wrapped on purpose. These cards are an overview sitting above the charts,
+   the hourly table and the cost widget; if one of them throws, those must
+   still render. A silent console warning is the right failure here, not a
+   blank dashboard. */
 function renderRedesign() {
   try { renderRedesignCards(); }
   catch (error) { if (typeof console !== 'undefined' && console.warn) console.warn('Overview cards unavailable', error); }
 }
 
+/* Everything here is derived from the readings already in memory and the
+   applied plan, so a range change or a saved rate costs one re-render and no
+   network traffic. */
 function renderRedesignCards() {
   const all = [...readings.keys()].sort();
   if (!all.length) return;
@@ -3306,21 +3305,6 @@ function renderVerdict(view) {
     } else { flag.style.display = 'none'; flagText.textContent = ''; }
   }
 
-  // Weather is shown only when it is already cached for that date: this card
-  // must never trigger a fresh request of its own.
-  const wx = byId('v-wx');
-  if (wx) {
-    let text = '';
-    try {
-      const cached = view.count === 1 ? readWeatherCache(view.newest) : null;
-      if (cached) {
-        const lines = insightWeatherLines(cached);
-        text = Array.isArray(lines) ? lines.join(' · ') : String(lines || '');
-      }
-    } catch (error) { text = ''; }
-    wx.textContent = text;
-    wx.style.display = text ? 'flex' : 'none';
-  }
 }
 
 function nightRateIsZero() {
@@ -3643,6 +3627,9 @@ function resetPlanDefaults() {
   setPlanState('', 'Defaults restored.');
 }
 
+/* Fills the form from the APPLIED plan, not from storage: storage may be
+   blocked or empty while a plan is still in force for the session. This is the
+   one direction; currentPlan() reads the other way. */
 function writeCurrentPlanToForm() {
   const plan = appliedPlanState;
   byId('free-nights-enabled').checked = plan.freeNights;
