@@ -75,10 +75,21 @@ No changes to the SMT/Drive variables or files are required.
   completeness and the estimated flag from the same `insightPeriod()` the
   detailed review uses. A period with missing or estimated readings reads
   "Partial readings" rather than a spending rating, matching the verdict banner.
-- The Free Power vs Paid Power card is always the newest SMT day, whichever
-  range is selected, and says so. Its paid/free legend is written by
-  `renderLatestEnergyDay()`, which is latest-day only; moving the arcs with the
-  range while the legend stayed on one day put two different periods in one card.
+- The Free Power vs Paid Power donut, the Cost Day by Day line and the Sent to
+  the Grid card were removed. The banner already states the day's cost and the
+  free/paid split in a sentence; three further cards restating slices of it made
+  the page something to wade through rather than read. The export total survives
+  as the analysis's own closing line.
+- `renderLatestEnergyDay()` still computes the latest-day paid/free figures and
+  the regression suites still assert them, so its elements stay in the markup
+  inside a hidden container rather than deleting that coverage. They are the
+  only hidden elements on the page and exist for that reason alone.
+- The Morning / Daytime / Night card is two columns: the period rows and their
+  hour bars read down the left, the paid-hours takeaway and Compared to Before
+  sit beside them on the right. Reading a graph and then its analysis works
+  better across than down. The columns stack below 1080px.
+- `#daytime-review-result` holds the takeaway and the resting prompt;
+  `#analysis-rows` holds the period sections and the export line.
 - Compared to Before reports a change only when a prior stretch of the SAME
   length exists. Comparing seven days against the three that happen to be
   retained reads as a spike that is really just missing history.
