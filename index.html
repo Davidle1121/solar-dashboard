@@ -266,14 +266,14 @@
   .insight-row-header { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px 16px; margin-bottom:12px; }
   .insight-heading { font-size:16px; font-weight:600; color:var(--text); }
   .insight-period { font-size:13px; color:var(--text); }
-  .insight-row-body { display:grid; grid-template-columns:160px minmax(0,1fr); gap:12px 24px; align-items:start; }
+  .insight-row-body { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; align-items:start; }
   .insight-amount { display:block; font-size:22px; font-weight:600; line-height:1.3; }
   .insight-amount-label { display:block; font-size:12px; color:var(--muted); margin-top:3px; }
   .insight-explanation { font-size:14px; line-height:1.6; }
   .insight-detail { font-size:13px; color:var(--text); margin-top:6px; line-height:1.6; }
   .insight-attention-label { display:block; font-weight:600; color:var(--accent); font-size:13px; margin-bottom:6px; }
   .insight-exports { color:var(--text); font-size:13px; padding:4px 0; }
-  #insights-date { margin-top:6px; }
+  #insights-date { margin-top:6px; color:var(--text); font-size:13px; }
   #insights-weather { margin-bottom:12px; white-space:pre-line; font-size:12px; line-height:1.7; }
   @media (max-width:600px) {
     .insight-row { padding:14px; }
@@ -492,7 +492,7 @@
 .rail-nav button.on{background:var(--surface2);color:var(--text);border-left-color:var(--accent)}
 /* Drive sync stays on the Dashboard only: an SMT export is uploaded by hand
    every day, so the refresh is a daily action, not a global header control. */
-.rail-sync{margin-top:auto;display:flex;flex-direction:column;gap:9px}
+.rail-sync{margin-top:2px;display:flex;flex-direction:column;gap:9px}
 .upload-chip{display:flex;align-items:center;justify-content:center;gap:7px;
   font-family:var(--font-mono);font-size:10.5px;color:var(--muted);text-align:center}
 .upload-chip i{width:6px;height:6px;border-radius:50%;background:var(--accent2);flex:0 0 6px}
@@ -575,6 +575,18 @@
   font-family:var(--font-mono);font-size:9.5px;color:var(--muted)}
 .prow-foot{display:flex;flex-wrap:wrap;gap:7px 20px;align-items:center;margin-top:12px;
   font-size:12px;color:var(--muted);line-height:1.55}
+.prow-wx{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.review-prompt{border:1px dashed var(--border);border-radius:10px;padding:16px 18px;
+  background:var(--surface2);white-space:pre-line;font-size:13px;color:var(--muted);
+  line-height:1.7;max-width:74ch}
+.review-prompt::first-line{color:var(--text);font-size:14px}
+.prow-figs{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 16px;margin:10px 0 2px}
+.prow-figs .insight-amount{font-family:var(--font-display);font-size:22px;font-weight:600;line-height:1}
+.prow-cost{text-decoration:none;font-family:var(--font-mono);font-size:13px;color:var(--muted)}
+.insight-row .prow-bars{margin-top:12px}
+.insight-row .insight-row-body{margin-top:12px}
+.insight-row-header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+.insight-row-header .insight-level{margin-left:auto}
 
 /* ---- donut, comparison, trend, export ---- */
 .donut-row{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
@@ -740,7 +752,7 @@
             <button class="table-action" id="review-daytime-button" onclick="runDaytimeReview()" disabled>Review latest day</button>
           </div>
           <div class="chart-note" id="insights-weather" hidden></div>
-          <div class="chart-note" id="period-sub" style="margin-bottom:12px">&mdash;</div>
+          <div class="chart-note" id="period-sub" style="margin-bottom:12px">Always the newest SMT day &middot; each period shows its hours, usage, cost, weather and what the readings say</div>
           <div class="period-list" id="period-list"></div>
           <div id="daytime-review-result" aria-live="polite" style="margin:14px 0 0;line-height:1.7"></div>
           <div class="chart-note" style="margin-top:12px">Based on SMT grid readings &middot; uses your saved free-night hours and rates &middot; energy charges only</div>
@@ -1162,7 +1174,7 @@ async function fetchWeather() {
 }
 
 // Refresh old condition-only storage and HTTP caches once; the SMT cache is unchanged.
-const WEATHER_CACHE_KEY = 'energyWeatherCacheV3';
+const WEATHER_CACHE_KEY = 'energyWeatherCacheV4';
 const WEATHER_CACHE_MS = 12 * 60 * 60 * 1000;
 
 function readWeatherCache(dateKey) {
@@ -1781,18 +1793,35 @@ function renderAll() {
   updateHeaderMeta(sortedDays);
   updateDataFreshness(sortedDays);
   renderRedesign();
+  // Deliberately NOT running the analysis here. SMT exports arrive at
+  // unpredictable times, so the resting state of this card is the signal that
+  // the analysis has not yet been run against whatever is currently loaded.
+  // Pressing the button is what says "analyse what I have now".
+  invalidateDaytimeReview();
 }
 
 function invalidateDaytimeReview() {
   energyInsightsVersion++;
   const days = [...readings.keys()].sort(), day = days[days.length - 1];
-  document.getElementById('insights-date').textContent = day ? new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', {timeZone:'America/Chicago', month:'short',day:'numeric',year:'numeric'}) : 'No SMT data loaded';
+  // Labelled, not a bare date: this card is always the newest loaded day, and
+  // SMT delivery is irregular enough that the day on screen may not be
+  // yesterday. The date has to be readable without hunting for it.
+  document.getElementById('insights-date').textContent = day
+    ? 'Latest SMT day · ' + new Date(day + 'T12:00:00Z').toLocaleDateString('en-US',
+        {timeZone:'America/Chicago', weekday:'short', month:'short', day:'numeric', year:'numeric'})
+    : 'No SMT data loaded';
   document.getElementById('insights-weather').hidden = true;
   document.getElementById('insights-weather').textContent = '';
   const hasData = readings.size > 0;
   document.getElementById('review-daytime-button').disabled = !hasData;
-  document.getElementById('daytime-review-result').textContent = hasData
-    ? 'Ready to review the latest SMT day. Select Review latest day.'
+  // Plain text, not elements: renderCostEstimates() reaches this and is called
+  // directly by the headless tests, whose stubbed nodes support textContent only.
+  const container = document.getElementById('daytime-review-result');
+  container.className = 'review-prompt';
+  container.textContent = hasData
+    ? 'Ready to review ' + fmtDate(day) + ' — the newest SMT day loaded.\n'
+      + 'Select Review latest day to break it into morning, daytime and night. '
+      + 'SMT exports arrive at no fixed time, so refresh from Drive first if you are expecting a newer file.'
     : 'Load SMT data, then review the latest available day.';
 }
 
@@ -2077,6 +2106,7 @@ function runDaytimeReview() {
     const result = analyzeEnergyInsights(day ? readings.get(day) : [], { day, freeNights: freeNightsEnabled, freeStart: freeStartHour, freeEnd: freeEndHour,
       dayRate: readEnergyRate('day-rate'), nightRate: freeNightsEnabled ? readEnergyRate('night-rate') : 0, alertLimits: readAlertLimits(), history: days.filter(date => date < day).map(date => ({day:date, intervals:readings.get(date)})) });
     container.replaceChildren();
+    container.className = '';
     const add = (parent, tag, text, className) => { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; parent.appendChild(node); return node; };
     const takeaway = add(container, 'div', '', 'insight-takeaway' + (result.assessment?.level ? ' level-' + result.assessment.level : ''));
     add(takeaway, 'strong', result.takeawayLabel, 'insight-takeaway-label');
@@ -2089,6 +2119,12 @@ function runDaytimeReview() {
       if (result.elevated) add(takeaway, 'p', 'Paid-hours grid use is higher than your recent typical use.', 'insight-detail');
       add(takeaway, 'p', 'Costs use your current rate and paid-hours settings, excluding delivery charges and export credits.', 'insight-detail');
     }
+    // The spans the engine reports and redesignSegments() derive from the same
+    // rule, so they line up by index; the visual is skipped if they ever do not.
+    const spans = redesignSegments();
+    const hourly = day ? hourlyImportFor(day) : new Array(24).fill(null);
+    const busiest = Math.max(...hourly.filter(value => value != null), 0) || 1;
+
     result.rows.forEach((row, index) => {
       const section = add(container, 'section', '', 'insight-row ' + (row.level ? 'level-' + row.level : row.tone === 'attention' ? 'attention' : ''));
       section.setAttribute('aria-labelledby', 'insight-period-' + index);
@@ -2096,13 +2132,26 @@ function runDaytimeReview() {
       const heading = add(header, 'h3', row.name, 'insight-heading');
       heading.id = 'insight-period-' + index;
       add(header, 'span', row.timeRange, 'insight-period');
+      // The engine's spending label is the sole severity signal, shown once.
+      if (row.levelLabel) add(header, 'span', row.levelLabel, 'insight-level');
+
+      const figures = add(section, 'div', '', 'prow-figs');
+      add(figures, 'b', row.measurements.kwh == null ? 'Unavailable' : row.measurements.kwh.toFixed(3) + ' kWh', 'insight-amount');
+      const periodCost = row.measurements.kwh == null ? null
+        : energyCharge(row.measurements.paidKwh == null ? 0 : row.measurements.paidKwh, readEnergyRate('day-rate'));
+      if (periodCost != null) add(figures, 'u', formatCompactCost(periodCost), 'prow-cost');
+      const span = spans[index];
+      const weather = span ? segmentWeather([day], span) : '';
+      if (weather) add(figures, 'span', weather, 'prow-wx');
+
+      if (span) {
+        const visual = document.createElement('div');
+        visual.innerHTML = periodBars(span, hourly, busiest);
+        while (visual.firstChild) section.appendChild(visual.firstChild);
+      }
+
       const body = add(section, 'div', '', 'insight-row-body');
-      const reading = add(body, 'div', '', 'insight-reading');
-      add(reading, 'span', row.measurements.kwh == null ? 'Unavailable' : row.measurements.kwh.toFixed(3) + ' kWh', 'insight-amount');
-      add(reading, 'span', 'From the grid', 'insight-amount-label');
       const explanation = add(body, 'div', '', 'insight-row-content');
-      if (row.levelLabel) add(explanation, 'span', row.levelLabel, 'insight-level');
-      // The spending label is the sole severity signal; spikes remain observations.
       add(explanation, 'p', row.explanation, 'insight-explanation');
       if (row.detail) add(explanation, 'p', row.detail, 'insight-detail');
       if (row.cost) add(explanation, 'p', row.cost, 'insight-detail');
@@ -2150,6 +2199,25 @@ async function loadInsightWeather(day, version) {
     const target = document.getElementById('insights-weather');
     target.textContent = lines.join('\n');
     target.hidden = false;
+    // The verdict banner and the period rows both read the hourly series from
+    // the weather cache, which this request has just filled. The banner is
+    // redrawn; the rows are already on screen, so each is given its own hours
+    // rather than re-running the analysis (which would request weather again).
+    renderRedesign();
+    const spans = redesignSegments();
+    const sections = document.querySelectorAll('#daytime-review-result .insight-row');
+    for (let index = 0; index < sections.length; index += 1) {
+      const span = spans[index];
+      if (!span) continue;
+      const figures = sections[index].querySelector('.prow-figs');
+      if (!figures || figures.querySelector('.prow-wx')) continue;
+      const text = segmentWeather([day], span);
+      if (!text) continue;
+      const node = document.createElement('span');
+      node.className = 'prow-wx';
+      node.textContent = text;
+      figures.appendChild(node);
+    }
   } catch { /* Weather is optional context, never a reason to block the report. */ }
 }
 
@@ -3118,6 +3186,18 @@ function redesignSum(values) {
   return known.length ? known.reduce((total, value) => total + value, 0) : null;
 }
 
+/* Dollar rounding hides sub-cent differences: $0.0048 and $0.0100 both print as
+   "$0.01", which made Compared to Before report a percentage with no visible
+   cause. Below $1 the figure is shown in cents, the same way insightCost() does.
+   The original cost cards keep their dollar formatting deliberately. */
+function formatCompactCost(dollars) {
+  if (typeof dollars !== 'number' || !Number.isFinite(dollars) || dollars < 0) return '—';
+  if (dollars >= 1) return formatEnergyCost(dollars);
+  const cents = dollars * 100;
+  if (cents === 0) return '0¢';
+  return cents < 0.01 ? 'under 0.01¢' : Number(cents.toFixed(2)) + '¢';
+}
+
 function renderRedesign() {
   try { renderRedesignCards(); }
   catch (error) { if (typeof console !== 'undefined' && console.warn) console.warn('Overview cards unavailable', error); }
@@ -3169,7 +3249,6 @@ function renderRedesignCards() {
   renderComparisonCard({ count, cost, priorCost, priorDays: prior.length });
   renderTrendCard({ all, count, cost, dayRate, nightRate });
   renderExportCard({ count, importKwh, exportKwh, all, dayRate, nightRate });
-  renderPeriodRows({ slice, count, limits });
 }
 
 /* ---- verdict banner ---- */
@@ -3197,7 +3276,7 @@ function renderVerdict(view) {
     head.innerHTML = view.cost == null
       ? 'Grid cost is unavailable for this range.'
       : (freeIsFree ? 'Paid hours cost you ' : 'Grid power cost you ')
-        + '<em>' + formatEnergyCost(view.cost) + '</em>'
+        + '<em>' + formatCompactCost(view.cost) + '</em>'
         + (view.count === 1 ? ' on the latest SMT day.' : ' over ' + view.count + ' days.');
   }
   const sub = byId('v-sub');
@@ -3283,7 +3362,7 @@ function renderDonutCard(view) {
   const title = byId('donut-title');
   if (title) title.textContent = freeNightsEnabled ? 'Free Power vs Paid Power' : 'Grid Power';
   const middle = byId('donut-cost');
-  if (middle) middle.textContent = formatEnergyCost(view.cost);
+  if (middle) middle.textContent = formatCompactCost(view.cost);
   const total = byId('donut-total');
   if (total) total.textContent = view.importKwh == null ? '—' : view.importKwh.toFixed(3) + ' kWh';
   const range = byId('donut-range');
@@ -3299,8 +3378,8 @@ function renderComparisonCard(view) {
   if (thisLabel) thisLabel.textContent = view.count === 1 ? 'Latest' : 'Last ' + view.count;
   if (prevLabel) prevLabel.textContent = view.count === 1 ? 'Day before' : 'Prior ' + view.count;
   const thisValue = byId('cmp-this'), prevValue = byId('cmp-prev');
-  if (thisValue) thisValue.textContent = formatEnergyCost(view.cost);
-  if (prevValue) prevValue.textContent = view.priorDays ? formatEnergyCost(view.priorCost) : '—';
+  if (thisValue) thisValue.textContent = formatCompactCost(view.cost);
+  if (prevValue) prevValue.textContent = view.priorDays ? formatCompactCost(view.priorCost) : '—';
   const highest = Math.max(view.cost || 0, view.priorCost || 0) || 1;
   const thisBar = byId('cmp-this-bar'), prevBar = byId('cmp-prev-bar');
   if (thisBar) thisBar.style.height = Math.max(3, (view.cost || 0) / highest * 90) + 'px';
@@ -3324,7 +3403,7 @@ function renderTrendCard(view) {
     day, cost: gridEnergyCost(readings.get(day) || [], view.dayRate, view.nightRate, day).cost
   }));
   const total = byId('trend-total');
-  if (total) total.textContent = formatEnergyCost(view.cost);
+  if (total) total.textContent = formatCompactCost(view.cost);
   const label = byId('trend-label');
   if (label) label.innerHTML = (view.count === 1 ? 'Latest day' : view.count + '-day total')
     + (view.count === 1 ? '<br>chart shows 7 days' : '');
@@ -3391,104 +3470,75 @@ function renderExportCard(view) {
       + 'Export credits are not included in any cost on this page.';
 }
 
-/* ---- Morning / Daytime / Night rows ---- */
-/* Reading quality for one period across the selected days, taken from the same
-   insightPeriod() the detailed review uses. Averaging kWh per clock hour cannot
-   see this on its own: one 15-minute reading makes the hour look present even
-   when the other three are missing. */
-function segmentQuality(dayKeys, span) {
-  let complete = true, estimated = false, missingDays = 0;
-  for (const day of dayKeys) {
-    const period = insightPeriod(readings.get(day) || [], day,
-      minute => { const hour = Math.floor(minute / 60); return hour >= span.from && hour <= span.to; });
-    if (!period.complete) { complete = false; missingDays += 1; }
-    if (period.estimated) estimated = true;
+/* ---- Morning / Daytime / Night rows ----
+   The bars, figures and weather live INSIDE the analysis row rather than in a
+   separate list above it. Keeping them apart meant the same three periods were
+   described twice on one card: once as a chart, once as prose. Severity comes
+   from the insights engine alone, which already refuses to rate a period whose
+   readings are incomplete or estimated. */
+
+/* Grid import per clock hour for one day. A missing hour stays null so a
+   partly-reported day cannot be drawn as if it were complete. */
+function hourlyImportFor(day) {
+  const hourly = new Array(24).fill(null);
+  for (const reading of readings.get(day) || []) {
+    if (reading.hasImport === false) continue;
+    const hour = Number(String(reading.time).slice(0, 2));
+    if (!Number.isInteger(hour) || hour < 0 || hour > 23) continue;
+    hourly[hour] = (hourly[hour] || 0) + reading.kwh;
   }
-  return { complete, estimated, missingDays };
+  return hourly;
 }
 
-function renderPeriodRows(view) {
-  const list = byId('period-list'); if (!list) return;
-  const averages = redesignHourlyAverages(view.slice);
-  const known = averages.filter(value => value != null);
-  const max = known.length ? Math.max(...known) : 1;
-  // Writes to its own line: #insights-date is owned by runDaytimeReview().
-  const sub = byId('period-sub');
-  if (sub) {
-    sub.textContent = (view.count === 1 ? fmtDate(view.slice[view.slice.length - 1]) : 'An average day over the last ' + view.count + ' days')
-      + ' · each period shows its own hours, usage and cost';
+/* The hour bars and their labels for one period, scaled against the day's
+   busiest hour so the three periods stay comparable. */
+function periodBars(span, hourly, max) {
+  let bars = '', axis = '';
+  for (let hour = span.from; hour <= span.to; hour++) {
+    const value = hourly[hour];
+    const height = value == null ? 2 : Math.max(2, value / max * 44);
+    const hot = !isFreeHour(hour) && value != null && value >= ENERGY_INSIGHT_RULES.peakInterval;
+    const colour = value == null ? 'rgba(255,255,255,.06)' : hot ? 'var(--danger)'
+      : isFreeHour(hour) ? 'var(--accent3)' : 'var(--accent)';
+    bars += '<i style="height:' + height.toFixed(1) + 'px;background:' + colour + '" title="'
+      + formatHour(hour) + ': ' + (value == null ? 'no readings' : value.toFixed(3) + ' kWh') + '"></i>';
+    axis += '<span>' + formatHour(hour) + '</span>';
+  }
+  return '<div class="prow-bars">' + bars + '</div><div class="prow-axis">' + axis + '</div>';
+}
+
+/* Weather across one period's own hours, from the hourly series the weather
+   endpoint now returns. Returns '' when the hours are not available, rather
+   than deriving a figure from the daily high and low, which would be a guess.
+   Only offered for a single day: averaging conditions across a range would say
+   very little. */
+function segmentWeather(dayKeys, span) {
+  if (dayKeys.length !== 1) return '';
+  let data = null;
+  try { data = readWeatherCache(dayKeys[0]); } catch (error) { return ''; }
+  const hours = Array.isArray(data && data.hours) ? data.hours : [];
+  const inside = hours.filter(entry => entry && Number.isInteger(entry.hour)
+    && entry.hour >= span.from && entry.hour <= span.to);
+  if (!inside.length) return '';
+  const temps = inside.map(entry => entry.tempF).filter(value => typeof value === 'number' && Number.isFinite(value));
+  const counts = new Map();
+  for (const entry of inside) {
+    if (typeof entry.condition !== 'string' || !entry.condition.trim()) continue;
+    counts.set(entry.condition, (counts.get(entry.condition) || 0) + 1);
+  }
+  let condition = '';
+  for (const [name, count] of counts) {
+    if (!condition || count > counts.get(condition)) condition = name;
   }
   const parts = [];
-  for (const span of redesignSegments()) {
-    let total = 0, cost = 0, peak = null, peakHour = span.from, freeHours = 0, hours = 0, missing = 0, rateMissing = false;
-    for (let hour = span.from; hour <= span.to; hour++) {
-      hours += 1;
-      if (isFreeHour(hour)) freeHours += 1;
-      const value = averages[hour];
-      if (value == null) { missing += 1; continue; }
-      total += value;
-      const rate = redesignRateFor(hour);
-      if (rate == null) rateMissing = true; else cost += value * rate;
-      if (peak == null || value > peak) { peak = value; peakHour = hour; }
-    }
-    const allFree = freeHours === hours, allPaid = freeHours === 0;
-    const costsNothing = allFree && nightRateIsZero();
-    const limits = view.limits;
-    // Partial or estimated readings never earn a spending rating, matching the
-    // verdict banner and the detailed review.
-    const quality = segmentQuality(view.slice, span);
-    const rated = !rateMissing && !missing && quality.complete && !quality.estimated && validAlertLimits(limits);
-    let tone = 'free';
-    if (!costsNothing) tone = !rated ? 'none' : cost >= limits.red ? 'bad' : cost >= limits.yellow ? 'warn' : 'good';
-    const toneVar = tone === 'bad' ? 'var(--danger)' : tone === 'warn' ? 'var(--accent)'
-      : tone === 'good' ? 'var(--accent2)' : tone === 'free' ? 'var(--accent3)' : 'var(--muted)';
-    let chip = costsNothing ? 'Free hours' : !rated ? 'Not rated'
-      : cost >= limits.red ? 'High spending' : cost >= limits.yellow ? 'Worth checking' : 'Low spending';
-    if (!allFree && !allPaid) chip = 'Mixed hours · ' + chip;
-    if (!costsNothing && !rated && (!quality.complete || quality.estimated)) {
-      chip = quality.estimated && quality.complete ? 'Estimated readings' : 'Partial readings';
-    }
-
-    // The meter reports one whole-house figure per interval, so no appliance can
-    // be named. Describe the shape of the draw and leave the cause open.
-    let note;
-    if (missing === hours) note = 'No grid readings available for these hours.';
-    else if (allFree) note = 'Busiest hour ' + formatHour(peakHour) + ' · ' + peak.toFixed(3) + ' kWh'
-      + (peak >= 2 ? ' — a large sustained draw, the kind an EV or home energy storage makes while charging.' : '.');
-    else if (total <= ENERGY_INSIGHT_RULES.lowPaid) note = 'Barely touched the grid in this window.';
-    else if (peak != null && peak >= ENERGY_INSIGHT_RULES.peakInterval) note = 'Busiest hour ' + formatHour(peakHour) + ' · ' + peak.toFixed(3) + ' kWh — above your spike threshold.';
-    else note = 'Busiest hour ' + formatHour(peakHour) + ' · ' + peak.toFixed(3) + ' kWh. No single hour stands out.';
-    if (missing && missing < hours) note += ' ' + missing + ' of ' + hours + ' hours have no readings, so this total covers the rest.';
-    else if (!quality.complete) {
-      note += view.count === 1
-        ? ' Some 15-minute readings in this period are missing, so the total covers the intervals that were reported.'
-        : ' ' + quality.missingDays + ' of ' + view.count + ' days have missing readings in this period.';
-    }
-    if (quality.estimated) note += ' Includes estimated readings.';
-
-    let bars = '', axis = '';
-    for (let hour = span.from; hour <= span.to; hour++) {
-      const value = averages[hour];
-      const height = value == null ? 2 : Math.max(2, value / max * 44);
-      const hot = !isFreeHour(hour) && value != null && value >= ENERGY_INSIGHT_RULES.peakInterval;
-      const colour = value == null ? 'rgba(255,255,255,.06)' : hot ? 'var(--danger)' : isFreeHour(hour) ? 'var(--accent3)' : 'var(--accent)';
-      bars += '<i style="height:' + height.toFixed(1) + 'px;background:' + colour + '" title="' + formatHour(hour) + ': '
-        + (value == null ? 'no readings' : value.toFixed(3) + ' kWh') + '"></i>';
-      axis += '<span>' + formatHour(hour).replace(':00', '') + '</span>';
-    }
-
-    parts.push('<div class="prow" style="--tone:' + toneVar + '">'
-      + '<div class="prow-head"><div><div class="prow-name">' + span.name + '</div>'
-      + '<div class="prow-hours">' + formatHour(span.from) + ' – ' + (span.to === 23 ? '12am' : formatHour(span.to + 1)) + '</div></div>'
-      + '<div class="prow-fig"><b>' + total.toFixed(3) + ' kWh</b><u>'
-      + (costsNothing ? '$0.00' : rateMissing ? 'Rate unset' : formatEnergyCost(cost)) + '</u>'
-      + '<span class="prow-chip">' + chip + '</span></div></div>'
-      + '<div class="prow-bars">' + bars + '</div>'
-      + '<div class="prow-axis">' + axis + '</div>'
-      + '<div class="prow-foot"><span>' + note + '</span></div></div>');
+  if (temps.length) {
+    const low = Math.round(Math.min(...temps)), high = Math.round(Math.max(...temps));
+    parts.push(low === high ? high + '°F' : low + '–' + high + '°F');
   }
-  list.innerHTML = parts.join('');
+  if (condition) parts.push(condition);
+  return parts.join(' · ');
 }
+
 
 /* =========================================================================
    SAVED PLAN SETTINGS

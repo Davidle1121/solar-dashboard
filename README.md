@@ -82,12 +82,36 @@ No changes to the SMT/Drive variables or files are required.
 - Compared to Before reports a change only when a prior stretch of the SAME
   length exists. Comparing seven days against the three that happen to be
   retained reads as a spike that is really just missing history.
-- The Drive refresh button and the freshness chip live in the rail and are shown
-  on the Dashboard only. An SMT export is uploaded by hand each day, so refresh
+- The Drive refresh button and the freshness chip sit directly under the rail's
+  navigation rather than pinned to the bottom of the sidebar, where they were
+  easy to miss. They are shown on the Dashboard only. An SMT export is uploaded by hand each day, so refresh
   is a daily action rather than a global header control.
 - `renderRedesign()` is wrapped in try/catch deliberately. These cards are an
   overview; if one fails, the charts, hourly table and cost widget that the rest
   of the dashboard depends on must still render.
+- The analysis runs only when **Review latest day** is pressed, deliberately.
+  SMT exports arrive at no fixed time — sometimes not until 10pm — so the
+  resting state of that card is the signal that the analysis has not yet been
+  run against whatever is currently loaded. Running it automatically was tried
+  and reverted: it removed that signal, and an analysis of a two-day-old newest
+  day looks identical to one of yesterday.
+- What was actually wrong was the resting state, not the button. The card used
+  to show the period chart with the analysis hidden behind the button, so it
+  read as complete when it was not. The chart now lives inside the analysis, so
+  the whole card is either pending or filled, never half. The prompt names the
+  day that would be analysed and says exports arrive at no fixed time.
+- Each period row carries the weather for its OWN hours, taken from the hourly
+  series `api/weather.js` now returns (`hourly=temperature_2m,weather_code`).
+  Deriving per-period temperatures from the daily high and low would be a guess
+  presented as a measurement, so `segmentWeather()` returns nothing when the
+  hourly series is unavailable, and nothing for multi-day ranges, where
+  averaging conditions would say very little. The daily line above the rows is
+  kept because it carries sunrise, sunset and the location label, none of which
+  are per-period.
+- The new cards use `formatCompactCost()`, which shows sub-dollar amounts in
+  cents. Dollar rounding made `$0.0048` and `$0.0100` both read as `$0.01`, so
+  Compared to Before reported a percentage change with no visible cause. The
+  original cost cards keep their dollar formatting deliberately.
 - No card names an appliance. The meter reports one whole-house figure per
   interval, so a large overnight draw is described by its shape ("a large
   sustained draw, the kind an EV or home energy storage makes while charging")
@@ -163,6 +187,20 @@ No changes to the SMT/Drive variables or files are required.
   of historical day selection, and trailing seven-day costs remain available.
 - The five average summary cards have been removed. The charts and hourly table
   retain detailed usage and import/export information for the latest 30 calendar days.
+- The Morning / Daytime / Night card is ONE thing: each `.insight-row` the
+  insights engine produces now carries that period's hour bars, kWh, cost and
+  weather alongside its prose. They were previously a chart list above and a
+  prose list below, which described the same three periods twice on one card.
+  Severity comes from the engine alone — it already refuses to rate a period
+  whose readings are incomplete or estimated — so there is one spending label
+  per row rather than a chip and a label saying the same thing.
+- Because the analysis is inherently about one day, that card is always the
+  newest SMT day, and `#insights-date` says so in full ("Latest SMT day · Wed,
+  Oct 28, 2026") in ordinary text rather than a muted note. Delivery is
+  irregular enough that the day on screen may not be yesterday, so the date has
+  to be readable without hunting for it. It is shown before the analysis is run
+  and stays visible afterwards. The range toggle drives Compared to Before, Cost Day by Day
+  and Sent to the Grid.
 - **Energy Insights** reviews the newest SMT day on demand, using local rules and
   the configured free-night hours and rates. It shows one short assessment, up to
   three morning/daytime/night rows with exact hours, and a daily export line.

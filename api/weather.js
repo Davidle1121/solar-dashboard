@@ -39,7 +39,11 @@ export default async function handler(req, res) {
     precipitation_unit: 'inch',
     temperature_unit: 'fahrenheit',
     timezone: process.env.WEATHER_TIMEZONE || 'America/Chicago',
-    daily: 'precipitation_sum,weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset'
+    daily: 'precipitation_sum,weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset',
+    // Hourly values let the dashboard describe morning, daytime and night
+    // separately. Interpolating them from the daily high and low would be a
+    // guess presented as a measurement.
+    hourly: 'temperature_2m,weather_code'
   });
 
   try {
@@ -64,6 +68,29 @@ export default async function handler(req, res) {
     let sunrise = localSunTime(data.daily?.sunrise?.[0]);
     let sunset = localSunTime(data.daily?.sunset?.[0]);
     if (sunrise && sunset && sunrise >= sunset) { sunrise = null; sunset = null; }
+    // Normalise the hourly series to this date's own hours. Anything missing or
+    // out of range is dropped rather than guessed, so a clock-change day simply
+    // reports fewer hours. Only the two values the UI uses are forwarded.
+    const hourTimes = Array.isArray(data.hourly?.time) ? data.hourly.time : [];
+    const hourTemps = Array.isArray(data.hourly?.temperature_2m) ? data.hourly.temperature_2m : [];
+    const hourCodes = Array.isArray(data.hourly?.weather_code) ? data.hourly.weather_code : [];
+    const seen = new Set();
+    const hours = [];
+    for (let index = 0; index < hourTimes.length; index += 1) {
+      const stamp = hourTimes[index];
+      if (typeof stamp !== 'string' || !stamp.startsWith(date + 'T')) continue;
+      const hour = Number(stamp.slice(11, 13));
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23 || seen.has(hour)) continue;
+      const tempF = temperature(hourTemps[index]);
+      const rawHourCode = hourCodes[index];
+      const hourCode = rawHourCode == null || rawHourCode === '' ? NaN : Number(rawHourCode);
+      const condition = Number.isInteger(hourCode) ? WEATHER_CODES[hourCode] : null;
+      if (tempF == null && !condition) continue;
+      seen.add(hour);
+      hours.push({ hour, ...(tempF != null ? { tempF } : {}), ...(condition ? { condition } : {}) });
+    }
+    hours.sort((a, b) => a.hour - b.hour);
+
     res.setHeader('Cache-Control', daysFromToday < 0 ? 'public, max-age=86400' : 'public, max-age=1800');
     return res.status(200).json({
       condition: WEATHER_CODES[code] || 'Unknown',
@@ -72,6 +99,7 @@ export default async function handler(req, res) {
       ...(lowF != null ? {lowF} : {}),
       ...(sunrise ? {sunrise} : {}),
       ...(sunset ? {sunset} : {}),
+      ...(hours.length ? {hours} : {}),
       // Optional owner-supplied label for the already configured location.
       // No postal lookup or new weather service is introduced.
       ...(/^\d{5}$/.test(process.env.WEATHER_POSTAL_CODE || '') ? {postalCode:process.env.WEATHER_POSTAL_CODE} : {})

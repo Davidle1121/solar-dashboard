@@ -122,3 +122,25 @@ test('an unsaved draft never reaches a calculation once the form is live', () =>
   vm.runInContext("appliedPlanState.dayRate = '40'", c);
   assert.equal(c.readEnergyRate('day-rate'), 40, 'a saved rate is used immediately');
 });
+
+test('period weather is taken from the hourly series, never from the daily range', () => {
+  const c = plan();
+  const span = { from: 0, to: 8 };
+  const cached = { condition: 'Overcast', hours: [
+    { hour: 0, tempF: 61.4, condition: 'Clear' },
+    { hour: 1, tempF: 60.2, condition: 'Clear' },
+    { hour: 7, tempF: 68.9, condition: 'Light rain' },
+    { hour: 15, tempF: 84.0, condition: 'Overcast' }   // outside the span
+  ] };
+  c.readWeatherCache = () => cached;
+  assert.equal(c.segmentWeather(['2026-10-27'], span), '60–69°F · Clear');
+  // Daytime shares the cache but must describe only its own hours.
+  assert.equal(c.segmentWeather(['2026-10-27'], { from: 9, to: 20 }), '84°F · Overcast');
+  // A range would have to average conditions, which says very little.
+  assert.equal(c.segmentWeather(['2026-10-27', '2026-10-26'], span), '');
+  // No hourly series means no claim at all.
+  c.readWeatherCache = () => ({ condition: 'Overcast', highF: 84, lowF: 61 });
+  assert.equal(c.segmentWeather(['2026-10-27'], span), '');
+  c.readWeatherCache = () => { throw new Error('storage blocked'); };
+  assert.equal(c.segmentWeather(['2026-10-27'], span), '');
+});
