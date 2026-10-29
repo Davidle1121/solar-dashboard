@@ -70,6 +70,18 @@ No changes to the SMT/Drive variables or files are required.
   12am / 9am / 9pm split and each row labels itself as mixed.
 - Hourly averages keep a missing hour as `null` rather than zero, so a partial
   day cannot flatter a period total; the row says how many hours are missing.
+  Averaging per clock hour cannot see a partly-reported hour, though — one
+  15-minute reading makes the hour look present — so `segmentQuality()` takes
+  completeness and the estimated flag from the same `insightPeriod()` the
+  detailed review uses. A period with missing or estimated readings reads
+  "Partial readings" rather than a spending rating, matching the verdict banner.
+- The Free Power vs Paid Power card is always the newest SMT day, whichever
+  range is selected, and says so. Its paid/free legend is written by
+  `renderLatestEnergyDay()`, which is latest-day only; moving the arcs with the
+  range while the legend stayed on one day put two different periods in one card.
+- Compared to Before reports a change only when a prior stretch of the SAME
+  length exists. Comparing seven days against the three that happen to be
+  retained reads as a spike that is really just missing history.
 - The Drive refresh button and the freshness chip live in the rail and are shown
   on the Dashboard only. An SMT export is uploaded by hand each day, so refresh
   is a daily action rather than a global header control.
@@ -100,6 +112,16 @@ No changes to the SMT/Drive variables or files are required.
 - Navigating away from Plan & Rates discards an unsaved draft, including an
   invalid one, so the controls can never disagree with the figures shown
   everywhere else.
+- `readEnergyRate()` and `readAlertLimits()` take their values from
+  `appliedPlanState` while a draft is dirty, because a Drive sync finishing
+  mid-edit calls `renderAll()` and would otherwise cost the whole history at a
+  half-typed rate. The form stays authoritative until `planFormReady` is set by
+  the boot path, which is what keeps the headless tests and any direct caller of
+  `renderCostEstimates()` working.
+- Saving or resetting a plan calls `renderAll()`, not just the costs and cards:
+  the Daily Grid Import and 15-Minute Detail charts are schedule-dependent, and
+  refreshing only part of the page left overnight hours coloured free after free
+  nights were turned off.
 - Every numeric field is described once in `PLAN_NUMERIC_FIELDS` (minimum,
   maximum, decimal places) and that one description drives the typing guard, the
   blur tidy-up and the save-time validation, so the three cannot drift apart.
