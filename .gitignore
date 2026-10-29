@@ -4,3 +4,7 @@ public/
 .env
 .env.*
 !.env.example
+
+# Patch exports produced for hand-off when a push is unavailable.
+*.patch
+preview/

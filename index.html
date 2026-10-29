@@ -222,6 +222,7 @@
   .chart-unavailable { padding: 16px 0; color: var(--muted); font-size: 12px; }
   @media (pointer: coarse), (max-width: 1024px) {
     .settings-bar input, .settings-bar select, .day-nav select,
+    .plan-field input, .plan-field select,
     .table-toolbar select { font-size: 16px; min-height: 44px; max-width: 100%; }
     button, .table-action { min-height: 44px; }
     .rate-control { flex-wrap: wrap; }
@@ -230,6 +231,8 @@
     .app { padding-left: 12px; padding-right: 12px; }
     .chart-panel { padding: 14px; }
     .settings-bar { padding: 10px; gap: 10px; }
+    .plan-row { gap: 10px; }
+    .plan-field input, .plan-field select { width: 100%; }
     .energy-stat { padding: 10px 8px; }
     .energy-stat-value { font-size: 20px; }
     .chart-note, .stat-sub { font-size: 11px; line-height: 1.5; }
@@ -322,7 +325,8 @@
     border-radius: 8px;
     font-size: 11px;
   }
-  .settings-bar select, .settings-bar input {
+  .settings-bar select, .settings-bar input,
+  .plan-field select, .plan-field input {
     background: var(--surface2);
     border: 1px solid var(--border);
     color: var(--text);
@@ -462,244 +466,499 @@
     .stat-compare-line { font-size: 10px; }
     .chart-wrap canvas { max-height: 220px; }
   }
+
+/* =========================================================================
+   REDESIGN (2026-10): shell, views, verdict banner and dashboard cards.
+   Added below the original styles so existing panel/table rules still apply
+   to the markup that was carried over unchanged (charts, hourly table).
+
+   Why the layout changed: settings used to sit above every figure, the daily
+   answer was five scrolls down, and Energy Insights only appeared after a
+   button press. The page now opens on the answer and settings live on their
+   own view.
+   ========================================================================= */
+.app-shell{display:flex;align-items:stretch;min-height:100vh}
+.rail{flex:0 0 218px;background:var(--surface);border-right:1px solid var(--border);
+  padding:22px 14px 18px;display:flex;flex-direction:column;gap:22px}
+.rail-brand{font-family:var(--font-display);font-size:17px;font-weight:600;line-height:1.25}
+.rail-brand span{color:var(--accent)}
+.rail-brand small{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);margin-top:5px;font-weight:400}
+.rail-nav{display:flex;flex-direction:column;gap:2px}
+.rail-nav button{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:7px;
+  color:var(--muted);font-size:13.5px;border:0;border-left:2px solid transparent;
+  background:transparent;cursor:pointer;font-family:inherit;text-align:left;width:100%}
+.rail-nav button:hover{background:var(--surface2);color:var(--text)}
+.rail-nav button.on{background:var(--surface2);color:var(--text);border-left-color:var(--accent)}
+/* Drive sync stays on the Dashboard only: an SMT export is uploaded by hand
+   every day, so the refresh is a daily action, not a global header control. */
+.rail-sync{margin-top:auto;display:flex;flex-direction:column;gap:9px}
+.upload-chip{display:flex;align-items:center;justify-content:center;gap:7px;
+  font-family:var(--font-mono);font-size:10.5px;color:var(--muted);text-align:center}
+.upload-chip i{width:6px;height:6px;border-radius:50%;background:var(--accent2);flex:0 0 6px}
+.upload-chip.stale{color:var(--accent)}
+.upload-chip.stale i{background:var(--accent)}
+.main-col{flex:1 1 0;min-width:0;padding:22px 20px 34px}
+.top-bar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+  justify-content:space-between;margin-bottom:18px}
+.top-bar h1{font-family:var(--font-display);font-size:25px;font-weight:600;margin:0}
+.range-seg{display:inline-flex;background:var(--surface);border:1px solid var(--border);
+  border-radius:999px;padding:3px}
+.range-seg button{border:0;background:transparent;color:var(--muted);font-family:var(--font-mono);
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:7px 16px;
+  border-radius:999px;cursor:pointer}
+.range-seg button.on{background:var(--surface2);color:var(--text);box-shadow:inset 0 0 0 1px var(--border)}
+.range-asof{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+
+/* The weather widget sits in the flex top bar and its text arrives late (async
+   fetch). Pinning its box means a "--°F" -> "72°F" swap cannot re-wrap the bar
+   and shift every card below it, which otherwise shows up as layout jitter. */
+.top-bar .weather-widget{flex:0 0 auto;width:150px;min-height:44px;margin:0}
+.top-bar .weather-icon{width:28px;text-align:center;flex:0 0 28px}
+.top-bar .weather-info{min-width:0}
+.top-bar .weather-temp{white-space:nowrap}
+
+/* ---- verdict banner: the question this site exists to answer ---- */
+.verdict{border-radius:12px;padding:20px 22px;margin-bottom:16px;
+  --tone:var(--accent2);--tint:rgba(63,185,80,.12);--line:rgba(63,185,80,.32);
+  background:var(--tint);border:1px solid var(--line);border-left:4px solid var(--tone);
+  display:flex;flex-wrap:wrap;gap:18px 30px;align-items:flex-start;justify-content:space-between}
+.verdict.warn{--tone:var(--accent);--tint:rgba(240,165,0,.12);--line:rgba(240,165,0,.32)}
+.verdict.alert{--tone:var(--danger);--tint:rgba(248,81,73,.12);--line:rgba(248,81,73,.32)}
+.verdict.neutral{--tone:var(--muted);--tint:rgba(125,133,144,.1);--line:rgba(125,133,144,.3)}
+.verdict-main{min-width:0}
+.v-label{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);
+  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--tone);margin-bottom:9px}
+.v-label i{width:7px;height:7px;border-radius:50%;background:var(--tone)}
+.v-head{font-family:var(--font-display);font-size:27px;font-weight:600;line-height:1.2;margin:0 0 7px}
+.v-head em{font-style:normal;color:var(--tone)}
+.v-sub{color:var(--muted);font-size:13.5px;line-height:1.6;margin:0;max-width:62ch}
+.v-flag{margin-top:11px;display:flex;gap:9px;align-items:flex-start;font-size:12.5px;
+  background:rgba(240,165,0,.09);border:1px solid rgba(240,165,0,.26);border-radius:8px;
+  padding:9px 12px;max-width:56ch;line-height:1.5}
+.v-meter{flex:0 1 330px;min-width:190px;max-width:380px}
+.verdict-main{flex:1 1 420px}
+.v-meter-top{display:flex;justify-content:space-between;gap:12px;font-family:var(--font-mono);
+  font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.v-track{height:8px;border-radius:999px;background:var(--surface2);overflow:hidden}
+.v-track i{display:block;height:100%;background:var(--accent2)}
+.v-scale{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10.5px;
+  color:var(--muted);margin-top:6px}
+.v-wx{display:block;margin-top:15px;padding-top:14px;
+  border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.6}
+
+/* ---- card grid ---- */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-bottom:16px}
+.card-grid .chart-panel{margin:0}
+.card-grid .span2{grid-column:span 2}
+@media (max-width:820px){.card-grid .span2{grid-column:span 1}}
+
+/* ---- Morning / Daytime / Night ----
+   One full-width row per period. Three side-by-side columns were tried first
+   and read as squashed: each period only got a third of the card. */
+.period-list{display:flex;flex-direction:column;gap:12px}
+.prow{--tone:var(--accent3);background:var(--surface2);border-radius:10px;min-width:0;
+  border-left:3px solid var(--tone);padding:15px 17px 16px}
+.prow-head{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:flex-end;justify-content:space-between}
+.prow-name{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--tone)}
+.prow-hours{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:5px}
+.prow-fig{display:flex;align-items:baseline;gap:8px 15px;flex-wrap:wrap}
+.prow-fig b{font-family:var(--font-display);font-size:22px;font-weight:600;line-height:1}
+.prow-fig u{text-decoration:none;font-family:var(--font-mono);font-size:13px;color:var(--tone)}
+.prow-chip{font-family:var(--font-mono);font-size:9px;letter-spacing:.11em;text-transform:uppercase;
+  padding:4px 9px;border-radius:999px;border:1px solid var(--tone);color:var(--tone);white-space:nowrap}
+.prow-bars{display:flex;align-items:flex-end;gap:3px;height:48px;margin-top:15px}
+.prow-bars i{flex:1 1 0;min-width:0;border-radius:3px 3px 0 0;min-height:2px;display:block}
+.prow-axis{display:flex;gap:3px;margin-top:7px}
+.prow-axis span{flex:1 1 0;min-width:0;text-align:center;overflow:hidden;
+  font-family:var(--font-mono);font-size:9.5px;color:var(--muted)}
+.prow-foot{display:flex;flex-wrap:wrap;gap:7px 20px;align-items:center;margin-top:12px;
+  font-size:12px;color:var(--muted);line-height:1.55}
+
+/* ---- donut, comparison, trend, export ---- */
+.donut-row{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.donut-wrap{position:relative;flex:0 0 auto}
+.donut-wrap svg{display:block;transform:rotate(-90deg)}
+.donut-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;pointer-events:none;text-align:center}
+.donut-mid b{font-family:var(--font-display);font-size:24px;font-weight:600;line-height:1}
+.donut-mid span{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin-top:5px}
+.donut-keys{display:flex;flex-direction:column;gap:11px;min-width:0;flex:1 1 140px}
+.dkey{display:flex;gap:9px;align-items:flex-start}
+.dkey i{width:9px;height:9px;border-radius:2px;margin-top:4px;flex:0 0 9px}
+.dkey b{display:block;font-size:14.5px;font-weight:600}
+.dkey span{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
+.cmp-row{display:flex;gap:24px;align-items:flex-end;justify-content:center;padding:6px 0 2px}
+.cmp-bar{display:flex;flex-direction:column;align-items:center;gap:8px;width:62px}
+.cmp-bar b{font-family:var(--font-mono);font-size:13px}
+.cmp-bar i{width:100%;border-radius:4px 4px 2px 2px;display:block;min-height:3px}
+.cmp-bar span{font-family:var(--font-mono);font-size:10px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--muted);text-align:center}
+.cmp-delta{display:flex;flex-direction:column;justify-content:center;gap:3px}
+.cmp-delta b{font-family:var(--font-display);font-size:22px;font-weight:600}
+.cmp-delta span{font-family:var(--font-mono);font-size:10px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);line-height:1.5}
+.trend-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:11px}
+.trend-head b{font-family:var(--font-display);font-size:23px;font-weight:600}
+.trend-head span{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);text-align:right}
+.trend-plot{width:100%;height:auto;display:block;overflow:visible}
+/* Date axis is HTML, not SVG text: the plot uses preserveAspectRatio="none" to
+   fill the card, which would stretch any text drawn inside the viewBox. */
+.trend-axis{position:relative;height:14px;margin-top:8px;font-family:var(--font-mono);
+  font-size:9.5px;color:var(--muted)}
+.trend-axis span{position:absolute;top:0;white-space:nowrap}
+.exp-row{margin-bottom:15px}
+.exp-row:last-of-type{margin-bottom:0}
+.exp-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px}
+.exp-top span{font-size:12.5px;color:var(--muted)}
+.exp-top b{font-family:var(--font-mono);font-size:13.5px}
+.exp-track{height:8px;border-radius:999px;background:var(--surface2);overflow:hidden}
+.exp-track i{display:block;height:100%;background:var(--accent2)}
+
+/* ---- plan & rates ---- */
+.plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start}
+.plan-grid .chart-panel{margin:0}
+.plan-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.plan-field label{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted)}
+.plan-field.bad input,.plan-field.bad select{border-color:var(--danger)}
+.plan-field input,.plan-field select{padding:9px 10px;border-radius:7px}
+/* The unit lives inside the box, so a rate can never be read as dollars.
+   aria-hidden: the label already says the unit, so screen readers are not
+   told it twice. */
+.unit-wrap{position:relative;display:flex;align-items:center}
+.unit-wrap input{width:100%}
+.unit-wrap.suffix input{padding-right:32px}
+.unit-wrap.prefix input{padding-left:28px}
+.unit-mark{position:absolute;pointer-events:none;color:var(--muted);
+  font-family:var(--font-mono);font-size:15px;line-height:1}
+.unit-wrap.suffix .unit-mark{right:11px}
+.unit-wrap.prefix .unit-mark{left:11px}
+.rate-equiv{font-family:var(--font-mono);font-size:11px;color:var(--muted);
+  margin-top:6px;min-height:1.3em}
+.plan-field input:focus,.plan-field select:focus{outline:2px solid var(--accent3);outline-offset:1px}
+.plan-row{display:flex;flex-wrap:wrap;gap:14px}
+/* Save bar sticks to the bottom so the button is reachable without scrolling
+   back up after editing the last field. */
+.save-bar{position:sticky;bottom:0;margin-top:16px;padding:14px 16px;background:var(--surface);
+  border:1px solid var(--border);border-radius:11px;display:flex;flex-wrap:wrap;
+  gap:12px 16px;align-items:center;justify-content:space-between;
+  box-shadow:0 -6px 20px rgba(0,0,0,.35)}
+.save-state{font-size:12.5px;color:var(--muted);line-height:1.5;min-width:0}
+.save-state.ok{color:var(--accent2)}
+.save-state.dirty{color:var(--accent)}
+.save-state.err{color:var(--danger)}
+.btn-primary{background:var(--accent);border:1px solid var(--accent);color:#1a1200;
+  font-weight:600;border-radius:7px;padding:9px 16px;font-family:inherit;font-size:13px;cursor:pointer}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.plan-errors{margin:14px 0 0;padding-left:18px;font-size:12px;color:var(--danger);line-height:1.6}
+
+@media (max-width:820px){
+  .app-shell{flex-direction:column}
+  .rail{flex:0 0 auto;border-right:0;border-bottom:1px solid var(--border);
+    flex-direction:row;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px}
+  .rail-nav{flex-direction:row;flex-wrap:wrap;gap:4px}
+  .rail-nav button{border-left:0;border-bottom:2px solid transparent;padding:7px 10px;width:auto}
+  .rail-nav button.on{border-left:0;border-bottom-color:var(--accent)}
+  .rail-sync{margin-top:0;flex:1 1 220px}
+  .main-col{padding:18px 16px 30px}
+  .v-head{font-size:21px}
+  .top-bar h1{font-size:20px}
+}
+
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="header-left">
-      <h1>Home <span>Energy</span> Dashboard</h1>
-      <div class="header-meta" id="header-meta">No data loaded</div>
-      <div class="freshness-badge" id="freshness-badge" style="display:none">Latest SMT day: —</div>
+<div class="app-shell">
+  <!-- Left rail. Replaces the old top tab strip: three destinations instead of
+       two, and the seven Electricity plan inputs move off the main page. -->
+  <aside class="rail">
+    <div class="rail-brand">Home <span>Energy</span><small>Smart Meter Texas</small></div>
+    <nav class="rail-nav" id="rail-nav">
+      <button type="button" class="on" data-view="dashboard" onclick="showView('dashboard')">Dashboard</button>
+      <button type="button" data-view="hourly" onclick="showView('hourly')">Hourly Profile Table</button>
+      <button type="button" data-view="plan" onclick="showView('plan')">Plan &amp; Rates</button>
+    </nav>
+    <div class="rail-sync" id="rail-sync">
+      <button class="drive-btn" id="drive-btn" onclick="syncFromDrive(true, 'manual')">
+        <span class="drive-icon">&#9729;</span> Refresh from Google Drive
+      </button>
+      <span class="drive-status" id="drive-status">Auto-sync checks on load, then manual refresh when you want it</span>
+      <span class="drive-status" id="last-sync-label"></span>
+      <div class="upload-chip" id="upload-chip"><i></i><span id="freshness-badge">Latest SMT day: &mdash;</span></div>
     </div>
-    <div class="header-right">
+  </aside>
+
+  <div class="main-col">
+    <div class="top-bar">
+      <h1 id="app-title">Energy Dashboard</h1>
+      <div class="range-seg" id="range-seg" role="group" aria-label="Time range">
+        <button type="button" class="on" data-days="1" aria-pressed="true" onclick="setRange(1,this)">Today</button>
+        <button type="button" data-days="7" onclick="setRange(7,this)">7 Days</button>
+        <button type="button" data-days="30" onclick="setRange(30,this)">30 Days</button>
+      </div>
+      <div class="range-asof" id="range-asof">&mdash;</div>
       <div class="weather-widget" id="weather-widget">
-        <div class="weather-icon" id="weather-icon">⏳</div>
+        <div class="weather-icon" id="weather-icon">&#8987;</div>
         <div class="weather-info">
-          <div class="weather-temp" id="weather-temp">--°F</div>
+          <div class="weather-temp" id="weather-temp">--&deg;F</div>
           <div class="weather-loc">Local weather</div>
         </div>
       </div>
     </div>
-  </header>
 
-  <div class="drive-bar">
-    <button class="drive-btn" id="drive-btn" onclick="syncFromDrive(true, 'manual')">
-      <span class="drive-icon">☁️</span> Refresh from Google Drive
-    </button>
-    <span class="drive-status" id="drive-status">Auto-sync checks on load, then manual refresh when you want it</span>
-    <span class="drive-status" id="last-sync-label"></span>
-  </div>
-
-  <div class="settings-bar" id="electricity-plan">
-    <strong class="plan-help" style="color:var(--text);font-size:14px">Electricity plan</strong>
-    <label class="free-night-toggle"><input id="free-nights-enabled" type="checkbox" checked onchange="updateFreeNights()"> Free nights</label>
-    <div>
-      <label for="free-start" style="color:var(--muted)">Free Night Start:</label>
-      <select id="free-start" onchange="updateFreeHours()"></select>
-    </div>
-    <div>
-      <label for="free-end" style="color:var(--muted)">Free Night End:</label>
-      <select id="free-end" onchange="updateFreeHours()"></select>
-    </div>
-      <div class="rate-control"><label for="day-rate" id="day-rate-label">Day rate (¢/kWh)</label>
-      <input id="day-rate" type="number" min="0" step="any" value="25" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px"></div>
-      <div class="rate-control"><label for="night-rate">Night rate (¢/kWh)</label>
-      <input id="night-rate" type="number" min="0" step="any" value="0" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px"></div>
-    <div class="plan-help"><span id="rate-help">Rates reset to 25¢ day / 0¢ night on page reload.</span></div>
-    <div id="rate-validation" role="alert" style="color:var(--danger)"></div>
-    <details class="plan-help alert-settings"><summary>Alert settings</summary>
-      <div class="settings-bar" style="margin:10px 0">
-        <div class="rate-control"><label for="alert-yellow">Yellow starts at ($/day)</label><input id="alert-yellow" type="number" min="0.01" step="0.01" value="1" inputmode="decimal" oninput="updateAlertLimits()" style="width:95px"></div>
-        <div class="rate-control"><label for="alert-red">Red starts at ($/day)</label><input id="alert-red" type="number" min="0.01" step="0.01" value="5" inputmode="decimal" oninput="updateAlertLimits()" style="width:95px"></div>
-      </div>
-      <div id="alert-validation" role="alert" style="color:var(--danger)"></div>
-      <div>Paid-hours energy charges only. Limits are saved in this browser; rates and plan hours reset on reload. Colors indicate spending, not equipment faults.</div>
-    </details>
-  </div>
-
-  <div class="chart-panel" id="latest-energy-widget">
-    <div class="chart-header"><div class="chart-title">Latest SMT Day &amp; Grid Energy Cost — <span id="latest-energy-date">No data loaded</span></div><div class="chart-note">Latest available day; SMT readings usually arrive one day later.</div></div>
-    <div class="latest-energy-grid" aria-live="polite">
-      <div class="energy-stat"><div class="energy-stat-label">Paid-hours Import</div><div class="energy-stat-value" id="latest-day-import" style="color:var(--accent)">—</div><div class="stat-sub" id="latest-day-import-note">9am–9pm</div></div>
-      <div class="energy-stat"><div class="energy-stat-label">Paid-hours Cost</div><div class="energy-stat-value" id="latest-day-cost">—</div><div class="stat-sub" id="latest-day-cost-note">25¢/kWh</div></div>
-      <div class="energy-stat"><div class="energy-stat-label">Free-window Import</div><div class="energy-stat-value" id="latest-night-import" style="color:var(--accent3)">—</div><div class="stat-sub" id="latest-night-import-note">9pm–9am</div></div>
-      <div class="energy-stat"><div class="energy-stat-label">Free-window Cost</div><div class="energy-stat-value" id="latest-night-cost">—</div><div class="stat-sub" id="latest-night-cost-note">0¢/kWh</div></div>
-    </div>
-    <div class="chart-note" id="cost-period">Daytime: 9am–9pm · Nighttime: 9pm–9am</div>
-    <div id="cost-widget">
-    <div class="settings-bar">
-      <div class="rate-control"><label for="cost-day">Day</label>
-      <select id="cost-day" onchange="selectDay(this.value)"></select></div>
-    </div>
-    <div class="energy-stats-row">
-      <div class="energy-stat"><div class="energy-stat-label">Selected day</div><div class="energy-stat-value" id="cost-daily">—</div><div class="stat-sub" id="cost-daily-note">Load SMT data to calculate.</div></div>
-      <div class="energy-stat"><div class="energy-stat-label">7 days ending on selected day</div><div class="energy-stat-value" id="cost-weekly">—</div><div class="stat-sub" id="cost-weekly-note">Available daytime + nighttime imports only.</div></div>
-    </div>
-    <div class="chart-note">Energy charge only: excludes delivery charges, taxes, fixed fees, and export credits. Missing readings are not projected. Nighttime combines both nighttime portions of each calendar date.</div>
-    </div>
-  </div>
-
-  <div class="chart-panel" id="daytime-review-widget">
-    <div class="chart-header">
-      <div><div class="chart-title">Energy Insights</div><div class="chart-note" id="insights-date">No SMT data loaded</div></div>
-      <button class="table-action" id="review-daytime-button" onclick="runDaytimeReview()" disabled>Review latest day</button>
-    </div>
-    <div class="chart-note" id="insights-weather" hidden></div>
-    <div id="daytime-review-result" aria-live="polite" style="margin:18px 0;line-height:1.8">Load SMT data, then review the latest available day.</div>
-    <div class="chart-note">Based on SMT grid readings · Uses your free-night hours and rates · Energy charges only</div>
-  </div>
-
-  <div class="section-tabs" id="section-tabs" style="display:none">
-    <button class="tab-btn active" onclick="showTab('daily',this)">Daily View</button>
-    <button class="tab-btn" onclick="showTab('hourly',this)">Hourly Profile Table</button>
-    <!-- <button class="tab-btn" onclick="showTab('monthly',this)">Monthly</button> -->
-    <!-- <button class="tab-btn" onclick="showTab('table',this)">Data Table</button> -->
-  </div>
-
-  <div id="tab-daily">
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">Daily Grid Import</div>
-        <div class="chart-note">Previous week vs current week, side-by-side by day (stacked Free + Paid)</div>
-      </div>
-      <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Free kWh</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Paid kWh</div>
-      </div>
-    </div>
-
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">15-Minute Detail — <span id="detail-date-label" style="color:var(--accent)">Select day</span></div>
-        <div class="day-nav">
-          <button onclick="shiftDay(-1)">← Prev</button>
-          <select id="day-select" onchange="selectDay(this.value)"></select>
-          <button onclick="shiftDay(1)">Next →</button>
+    <!-- ===================== DASHBOARD ===================== -->
+    <div id="view-dashboard">
+      <!-- The answer first. Tone follows the saved daily alert limits. -->
+      <div class="verdict neutral" id="verdict">
+        <div class="verdict-main">
+          <div class="v-label"><i></i><span id="v-when">No data loaded</span></div>
+          <p class="v-head" id="v-head">Load your SMT data to see what the grid cost you.</p>
+          <p class="v-sub" id="v-sub">Use Refresh from Google Drive to pull the latest export.</p>
+          <div class="v-flag" id="v-flag" style="display:none"><span id="v-flag-text"></span></div>
+        </div>
+        <div class="v-meter">
+          <div class="v-meter-top"><span id="v-meter-label">vs your limits</span><span id="v-tone">&mdash;</span></div>
+          <div class="v-track"><i id="v-bar" style="width:0%"></i></div>
+          <div class="v-scale"><span>$0</span><span id="v-yellow-label">$1 yellow</span><span id="v-red-label">$5 red</span></div>
+          <div class="v-wx" id="v-wx" style="display:none"></div>
         </div>
       </div>
-      <div class="chart-wrap"><canvas id="chart-detail"></canvas></div>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Free Period Draw</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Paid Period Draw</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>Spike (&gt;0.5 kWh)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#c084fc"></div>Likely EV Charging</div>
-      </div>
-    </div>
-  </div>
 
-  <div id="tab-hourly" style="display:none">
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">Hourly Grid Energy Table</div>
-        <div class="chart-note">Local daily condition and rainfall · <span style="color:rgba(240,165,0,0.9)">amber = paid</span> · <span style="color:rgba(88,166,255,0.9)">blue = free night</span> · <span style="color:rgba(248,81,73,0.9)">red bg = high import (&gt;1.5 kWh/hr)</span> · net: green = export, red = import · — = missing · * = estimated</div>
-      </div>
-      <div class="table-toolbar">
-        <label for="hourly-metric">Energy (kWh)</label>
-        <select id="hourly-metric" onchange="renderHourlyTable([...readings.keys()].sort())">
-          <option value="import">Import</option><option value="export">Export</option><option value="net">Net (import − export)</option>
-        </select>
-        <label for="hourly-range">Show</label>
-        <select id="hourly-range" onchange="renderHourlyTable([...readings.keys()].sort())">
-          <option value="7">Last 7 days</option>
-          <option value="14" selected>Last 14 days</option>
-          <option value="30">Last 30 days</option>
-        </select>
-        <button class="table-action" type="button" onclick="copyHourlyTable()">Copy table</button>
-      </div>
-      <div class="data-table-wrap">
-        <table id="hourly-table">
-          <thead>
-            <tr id="hourly-table-head"></tr>
-          </thead>
-          <tbody id="hourly-table-body"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+      <div class="card-grid">
+        <!-- Morning / Daytime / Night. Same three periods the Energy Insights
+             engine already produces, drawn as rows instead of paragraphs. -->
+        <div class="chart-panel span2" id="daytime-review-widget">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Morning, Daytime, Night</div>
+              <div class="chart-note" id="insights-date">No SMT data loaded</div>
+            </div>
+            <button class="table-action" id="review-daytime-button" onclick="runDaytimeReview()" disabled>Review latest day</button>
+          </div>
+          <div class="chart-note" id="insights-weather" hidden></div>
+          <div class="chart-note" id="period-sub" style="margin-bottom:12px">&mdash;</div>
+          <div class="period-list" id="period-list"></div>
+          <div id="daytime-review-result" aria-live="polite" style="margin:14px 0 0;line-height:1.7"></div>
+          <div class="chart-note" style="margin-top:12px">Based on SMT grid readings &middot; uses your saved free-night hours and rates &middot; energy charges only</div>
+        </div>
 
+        <div class="chart-panel" id="latest-energy-widget">
+          <div class="chart-header">
+            <div class="chart-title" id="donut-title">Free Power vs Paid Power</div>
+          </div>
+          <div class="chart-note" id="donut-sub"><span id="donut-range">Latest SMT day</span> &mdash; <span id="latest-energy-date">No data loaded</span></div>
+          <div class="donut-row" style="margin-top:14px">
+            <div class="donut-wrap">
+              <svg width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="donut-aria">
+                <title id="donut-aria">Share of grid import that fell in paid hours</title>
+                <circle cx="64" cy="64" r="50" fill="none" stroke="var(--surface2)" stroke-width="15"></circle>
+                <circle id="donut-free" cx="64" cy="64" r="50" fill="none" stroke="var(--accent3)" stroke-width="15"></circle>
+                <circle id="donut-paid" cx="64" cy="64" r="50" fill="none" stroke="var(--accent)" stroke-width="15"></circle>
+              </svg>
+              <div class="donut-mid"><b id="donut-cost">&mdash;</b><span>Cost</span></div>
+            </div>
+            <div class="donut-keys">
+              <div class="dkey"><i style="background:var(--accent)"></i><div>
+                <b id="latest-day-import">&mdash;</b>
+                <span id="latest-day-import-note">Paid hours</span>
+                <span id="latest-day-cost">&mdash;</span>
+                <span id="latest-day-cost-note">&mdash;</span></div></div>
+              <div class="dkey"><i style="background:var(--accent3)"></i><div>
+                <b id="latest-night-import">&mdash;</b>
+                <span id="latest-night-import-note">Free window</span>
+                <span id="latest-night-cost">&mdash;</span>
+                <span id="latest-night-cost-note">&mdash;</span></div></div>
+              <div class="dkey"><i style="background:var(--surface2);box-shadow:inset 0 0 0 1px var(--border)"></i><div>
+                <b id="donut-total">&mdash;</b><span>Total grid import</span></div></div>
+            </div>
+          </div>
+          <div class="chart-note" id="cost-period" style="margin-top:12px">Daytime: 9am&ndash;9pm &middot; Nighttime: 9pm&ndash;9am</div>
+          <div class="chart-note" style="margin-top:6px">Always the newest SMT day, whichever range is selected above.</div>
+        </div>
 
-  <!--
-  <div id="tab-monthly" style="display:none">
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">Monthly Grid Consumption</div>
-        <div class="chart-note">Total kWh drawn from grid per calendar month</div>
-      </div>
-      <div class="chart-wrap"><canvas id="chart-monthly"></canvas></div>
-    </div>
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">Monthly Paid vs Free Night</div>
-        <div class="chart-note">Totals separated by your selected Free Night configuration</div>
-      </div>
-      <div class="chart-wrap"><canvas id="chart-monthly-daynight"></canvas></div>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.75)"></div>Paid</div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.75)"></div>Free Night</div>
-      </div>
-    </div>
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">Monthly Summary Table</div>
-        <div class="chart-note">Days of data, totals, and daily averages per month</div>
-      </div>
-      <div class="data-table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Month</th>
-              <th>Days of Data</th>
-              <th>Total kWh</th>
-              <th>Daily Avg kWh</th>
-              <th>Paid kWh</th>
-              <th>Free Night kWh</th>
-              <th>Night %</th>
-            </tr>
-          </thead>
-          <tbody id="monthly-table-body"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  -->
+        <div class="chart-panel" id="cost-widget">
+          <div class="chart-header">
+            <div class="chart-title">Compared to Before</div>
+            <div class="chart-note" id="cmp-sub">&mdash;</div>
+          </div>
+          <div class="cmp-row">
+            <div class="cmp-bar"><b id="cmp-prev">&mdash;</b><i id="cmp-prev-bar" style="background:#2d4a63;height:30px"></i><span id="cmp-prev-lab">Prior</span></div>
+            <div class="cmp-bar"><b id="cmp-this">&mdash;</b><i id="cmp-this-bar" style="background:var(--accent);height:30px"></i><span id="cmp-this-lab">Latest</span></div>
+            <div class="cmp-delta"><b id="cmp-pct">&mdash;</b><span id="cmp-dir">&mdash;</span></div>
+          </div>
+          <div class="settings-bar" style="margin-top:14px">
+            <div class="rate-control"><label for="cost-day">Selected day</label>
+              <select id="cost-day" onchange="selectDay(this.value)"></select></div>
+          </div>
+          <div class="energy-stats-row">
+            <div class="energy-stat"><div class="energy-stat-label">Selected day</div><div class="energy-stat-value" id="cost-daily">&mdash;</div><div class="stat-sub" id="cost-daily-note">Load SMT data to calculate.</div></div>
+            <div class="energy-stat"><div class="energy-stat-label">7 days ending on selected day</div><div class="energy-stat-value" id="cost-weekly">&mdash;</div><div class="stat-sub" id="cost-weekly-note">Available daytime + nighttime imports only.</div></div>
+          </div>
+          <div class="chart-note">Energy charge only: excludes delivery charges, taxes, fixed fees and export credits. Missing readings are not projected.</div>
+        </div>
 
-  <!--
-  <div id="tab-table" style="display:none">
-    <div class="chart-panel">
-      <div class="chart-header">
-        <div class="chart-title">Daily Summary Table</div>
-        <div class="chart-note">Core overview of daily consumption rates</div>
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div class="chart-title">Cost Day by Day</div>
+            <div class="chart-note">What each day cost you &middot; missing days are never filled in</div>
+          </div>
+          <div class="trend-head"><b id="trend-total">&mdash;</b><span id="trend-label">&mdash;</span></div>
+          <svg class="trend-plot" id="trend-plot" viewBox="0 0 320 112" preserveAspectRatio="none" role="img" aria-labelledby="trend-aria"><title id="trend-aria">Daily grid energy cost</title></svg>
+          <div class="trend-axis" id="trend-axis"></div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div class="chart-title">Sent to the Grid</div>
+            <div class="chart-note">Surplus generation reported by SMT &mdash; not total solar output</div>
+          </div>
+          <div class="exp-row"><div class="exp-top"><span id="exp-lab1">Export</span><b id="exp-val1">&mdash;</b></div><div class="exp-track"><i id="exp-bar1" style="width:0%"></i></div></div>
+          <div class="exp-row"><div class="exp-top"><span id="exp-lab2">Range export</span><b id="exp-val2">&mdash;</b></div><div class="exp-track"><i id="exp-bar2" style="width:0%;background:var(--accent3)"></i></div></div>
+          <div class="exp-row"><div class="exp-top"><span>Net (import &minus; export)</span><b id="exp-val3">&mdash;</b></div><div class="exp-track"><i id="exp-bar3" style="width:0%"></i></div></div>
+          <div class="chart-note" id="exp-note" style="margin-top:12px">Export credits are not included in any cost on this page.</div>
+        </div>
       </div>
-      <div class="data-table-wrap">
-        <table id="summary-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Day</th>
-              <th>Grid kWh</th>
-              <th>Peak 15-min</th>
-              <th>Peak Time</th>
-              <th>Intervals</th>
-            </tr>
-          </thead>
-          <tbody id="table-body"></tbody>
-        </table>
+
+      <div id="section-tabs" style="display:none"></div>
+
+      <div id="tab-daily">
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div class="chart-title">Daily Grid Import</div>
+            <div class="chart-note">Previous week vs current week, side-by-side by day (stacked Free + Paid)</div>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Free kWh</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Paid kWh</div>
+          </div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div class="chart-title">15-Minute Detail &mdash; <span id="detail-date-label" style="color:var(--accent)">Select day</span></div>
+            <div class="day-nav">
+              <button onclick="shiftDay(-1)">&larr; Prev</button>
+              <select id="day-select" onchange="selectDay(this.value)"></select>
+              <button onclick="shiftDay(1)">Next &rarr;</button>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-detail"></canvas></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Free Period Draw</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Paid Period Draw</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>Spike (&gt;0.5 kWh)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#c084fc"></div>Large sustained draw (EV or home storage)</div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-  -->
 
-  <div class="disclaimer">
-    Disclaimer: This dashboard is for entertainment purposes only.
+    <!-- ===================== HOURLY TABLE ===================== -->
+    <div id="view-hourly" style="display:none">
+      <div id="tab-hourly">
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div class="chart-title">Hourly Grid Energy Table</div>
+            <div class="chart-note" id="hourly-legend">Local daily condition and rainfall &middot; <span style="color:rgba(240,165,0,0.9)">amber = paid</span> &middot; <span style="color:rgba(88,166,255,0.9)">blue = free night</span> &middot; <span style="color:rgba(248,81,73,0.9)">red bg = high import (&gt;1.5 kWh/hr)</span> &middot; net: green = export, red = import &middot; &mdash; = missing &middot; * = estimated</div>
+          </div>
+          <div class="table-toolbar">
+            <label for="hourly-metric">Energy (kWh)</label>
+            <select id="hourly-metric" onchange="renderHourlyTable([...readings.keys()].sort())">
+              <option value="import">Import</option><option value="export">Export</option><option value="net">Net (import &minus; export)</option>
+            </select>
+            <label for="hourly-range">Show</label>
+            <select id="hourly-range" onchange="renderHourlyTable([...readings.keys()].sort())">
+              <option value="7">Last 7 days</option>
+              <option value="14" selected>Last 14 days</option>
+              <option value="30">Last 30 days</option>
+            </select>
+            <button class="table-action" type="button" onclick="copyHourlyTable()">Copy table</button>
+          </div>
+          <div class="data-table-wrap">
+            <table id="hourly-table">
+              <thead><tr id="hourly-table-head"></tr></thead>
+              <tbody id="hourly-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== PLAN & RATES =====================
+         Moved off the Dashboard. Edits are staged and only applied on Save,
+         so a half-typed rate can never recalculate the page. -->
+    <div id="view-plan" style="display:none">
+      <div class="plan-grid" id="electricity-plan">
+        <div class="chart-panel">
+          <div class="chart-header"><div class="chart-title">Free Nights</div></div>
+          <div class="chart-note">Hours billed at your night rate</div>
+          <label class="free-night-toggle" style="margin-top:14px">
+            <input id="free-nights-enabled" type="checkbox" checked onchange="onPlanChanged()"> Free nights enabled</label>
+          <div class="plan-row" style="margin-top:14px">
+            <div class="plan-field" id="field-start"><label for="free-start">Starts</label>
+              <select id="free-start" onchange="onPlanChanged()"></select></div>
+            <div class="plan-field" id="field-end"><label for="free-end">Ends</label>
+              <select id="free-end" onchange="onPlanChanged()"></select></div>
+          </div>
+          <div class="chart-note" style="margin-top:12px">Start and end must differ. Changing these re-splits every figure on the Dashboard and recolours the Hourly Table, because free and paid hours are decided in one place and used everywhere.</div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="chart-header"><div class="chart-title">Rates</div></div>
+          <div class="chart-note">Energy charge only. Rates are in cents per kWh, the way a plan quotes them.</div>
+          <div class="plan-row" style="margin-top:14px">
+            <div class="plan-field" id="field-day"><label for="day-rate" id="day-rate-label">Day rate (&cent;/kWh)</label>
+              <div class="unit-wrap suffix"><input id="day-rate" type="text" value="25" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="day-rate-equiv" oninput="onPlanChanged()"><span class="unit-mark" aria-hidden="true">&cent;</span></div><div class="rate-equiv" id="day-rate-equiv"></div></div>
+            <div class="plan-field" id="field-night"><label for="night-rate">Night rate (&cent;/kWh)</label>
+              <div class="unit-wrap suffix"><input id="night-rate" type="text" value="0" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="night-rate-equiv" oninput="onPlanChanged()"><span class="unit-mark" aria-hidden="true">&cent;</span></div><div class="rate-equiv" id="night-rate-equiv"></div></div>
+          </div>
+          <div id="rate-validation" role="alert" style="color:var(--danger);margin-top:10px"></div>
+          <div class="chart-note" id="rate-help" style="margin-top:10px">Excludes delivery charges, taxes, fixed fees and export credits, so these figures are lower than your bill. Changing a rate recalculates your history at the new rate; it does not show what you were actually billed on past days.</div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="chart-header"><div class="chart-title">Spending Alerts</div></div>
+          <div class="chart-note">Daily limits that colour the banner</div>
+          <div class="plan-row" style="margin-top:14px">
+            <div class="plan-field" id="field-yellow"><label for="alert-yellow">Yellow at ($/day)</label>
+              <div class="unit-wrap prefix"><span class="unit-mark" aria-hidden="true">$</span><input id="alert-yellow" type="text" value="1" inputmode="decimal" autocomplete="off" spellcheck="false" oninput="onPlanChanged()"></div></div>
+            <div class="plan-field" id="field-red"><label for="alert-red">Red at ($/day)</label>
+              <div class="unit-wrap prefix"><span class="unit-mark" aria-hidden="true">$</span><input id="alert-red" type="text" value="5" inputmode="decimal" autocomplete="off" spellcheck="false" oninput="onPlanChanged()"></div></div>
+          </div>
+          <div id="alert-validation" role="alert" style="color:var(--danger);margin-top:10px"></div>
+          <div class="chart-note" style="margin-top:10px">Red must be higher than yellow. Colours indicate spending, not equipment faults.</div>
+        </div>
+      </div>
+
+      <ul class="plan-errors" id="plan-errors" hidden></ul>
+
+      <div class="save-bar">
+        <div class="save-state" id="plan-state">Saved settings are in use.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="table-action" type="button" id="plan-reset" onclick="resetPlanDefaults()">Reset to defaults</button>
+          <button class="btn-primary" type="button" id="plan-save" onclick="savePlan()" disabled>Save settings</button>
+        </div>
+      </div>
+
+      <div class="chart-note" style="margin-top:14px">Settings are stored in this browser only and survive a reload. They are never sent anywhere. Saving stays on this page &mdash; switch to the Dashboard when you want to see the result.</div>
+    </div>
+
+    <div class="header-meta" id="header-meta" style="margin-top:18px">No data loaded</div>
+
+    <div class="disclaimer">
+      Disclaimer: This dashboard is for entertainment purposes only.
+    </div>
   </div>
 </div>
 
 <div class="empty" id="empty-state" style="display:none">
-  <div class="empty-icon">📂</div>
+  <div class="empty-icon">&#128194;</div>
   <p>Drive sync will run automatically on load.<br>
-  Or tap <strong>Refresh from Google Drive</strong> above.</p>
+  Or tap <strong>Refresh from Google Drive</strong> in the sidebar.</p>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -971,6 +1230,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     startSel.innerHTML += `<option value="${i}" ${i===21?'selected':''}>${label}</option>`;
     endSel.innerHTML += `<option value="${i}" ${i===9?'selected':''}>${label}</option>`;
   }
+  // Rates and free-night hours used to reset on every reload. A plan saved on
+  // Plan & Rates is restored here instead, after the hour selects exist.
+  for (const id of Object.keys(PLAN_NUMERIC_FIELDS)) hardenNumericInput(id);
+  restorePlanSettings();
+  // From here on the applied plan, not the form, is what calculations read.
+  planFormReady = true;
+  applyViewVisibility();
+  renderCostEstimates();
 
 
   updateLastSyncLabel();
@@ -1052,9 +1319,23 @@ function gridEnergyCost(intervals, dayRate, nightRate, day = null) {
     estimated: daytime.estimated || nighttime.estimated };
 }
 
+/* Maps a rate input to its key in the applied plan. */
+const PLAN_RATE_KEY = Object.freeze({ 'day-rate': 'dayRate', 'night-rate': 'nightRate' });
+
+/* True once the plan form has been wired up by the boot path. Before that the
+   inputs ARE the source of truth, which is how the headless test context and
+   any direct caller of renderCostEstimates() still work. */
+let planFormReady = false;
+function planDraftIsDirty() {
+  return planFormReady && !samePlan(currentPlan(), appliedPlanState);
+}
+
 function readEnergyRate(id) {
   const input = document.getElementById(id);
-  const raw = input.value.trim();
+  // A Drive sync finishing mid-edit calls renderAll(). Without this it would
+  // cost the whole history at whatever is half-typed in the box, which is
+  // exactly what deferred apply exists to prevent.
+  const raw = String(planDraftIsDirty() && PLAN_RATE_KEY[id] ? appliedPlanState[PLAN_RATE_KEY[id]] : input.value).trim();
   const value = Number(raw);
   const valid = raw !== '' && Number.isFinite(value) && value >= 0;
   input.setAttribute('aria-invalid', String(!valid));
@@ -1098,6 +1379,7 @@ function renderLatestEnergyDay(days, dayRate, nightRate) {
 
 function renderCostEstimates() {
   invalidateDaytimeReview();
+  scheduleRedesignRefresh();
   const days = [...readings.keys()].sort();
   const day = days[Math.max(0, Math.min(days.length - 1, currentDayIndex))];
   const selector = document.getElementById('cost-day');
@@ -1486,11 +1768,8 @@ function renderAll() {
   if (!readings.size) { clearDashboard(); return; }
   renderCostEstimates();
   document.getElementById('empty-state').style.display = 'none';
-  document.getElementById('section-tabs').style.display = 'flex';
-  ['tab-daily','tab-hourly'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = id === 'tab-' + activeTab ? 'block' : 'none';
-  });
+  // Views replaced the old tab strip; visibility is decided in one place now.
+  applyViewVisibility();
 
   const sortedDays = [...readings.keys()].sort();
   currentDayIndex = sortedDays.length - 1;
@@ -1501,6 +1780,7 @@ function renderAll() {
   renderHourlyTable(sortedDays);
   updateHeaderMeta(sortedDays);
   updateDataFreshness(sortedDays);
+  renderRedesign();
 }
 
 function invalidateDaytimeReview() {
@@ -1647,8 +1927,11 @@ function validAlertLimits(limits) {
 
 function readAlertLimits() {
   const limits = {};
+  const draft = planDraftIsDirty();
   for (const [key,id] of [['yellow','alert-yellow'],['red','alert-red']]) {
-    const input = document.getElementById(id), raw = input.value.trim();
+    // Same reasoning as readEnergyRate: an unsaved limit must not colour anything.
+    const input = document.getElementById(id);
+    const raw = String(draft ? appliedPlanState[key] : input.value).trim();
     limits[key] = raw === '' ? null : Number(raw);
   }
   const valid = validAlertLimits(limits);
@@ -2708,6 +2991,787 @@ function showToast(msg, type='') {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
 }
+
+/* =========================================================================
+   REDESIGN (2026-10)
+   Views, the time range, the five dashboard cards and saved plan settings.
+
+   Design notes for future us:
+   - Every figure below is derived from the SAME isFreeHour()/readings data the
+     original code already used. Nothing here re-parses SMT files or re-reads
+     Drive, so a settings change costs one re-render and no network traffic.
+   - renderRedesign() is wrapped in try/catch on purpose: these cards are an
+     overview. If one of them fails, the charts, hourly table and cost widget
+     that people rely on must still render.
+   ========================================================================= */
+const PLAN_STORE_KEY = 'energyPlanV1';
+const PLAN_DEFAULTS = Object.freeze({ freeNights: true, freeStart: 21, freeEnd: 9, dayRate: '25', nightRate: '0', yellow: '1', red: '5' });
+let activeView = 'dashboard';
+/* The plan currently in force. The form may hold an unsaved draft, so the two
+   are kept apart: everything outside Plan & Rates reflects this object. */
+let appliedPlanState = Object.assign({}, PLAN_DEFAULTS);
+let rangeDays = 1;              // Today by default: the daily answer is why this page exists.
+let _redesignTimer = null;
+
+function byId(id) { return document.getElementById(id); }
+
+/* Visibility lives in one function so renderAll(), the rail and the range
+   toggle can never disagree about which view is on screen. Uses getElementById
+   only, so it is safe in the headless test context too. */
+function applyViewVisibility() {
+  const views = { dashboard: 'view-dashboard', hourly: 'view-hourly', plan: 'view-plan' };
+  for (const key of Object.keys(views)) {
+    const node = byId(views[key]);
+    if (node) node.style.display = key === activeView ? 'block' : 'none';
+  }
+  // The legacy tab containers are now plain sections inside their views.
+  for (const id of ['tab-daily', 'tab-hourly']) { const node = byId(id); if (node) node.style.display = 'block'; }
+  const onDashboard = activeView === 'dashboard';
+  const sync = byId('rail-sync'); if (sync) sync.style.display = onDashboard ? 'flex' : 'none';
+  const seg = byId('range-seg'); if (seg) seg.style.display = onDashboard ? 'inline-flex' : 'none';
+  const asof = byId('range-asof'); if (asof) asof.style.display = onDashboard ? 'block' : 'none';
+  const title = byId('app-title');
+  if (title) title.textContent = activeView === 'hourly' ? 'Hourly Grid Energy'
+    : activeView === 'plan' ? 'Plan & Rates' : 'Energy Dashboard';
+}
+
+function showView(name) {
+  const previous = activeView;
+  activeView = name === 'hourly' || name === 'plan' ? name : 'dashboard';
+  // Kept in step so any remaining activeTab reader stays correct.
+  activeTab = activeView === 'hourly' ? 'hourly' : 'daily';
+  applyViewVisibility();
+  const nav = byId('rail-nav');
+  if (nav && nav.querySelectorAll) {
+    for (const button of nav.querySelectorAll('button')) {
+      if (button.classList) button.classList.toggle('on', button.getAttribute('data-view') === activeView);
+    }
+  }
+  if (activeView === 'hourly' && readings.size) renderHourlyTable([...readings.keys()].sort());
+  if (activeView === 'plan') { writeCurrentPlanToForm(); onPlanChanged(); }
+  else if (previous === 'plan') discardUnsavedPlan();
+}
+
+function setRange(count, button) {
+  rangeDays = count;
+  const seg = byId('range-seg');
+  if (seg && seg.querySelectorAll) {
+    for (const other of seg.querySelectorAll('button')) {
+      if (other.classList) other.classList.remove('on');
+      other.removeAttribute('aria-pressed');
+    }
+  }
+  if (button && button.classList) { button.classList.add('on'); button.setAttribute('aria-pressed', 'true'); }
+  renderRedesign();
+}
+
+/* Rate inputs fire on every keystroke, and renderCostEstimates() runs several
+   times during a load. Coalescing avoids rebuilding the cards per character.
+   The work is skipped entirely when the Dashboard is not on screen: rebuilding
+   the verdict banner changes its height, which would shift the page under the
+   reader while they are on another view. */
+function scheduleRedesignRefresh() {
+  clearTimeout(_redesignTimer);
+  _redesignTimer = setTimeout(() => { if (activeView === 'dashboard') renderRedesign(); }, 120);
+}
+
+/* Morning / Daytime / Night boundaries.
+   Only a free window that WRAPS MIDNIGHT (end < start, e.g. 9pm->9am) can define
+   these spans. An inverted window — free during the day — would otherwise produce
+   overlapping, double-counted periods, so it falls back to the plain 12am/9am/9pm
+   split and each row labels itself as mixed. Mirrors analyzeEnergyInsights. */
+function redesignSegments() {
+  const wraps = freeNightsEnabled && freeEndHour < freeStartHour;
+  const end = wraps ? freeEndHour : 9;
+  const start = wraps ? freeStartHour : 21;
+  return [{ name: 'Morning', from: 0, to: end - 1 },
+          { name: 'Daytime', from: end, to: start - 1 },
+          { name: 'Night', from: start, to: 23 }].filter(span => span.to >= span.from);
+}
+
+/* Average kWh per clock hour across the selected days. A missing hour stays
+   null rather than becoming zero, so partial days cannot flatter a total. */
+function redesignHourlyAverages(dayKeys) {
+  const totals = new Array(24).fill(0), counted = new Array(24).fill(0);
+  for (const day of dayKeys) {
+    const hourly = new Array(24).fill(null);
+    for (const reading of readings.get(day) || []) {
+      if (reading.hasImport === false) continue;
+      const hour = Number(String(reading.time).slice(0, 2));
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23) continue;
+      hourly[hour] = (hourly[hour] || 0) + reading.kwh;
+    }
+    hourly.forEach((value, hour) => { if (value != null) { totals[hour] += value; counted[hour] += 1; } });
+  }
+  return totals.map((value, hour) => counted[hour] ? value / counted[hour] : null);
+}
+
+function redesignRateFor(hour) {
+  const dayRate = readEnergyRate('day-rate');
+  const nightRate = freeNightsEnabled ? readEnergyRate('night-rate') : dayRate;
+  const rate = isFreeHour(hour) ? nightRate : dayRate;
+  return rate == null ? null : rate / 100;
+}
+
+function redesignSum(values) {
+  const known = values.filter(value => value != null);
+  return known.length ? known.reduce((total, value) => total + value, 0) : null;
+}
+
+function renderRedesign() {
+  try { renderRedesignCards(); }
+  catch (error) { if (typeof console !== 'undefined' && console.warn) console.warn('Overview cards unavailable', error); }
+}
+
+function renderRedesignCards() {
+  const all = [...readings.keys()].sort();
+  if (!all.length) return;
+  const count = Math.max(1, Math.min(rangeDays, all.length));
+  const slice = all.slice(-count);
+  // Only a prior stretch of the SAME length is comparable; a shorter one would
+  // read as a saving or a spike that is really just missing history.
+  const prior = all.length >= count * 2 ? all.slice(-(count * 2), -count) : [];
+  const newest = all[all.length - 1];
+  const dayRate = readEnergyRate('day-rate');
+  const nightRate = freeNightsEnabled ? readEnergyRate('night-rate') : dayRate;
+  const limits = readAlertLimits();
+
+  const perDay = slice.map(day => {
+    const intervals = readings.get(day) || [];
+    return { day, intervals, cost: gridEnergyCost(intervals, dayRate, nightRate, day), totals: gridTotals(intervals, day) };
+  });
+  const cost = redesignSum(perDay.map(entry => entry.cost.cost));
+  const priorCost = redesignSum(prior.map(day => gridEnergyCost(readings.get(day) || [], dayRate, nightRate, day).cost));
+  const paidKwh = redesignSum(perDay.map(entry => entry.cost.daytime.kwh));
+  const freeKwh = redesignSum(perDay.map(entry => entry.cost.nighttime.kwh));
+  const importKwh = redesignSum(perDay.map(entry => entry.totals.imported));
+  const exportKwh = redesignSum(perDay.map(entry => entry.totals.exported));
+  const anyPartial = perDay.some(entry => !entry.cost.complete);
+  const anyEstimated = perDay.some(entry => entry.cost.estimated);
+
+  const asof = byId('range-asof');
+  if (asof) asof.textContent = count === 1 ? fmtDate(newest) : fmtDate(slice[0]) + ' – ' + fmtDate(slice[slice.length - 1]);
+
+  // The donut is deliberately the latest SMT day, not the selected range: its
+  // paid/free legend is written by renderLatestEnergyDay() and is latest-day
+  // only, so following the range here would put two different days in one card.
+  const latestIntervals = readings.get(newest) || [];
+  const latestCost = gridEnergyCost(latestIntervals, dayRate, nightRate, newest);
+  const latestTotals = gridTotals(latestIntervals, newest);
+
+  renderVerdict({ count, slice, newest, cost, paidKwh, freeKwh, importKwh, limits, dayRate, anyPartial, anyEstimated });
+  renderDonutCard({
+    cost: latestCost.cost,
+    paidKwh: latestCost.daytime.kwh,
+    freeKwh: latestCost.nighttime.kwh,
+    importKwh: latestTotals.imported
+  });
+  renderComparisonCard({ count, cost, priorCost, priorDays: prior.length });
+  renderTrendCard({ all, count, cost, dayRate, nightRate });
+  renderExportCard({ count, importKwh, exportKwh, all, dayRate, nightRate });
+  renderPeriodRows({ slice, count, limits });
+}
+
+/* ---- verdict banner ---- */
+function renderVerdict(view) {
+  const banner = byId('verdict'); if (!banner) return;
+  const limits = view.limits;
+  const perDayCost = view.cost == null ? null : view.cost / view.count;
+  const usable = perDayCost != null && validAlertLimits(limits) && !view.anyPartial && !view.anyEstimated;
+  // Partial or estimated readings never earn a reassuring green.
+  let tone = 'neutral';
+  if (perDayCost != null && validAlertLimits(limits)) {
+    tone = perDayCost >= limits.red ? 'alert' : perDayCost >= limits.yellow ? 'warn' : usable ? '' : 'neutral';
+  }
+  banner.className = 'verdict' + (tone ? ' ' + tone : '');
+  const toneLabel = byId('v-tone');
+  if (toneLabel) toneLabel.textContent = tone === 'alert' ? 'Red' : tone === 'warn' ? 'Yellow' : tone === '' ? 'Green' : 'Not rated';
+
+  const when = byId('v-when');
+  if (when) when.textContent = view.count === 1 ? fmtDate(view.newest)
+    : 'Last ' + view.count + ' days, ending ' + fmtDate(view.newest);
+
+  const freeIsFree = freeNightsEnabled && nightRateIsZero();
+  const head = byId('v-head');
+  if (head) {
+    head.innerHTML = view.cost == null
+      ? 'Grid cost is unavailable for this range.'
+      : (freeIsFree ? 'Paid hours cost you ' : 'Grid power cost you ')
+        + '<em>' + formatEnergyCost(view.cost) + '</em>'
+        + (view.count === 1 ? ' on the latest SMT day.' : ' over ' + view.count + ' days.');
+  }
+  const sub = byId('v-sub');
+  if (sub) {
+    const quality = view.anyPartial ? ' Some readings are missing, so these totals cover the intervals that were reported.'
+      : view.anyEstimated ? ' Includes estimated readings.' : '';
+    sub.textContent = !freeNightsEnabled
+      ? (view.importKwh == null ? 'No import readings available.' : view.importKwh.toFixed(3) + ' kWh pulled from the grid across all 24 hours, at ' + (view.dayRate == null ? 'an unset rate' : view.dayRate + '¢/kWh') + '. Free nights are off, so every hour is billable.') + quality
+      : (view.paidKwh == null ? 'No paid-hour readings available.' : view.paidKwh.toFixed(3) + ' kWh pulled from the grid between ' + formatHour(freeEndHour) + ' and ' + formatHour(freeStartHour) + ', at ' + (view.dayRate == null ? 'an unset rate' : view.dayRate + '¢/kWh') + '.')
+        + (view.freeKwh == null ? '' : ' The other ' + view.freeKwh.toFixed(3) + ' kWh landed inside your free window' + (freeIsFree ? ' and cost nothing.' : '.')) + quality;
+  }
+
+  const meterLabel = byId('v-meter-label');
+  if (meterLabel) meterLabel.textContent = view.count === 1 ? 'vs your limits' : 'per-day average';
+  const yellowLabel = byId('v-yellow-label');
+  const redLabel = byId('v-red-label');
+  if (yellowLabel) yellowLabel.textContent = validAlertLimits(limits) ? '$' + limits.yellow.toFixed(2) + ' yellow' : 'yellow unset';
+  if (redLabel) redLabel.textContent = validAlertLimits(limits) ? '$' + limits.red.toFixed(2) + ' red' : 'red unset';
+  const bar = byId('v-bar');
+  if (bar) {
+    const share = perDayCost != null && validAlertLimits(limits) ? Math.min(100, perDayCost / limits.red * 100) : 0;
+    bar.style.width = share.toFixed(0) + '%';
+    bar.style.background = tone === 'alert' ? 'var(--danger)' : tone === 'warn' ? 'var(--accent)' : tone === '' ? 'var(--accent2)' : 'var(--muted)';
+  }
+
+  // Largest single paid interval in the range, using the published spike rule.
+  let best = null;
+  for (const day of view.slice) {
+    for (const reading of readings.get(day) || []) {
+      if (reading.hasImport === false) continue;
+      const hour = Number(String(reading.time).slice(0, 2));
+      if (isFreeHour(hour)) continue;
+      if (!best || reading.kwh > best.kwh) best = { kwh: reading.kwh, time: reading.time, day };
+    }
+  }
+  const flag = byId('v-flag'), flagText = byId('v-flag-text');
+  if (flag && flagText) {
+    if (best && best.kwh >= ENERGY_INSIGHT_RULES.peakInterval) {
+      flagText.textContent = 'One draw worth a look: ' + best.kwh.toFixed(3) + ' kWh in a single 15 minutes at '
+        + to12hr(best.time) + (view.count === 1 ? '' : ' on ' + fmtDate(best.day)) + '.';
+      flag.style.display = 'flex';
+    } else { flag.style.display = 'none'; flagText.textContent = ''; }
+  }
+
+  // Weather is shown only when it is already cached for that date: this card
+  // must never trigger a fresh request of its own.
+  const wx = byId('v-wx');
+  if (wx) {
+    let text = '';
+    try {
+      const cached = view.count === 1 ? readWeatherCache(view.newest) : null;
+      if (cached) {
+        const lines = insightWeatherLines(cached);
+        text = Array.isArray(lines) ? lines.join(' · ') : String(lines || '');
+      }
+    } catch (error) { text = ''; }
+    wx.textContent = text;
+    wx.style.display = text ? 'flex' : 'none';
+  }
+}
+
+function nightRateIsZero() {
+  const rate = readEnergyRate('night-rate');
+  return rate === 0;
+}
+
+/* ---- free vs paid donut ---- */
+function renderDonutCard(view) {
+  const circumference = 2 * Math.PI * 50;
+  const share = view.importKwh && view.paidKwh != null ? view.paidKwh / view.importKwh : 0;
+  const gap = 2;
+  const paidArc = Math.max(share * circumference - gap, 1);
+  const freeArc = Math.max((1 - share) * circumference - gap, 1);
+  const paid = byId('donut-paid'), free = byId('donut-free');
+  if (paid && paid.setAttribute) {
+    paid.setAttribute('stroke-dasharray', paidArc + ' ' + (circumference - paidArc));
+    paid.setAttribute('stroke-dashoffset', '0');
+  }
+  if (free && free.setAttribute) {
+    free.setAttribute('stroke-dasharray', freeArc + ' ' + (circumference - freeArc));
+    free.setAttribute('stroke-dashoffset', String(-(paidArc + gap)));
+  }
+  const title = byId('donut-title');
+  if (title) title.textContent = freeNightsEnabled ? 'Free Power vs Paid Power' : 'Grid Power';
+  const middle = byId('donut-cost');
+  if (middle) middle.textContent = formatEnergyCost(view.cost);
+  const total = byId('donut-total');
+  if (total) total.textContent = view.importKwh == null ? '—' : view.importKwh.toFixed(3) + ' kWh';
+  const range = byId('donut-range');
+  if (range) range.textContent = 'Latest SMT day';
+}
+
+/* ---- this period vs the one before ---- */
+function renderComparisonCard(view) {
+  const sub = byId('cmp-sub');
+  if (sub) sub.textContent = view.count === 1 ? 'Latest SMT day vs the day before'
+    : 'Last ' + view.count + ' days vs the ' + view.count + ' before';
+  const thisLabel = byId('cmp-this-lab'), prevLabel = byId('cmp-prev-lab');
+  if (thisLabel) thisLabel.textContent = view.count === 1 ? 'Latest' : 'Last ' + view.count;
+  if (prevLabel) prevLabel.textContent = view.count === 1 ? 'Day before' : 'Prior ' + view.count;
+  const thisValue = byId('cmp-this'), prevValue = byId('cmp-prev');
+  if (thisValue) thisValue.textContent = formatEnergyCost(view.cost);
+  if (prevValue) prevValue.textContent = view.priorDays ? formatEnergyCost(view.priorCost) : '—';
+  const highest = Math.max(view.cost || 0, view.priorCost || 0) || 1;
+  const thisBar = byId('cmp-this-bar'), prevBar = byId('cmp-prev-bar');
+  if (thisBar) thisBar.style.height = Math.max(3, (view.cost || 0) / highest * 90) + 'px';
+  if (prevBar) prevBar.style.height = Math.max(3, (view.priorCost || 0) / highest * 90) + 'px';
+  const pct = byId('cmp-pct'), dir = byId('cmp-dir');
+  // No prior period and no comparison: say so instead of implying a 0% change.
+  if (view.cost == null || view.priorCost == null || !view.priorDays || view.priorCost === 0) {
+    if (pct) { pct.textContent = '—'; pct.style.color = 'var(--muted)'; }
+    if (dir) dir.innerHTML = 'No comparable<br>earlier period';
+    return;
+  }
+  const change = (view.cost - view.priorCost) / view.priorCost * 100;
+  const down = change <= 0;
+  if (pct) { pct.textContent = (down ? '↓ ' : '↑ ') + Math.abs(change).toFixed(1) + '%'; pct.style.color = down ? 'var(--accent2)' : 'var(--danger)'; }
+  if (dir) dir.innerHTML = (down ? 'Decrease' : 'Increase') + '<br>in cost';
+}
+
+/* ---- daily cost line ---- */
+function renderTrendCard(view) {
+  const series = view.all.slice(-Math.max(view.count, 7)).map(day => ({
+    day, cost: gridEnergyCost(readings.get(day) || [], view.dayRate, view.nightRate, day).cost
+  }));
+  const total = byId('trend-total');
+  if (total) total.textContent = formatEnergyCost(view.cost);
+  const label = byId('trend-label');
+  if (label) label.innerHTML = (view.count === 1 ? 'Latest day' : view.count + '-day total')
+    + (view.count === 1 ? '<br>chart shows 7 days' : '');
+
+  const svg = byId('trend-plot'), axis = byId('trend-axis');
+  if (!svg || !svg.setAttribute || typeof document.createElementNS !== 'function') return;
+  while (svg.lastChild && svg.childNodes.length > 1) svg.removeChild(svg.lastChild);
+  const known = series.filter(point => point.cost != null);
+  if (!known.length) { if (axis) axis.innerHTML = ''; return; }
+  const NS = 'http://www.w3.org/2000/svg';
+  const W = 320, H = 112, PAD = 8;
+  const max = Math.max(...known.map(point => point.cost)) * 1.12 || 1;
+  const xAt = index => PAD + index * (W - PAD * 2) / Math.max(1, series.length - 1);
+  const yAt = value => H - 6 - (value / max) * (H - 18);
+  const add = (tag, attrs) => { const node = document.createElementNS(NS, tag);
+    for (const key of Object.keys(attrs)) node.setAttribute(key, attrs[key]); svg.appendChild(node); return node; };
+  for (const line of [0.5, 1, 1.5, 2, 3, 5]) if (line < max)
+    add('line', { x1: PAD, x2: W - PAD, y1: yAt(line), y2: yAt(line), stroke: 'rgba(255,255,255,0.055)', 'stroke-width': 1 });
+  // Days with no cost are skipped, never drawn as zero.
+  const points = series.map((point, index) => point.cost == null ? null : xAt(index).toFixed(1) + ',' + yAt(point.cost).toFixed(1)).filter(Boolean).join(' ');
+  add('polyline', { points, fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'vector-effect': 'non-scaling-stroke' });
+  let peakIndex = series.findIndex(point => point.cost === Math.max(...known.map(entry => entry.cost)));
+  if (peakIndex >= 0) add('circle', { cx: xAt(peakIndex), cy: yAt(series[peakIndex].cost), r: 4, fill: 'var(--accent)', stroke: 'var(--surface)', 'stroke-width': 2 });
+  const lastIndex = series.length - 1;
+  if (series[lastIndex].cost != null) add('circle', { cx: xAt(lastIndex), cy: yAt(series[lastIndex].cost), r: 4, fill: 'var(--surface)', stroke: 'var(--accent)', 'stroke-width': 2 });
+
+  if (axis) {
+    const points = series.length, step = Math.max(1, Math.ceil((points - 1) / 4)), picks = [];
+    for (let index = 0; index < points; index += step) picks.push(index);
+    if (picks[picks.length - 1] !== points - 1) picks.push(points - 1);
+    if (picks.length > 2 && points - 1 - picks[picks.length - 2] < step * 0.6) picks.splice(picks.length - 2, 1);
+    axis.innerHTML = picks.map(index => {
+      const style = index === 0 ? 'left:0' : index === points - 1 ? 'right:0'
+        : 'left:' + (xAt(index) / W * 100).toFixed(2) + '%;transform:translateX(-50%)';
+      return '<span style="' + style + '">' + fmtDate(series[index].day) + '</span>';
+    }).join('');
+  }
+}
+
+/* ---- surplus sent back ---- */
+function renderExportCard(view) {
+  const everything = redesignSum(view.all.map(day => gridTotals(readings.get(day) || [], day).exported));
+  const label1 = byId('exp-lab1'), value1 = byId('exp-val1'), bar1 = byId('exp-bar1');
+  if (label1) label1.textContent = view.count === 1 ? 'Latest day export' : 'Last ' + view.count + ' days export';
+  if (value1) value1.textContent = view.exportKwh == null ? 'Unavailable' : view.exportKwh.toFixed(3) + ' kWh';
+  if (bar1) bar1.style.width = (view.exportKwh != null && everything ? Math.min(100, view.exportKwh / everything * 100) : 0).toFixed(0) + '%';
+  const label2 = byId('exp-lab2'), value2 = byId('exp-val2'), bar2 = byId('exp-bar2');
+  if (label2) label2.textContent = 'All ' + view.all.length + ' retained days';
+  if (value2) value2.textContent = everything == null ? 'Unavailable' : everything.toFixed(3) + ' kWh';
+  if (bar2) bar2.style.width = everything == null ? '0%' : '88%';
+  const value3 = byId('exp-val3'), bar3 = byId('exp-bar3'), note = byId('exp-note');
+  const net = view.importKwh == null || view.exportKwh == null ? null : view.importKwh - view.exportKwh;
+  if (value3) {
+    value3.textContent = net == null ? 'Unavailable' : (net > 0 ? '+' : '−') + Math.abs(net).toFixed(3) + ' kWh';
+    value3.style.color = net == null ? 'var(--muted)' : net > 0 ? 'var(--danger)' : 'var(--accent2)';
+  }
+  if (bar3) {
+    bar3.style.width = net == null ? '0%' : Math.min(100, Math.abs(net) / Math.max(view.importKwh || 1, view.exportKwh || 1) * 100).toFixed(0) + '%';
+    bar3.style.background = net == null ? 'var(--muted)' : net > 0 ? 'var(--danger)' : 'var(--accent2)';
+  }
+  if (note) note.textContent = net == null
+    ? 'Net needs matching import and export readings for the same intervals, so it is unavailable here. Export credits are not included in any cost on this page.'
+    : (net > 0 ? 'You pulled more than you sent back over this period. ' : 'You sent back more than you pulled. ')
+      + 'Export credits are not included in any cost on this page.';
+}
+
+/* ---- Morning / Daytime / Night rows ---- */
+/* Reading quality for one period across the selected days, taken from the same
+   insightPeriod() the detailed review uses. Averaging kWh per clock hour cannot
+   see this on its own: one 15-minute reading makes the hour look present even
+   when the other three are missing. */
+function segmentQuality(dayKeys, span) {
+  let complete = true, estimated = false, missingDays = 0;
+  for (const day of dayKeys) {
+    const period = insightPeriod(readings.get(day) || [], day,
+      minute => { const hour = Math.floor(minute / 60); return hour >= span.from && hour <= span.to; });
+    if (!period.complete) { complete = false; missingDays += 1; }
+    if (period.estimated) estimated = true;
+  }
+  return { complete, estimated, missingDays };
+}
+
+function renderPeriodRows(view) {
+  const list = byId('period-list'); if (!list) return;
+  const averages = redesignHourlyAverages(view.slice);
+  const known = averages.filter(value => value != null);
+  const max = known.length ? Math.max(...known) : 1;
+  // Writes to its own line: #insights-date is owned by runDaytimeReview().
+  const sub = byId('period-sub');
+  if (sub) {
+    sub.textContent = (view.count === 1 ? fmtDate(view.slice[view.slice.length - 1]) : 'An average day over the last ' + view.count + ' days')
+      + ' · each period shows its own hours, usage and cost';
+  }
+  const parts = [];
+  for (const span of redesignSegments()) {
+    let total = 0, cost = 0, peak = null, peakHour = span.from, freeHours = 0, hours = 0, missing = 0, rateMissing = false;
+    for (let hour = span.from; hour <= span.to; hour++) {
+      hours += 1;
+      if (isFreeHour(hour)) freeHours += 1;
+      const value = averages[hour];
+      if (value == null) { missing += 1; continue; }
+      total += value;
+      const rate = redesignRateFor(hour);
+      if (rate == null) rateMissing = true; else cost += value * rate;
+      if (peak == null || value > peak) { peak = value; peakHour = hour; }
+    }
+    const allFree = freeHours === hours, allPaid = freeHours === 0;
+    const costsNothing = allFree && nightRateIsZero();
+    const limits = view.limits;
+    // Partial or estimated readings never earn a spending rating, matching the
+    // verdict banner and the detailed review.
+    const quality = segmentQuality(view.slice, span);
+    const rated = !rateMissing && !missing && quality.complete && !quality.estimated && validAlertLimits(limits);
+    let tone = 'free';
+    if (!costsNothing) tone = !rated ? 'none' : cost >= limits.red ? 'bad' : cost >= limits.yellow ? 'warn' : 'good';
+    const toneVar = tone === 'bad' ? 'var(--danger)' : tone === 'warn' ? 'var(--accent)'
+      : tone === 'good' ? 'var(--accent2)' : tone === 'free' ? 'var(--accent3)' : 'var(--muted)';
+    let chip = costsNothing ? 'Free hours' : !rated ? 'Not rated'
+      : cost >= limits.red ? 'High spending' : cost >= limits.yellow ? 'Worth checking' : 'Low spending';
+    if (!allFree && !allPaid) chip = 'Mixed hours · ' + chip;
+    if (!costsNothing && !rated && (!quality.complete || quality.estimated)) {
+      chip = quality.estimated && quality.complete ? 'Estimated readings' : 'Partial readings';
+    }
+
+    // The meter reports one whole-house figure per interval, so no appliance can
+    // be named. Describe the shape of the draw and leave the cause open.
+    let note;
+    if (missing === hours) note = 'No grid readings available for these hours.';
+    else if (allFree) note = 'Busiest hour ' + formatHour(peakHour) + ' · ' + peak.toFixed(3) + ' kWh'
+      + (peak >= 2 ? ' — a large sustained draw, the kind an EV or home energy storage makes while charging.' : '.');
+    else if (total <= ENERGY_INSIGHT_RULES.lowPaid) note = 'Barely touched the grid in this window.';
+    else if (peak != null && peak >= ENERGY_INSIGHT_RULES.peakInterval) note = 'Busiest hour ' + formatHour(peakHour) + ' · ' + peak.toFixed(3) + ' kWh — above your spike threshold.';
+    else note = 'Busiest hour ' + formatHour(peakHour) + ' · ' + peak.toFixed(3) + ' kWh. No single hour stands out.';
+    if (missing && missing < hours) note += ' ' + missing + ' of ' + hours + ' hours have no readings, so this total covers the rest.';
+    else if (!quality.complete) {
+      note += view.count === 1
+        ? ' Some 15-minute readings in this period are missing, so the total covers the intervals that were reported.'
+        : ' ' + quality.missingDays + ' of ' + view.count + ' days have missing readings in this period.';
+    }
+    if (quality.estimated) note += ' Includes estimated readings.';
+
+    let bars = '', axis = '';
+    for (let hour = span.from; hour <= span.to; hour++) {
+      const value = averages[hour];
+      const height = value == null ? 2 : Math.max(2, value / max * 44);
+      const hot = !isFreeHour(hour) && value != null && value >= ENERGY_INSIGHT_RULES.peakInterval;
+      const colour = value == null ? 'rgba(255,255,255,.06)' : hot ? 'var(--danger)' : isFreeHour(hour) ? 'var(--accent3)' : 'var(--accent)';
+      bars += '<i style="height:' + height.toFixed(1) + 'px;background:' + colour + '" title="' + formatHour(hour) + ': '
+        + (value == null ? 'no readings' : value.toFixed(3) + ' kWh') + '"></i>';
+      axis += '<span>' + formatHour(hour).replace(':00', '') + '</span>';
+    }
+
+    parts.push('<div class="prow" style="--tone:' + toneVar + '">'
+      + '<div class="prow-head"><div><div class="prow-name">' + span.name + '</div>'
+      + '<div class="prow-hours">' + formatHour(span.from) + ' – ' + (span.to === 23 ? '12am' : formatHour(span.to + 1)) + '</div></div>'
+      + '<div class="prow-fig"><b>' + total.toFixed(3) + ' kWh</b><u>'
+      + (costsNothing ? '$0.00' : rateMissing ? 'Rate unset' : formatEnergyCost(cost)) + '</u>'
+      + '<span class="prow-chip">' + chip + '</span></div></div>'
+      + '<div class="prow-bars">' + bars + '</div>'
+      + '<div class="prow-axis">' + axis + '</div>'
+      + '<div class="prow-foot"><span>' + note + '</span></div></div>');
+  }
+  list.innerHTML = parts.join('');
+}
+
+/* =========================================================================
+   SAVED PLAN SETTINGS
+   Edits still preview immediately — that behaviour is covered by the existing
+   regression suite and is genuinely useful. What Save adds is PERSISTENCE:
+   before this, rates and free-night hours reset to 25¢ / 0¢ / 9pm–9am on every
+   reload, which is the gap this was asked to close.
+   ========================================================================= */
+function currentPlan() {
+  return {
+    freeNights: !!byId('free-nights-enabled').checked,
+    freeStart: Number(byId('free-start').value),
+    freeEnd: Number(byId('free-end').value),
+    dayRate: String(byId('day-rate').value).trim(),
+    nightRate: String(byId('night-rate').value).trim(),
+    yellow: String(byId('alert-yellow').value).trim(),
+    red: String(byId('alert-red').value).trim()
+  };
+}
+
+/* The numeric fields, in one place, so the typing guard, the blur tidy-up and
+   the save-time validation can never drift apart.
+   decimals: a rate is quoted in cents per kWh, so thousandths of a cent is
+   already finer than any tariff; an alert limit is a dollar amount, which is
+   why readAlertLimits() only accepts whole cents. Allowing more precision here
+   than validAlertLimits() accepts would let a limit save and then silently
+   stop colouring anything. */
+const PLAN_NUMERIC_FIELDS = Object.freeze({
+  'day-rate':     { min: 0,    max: 1000,    decimals: 3, label: 'Day rate',        unit: 'cents per kWh' },
+  'night-rate':   { min: 0,    max: 1000,    decimals: 3, label: 'Night rate',      unit: 'cents per kWh' },
+  'alert-yellow': { min: 0.01, max: 1000000, decimals: 2, label: 'Yellow limit',    unit: 'dollars a day' },
+  'alert-red':    { min: 0.01, max: 1000000, decimals: 2, label: 'Red limit',       unit: 'dollars a day' }
+});
+
+/* A finished value: digits, at most one dot, no sign, no exponent, within range
+   and no finer than the unit allows. */
+function numericFieldProblem(raw, rules, label) {
+  const text = String(raw).trim();
+  if (text === '') return label + ' is required.';
+  if (!/^\d+(\.\d+)?$/.test(text)) {
+    return label + ' must be a plain number — digits only, no sign, letters or spaces.';
+  }
+  const value = Number(text);
+  if (!Number.isFinite(value)) return label + ' must be a plain number.';
+  if (value < rules.min) return label + ' must be at least ' + rules.min + ' ' + rules.unit + '.';
+  if (value > rules.max) return label + ' must be at most ' + rules.max.toLocaleString('en-US') + ' ' + rules.unit + '.';
+  const decimals = (text.split('.')[1] || '').length;
+  if (decimals > rules.decimals) {
+    return label + ' cannot be finer than ' + (rules.decimals === 2 ? 'whole cents' : rules.decimals + ' decimal places') + '.';
+  }
+  return null;
+}
+
+function planProblems(plan) {
+  const problems = [];
+  const field = (id, raw, label) => {
+    const problem = numericFieldProblem(raw, PLAN_NUMERIC_FIELDS[id], label);
+    if (problem) problems.push(problem);
+    return !problem;
+  };
+  // Hours come from pick lists, but a tampered value must still be refused.
+  const hour = value => Number.isInteger(value) && value >= 0 && value < 24;
+  if (plan.freeNights && (!hour(plan.freeStart) || !hour(plan.freeEnd))) {
+    problems.push('Free night hours must be whole hours of the day.');
+  } else if (plan.freeNights && plan.freeStart === plan.freeEnd) {
+    problems.push('Free night start and end must be different hours.');
+  }
+  field('day-rate', plan.dayRate, plan.freeNights ? 'Day rate' : 'Electricity rate');
+  if (plan.freeNights) field('night-rate', plan.nightRate, 'Night rate');
+  const yellowOk = field('alert-yellow', plan.yellow, 'Yellow limit');
+  const redOk = field('alert-red', plan.red, 'Red limit');
+  if (yellowOk && redOk && Number(plan.red) <= Number(plan.yellow)) {
+    problems.push('Red limit must be higher than the yellow limit.');
+  }
+  return problems;
+}
+
+function samePlan(a, b) {
+  return Object.keys(PLAN_DEFAULTS).every(key => String(a[key]) === String(b[key]));
+}
+
+function readStoredPlan() {
+  try {
+    const raw = window.localStorage.getItem(PLAN_STORE_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved !== 'object') return null;
+    const plan = { ...PLAN_DEFAULTS, ...saved };
+    plan.freeNights = !!plan.freeNights;
+    plan.freeStart = Number(plan.freeStart); plan.freeEnd = Number(plan.freeEnd);
+    // A stored plan that no longer validates is discarded rather than applied.
+    return planProblems(plan).length ? null : plan;
+  } catch (error) { return null; }
+}
+
+/* Applies a plan to the controls and globals, then re-renders through the
+   existing pipeline so every view updates from one place. */
+function applyPlan(plan) {
+  byId('free-nights-enabled').checked = plan.freeNights;
+  byId('free-start').value = String(plan.freeStart);
+  byId('free-end').value = String(plan.freeEnd);
+  byId('day-rate').value = plan.dayRate;
+  byId('night-rate').value = plan.nightRate;
+  byId('alert-yellow').value = plan.yellow;
+  byId('alert-red').value = plan.red;
+  freeNightsEnabled = plan.freeNights;
+  freeStartHour = plan.freeStart;
+  freeEndHour = plan.freeEnd;
+  syncPlanControls(plan);
+  readAlertLimits();
+  invalidateDaytimeReview();
+  appliedPlanState = Object.assign({}, plan);
+}
+
+function setPlanState(kind, message) {
+  const state = byId('plan-state'); if (!state) return;
+  state.className = 'save-state' + (kind ? ' ' + kind : '');
+  state.textContent = message;
+}
+
+/* Mirrors the enabled/disabled affordance without touching globals or
+   rendering: with free nights off there is no night window and no night rate,
+   and the day rate becomes the only rate. */
+function syncPlanControls(plan) {
+  for (const id of ['free-start', 'free-end', 'night-rate']) {
+    const node = byId(id);
+    if (node) node.disabled = !plan.freeNights;
+  }
+  const label = byId('day-rate-label');
+  if (label) label.textContent = plan.freeNights ? 'Day rate (¢/kWh)' : 'Electricity rate (¢/kWh)';
+}
+
+/* Spells the rate back out in dollars per kWh. A plan is quoted in cents, so a
+   whole number is the normal case; showing the dollar value underneath removes
+   any doubt about which unit the box wants. */
+function formatRateEquivalent(raw) {
+  const text = String(raw).trim();
+  if (text === '' || !/^\d+(\.\d+)?$/.test(text)) return '';
+  const cents = Number(text);
+  if (!Number.isFinite(cents)) return '';
+  let dollars = (cents / 100).toFixed(5).replace(/0+$/, '').replace(/\.$/, '');
+  if (dollars === '' || dollars === '0') dollars = '0';
+  return cents + '¢/kWh = $' + dollars + ' per kWh';
+}
+
+function updateRateEquivalents(plan) {
+  const day = byId('day-rate-equiv');
+  if (day) day.textContent = formatRateEquivalent(plan.dayRate);
+  const night = byId('night-rate-equiv');
+  if (night) night.textContent = plan.freeNights ? formatRateEquivalent(plan.nightRate) : '';
+}
+
+function onPlanChanged() {
+  const plan = currentPlan();
+  syncPlanControls(plan);
+  updateRateEquivalents(plan);
+  const problems = planProblems(plan);
+  const list = byId('plan-errors');
+  if (list) { list.hidden = !problems.length; list.innerHTML = problems.map(text => '<li>' + text + '</li>').join(''); }
+  const flags = { 'field-start': plan.freeNights && plan.freeStart === plan.freeEnd,
+    'field-end': plan.freeNights && plan.freeStart === plan.freeEnd,
+    'field-day': !(Number(plan.dayRate) >= 0 && plan.dayRate !== ''),
+    'field-night': plan.freeNights && !(Number(plan.nightRate) >= 0 && plan.nightRate !== ''),
+    'field-yellow': !(Number(plan.yellow) > 0),
+    'field-red': !(Number(plan.red) > 0) || Number(plan.red) <= Number(plan.yellow) };
+  for (const id of Object.keys(flags)) {
+    const node = byId(id);
+    if (node && node.classList) node.classList.toggle('bad', !!flags[id]);
+  }
+  const save = byId('plan-save');
+  if (problems.length) {
+    if (save) save.disabled = true;
+    setPlanState('err', 'Fix the problems below, then save.');
+  } else if (samePlan(plan, appliedPlanState)) {
+    if (save) save.disabled = true;
+    setPlanState('', readStoredPlan() ? 'Saved settings are in use.' : 'These are the default settings.');
+  } else {
+    if (save) save.disabled = false;
+    setPlanState('dirty', 'Unsaved changes. The Dashboard still shows your saved settings until you click Save.');
+  }
+}
+
+/* Save is the ONLY thing that applies a plan. Typing a rate stages it and
+   nothing else moves, so a half-typed "3" on the way to "30" can never
+   recalculate the dashboard, and the figures on screen always correspond to a
+   plan that was deliberately saved. */
+function savePlan() {
+  const plan = currentPlan();
+  if (planProblems(plan).length) { onPlanChanged(); return; }
+  applyPlan(plan);
+  let stored = false;
+  try { window.localStorage.setItem(PLAN_STORE_KEY, JSON.stringify(plan)); stored = true; }
+  catch (error) { stored = false; }
+  // renderAll() covers the Daily Grid Import and 15-Minute Detail charts too.
+  // Refreshing only the costs and cards would leave those two showing the old
+  // paid/free split — overnight hours stay blue after free nights are turned off.
+  if (readings.size) renderAll();
+  else { renderCostEstimates(); renderRedesign(); }
+  const save = byId('plan-save');
+  if (save) save.disabled = true;
+  setPlanState('ok', stored
+    ? 'Saved. The Dashboard and Hourly Table now use these settings.'
+    : 'Applied, but this browser would not store it — it will reset on reload.');
+}
+
+function resetPlanDefaults() {
+  applyPlan(PLAN_DEFAULTS);
+  try { window.localStorage.removeItem(PLAN_STORE_KEY); } catch (error) { /* nothing to clear */ }
+  writeCurrentPlanToForm();
+  if (readings.size) renderAll();
+  else { renderCostEstimates(); renderRedesign(); }
+  onPlanChanged();
+  setPlanState('', 'Defaults restored.');
+}
+
+function writeCurrentPlanToForm() {
+  const plan = appliedPlanState;
+  byId('free-nights-enabled').checked = plan.freeNights;
+  byId('free-start').value = String(plan.freeStart);
+  byId('free-end').value = String(plan.freeEnd);
+  byId('day-rate').value = plan.dayRate;
+  byId('night-rate').value = plan.nightRate;
+  byId('alert-yellow').value = plan.yellow;
+  byId('alert-red').value = plan.red;
+  syncPlanControls(plan);
+}
+
+/* Navigating away from Plan & Rates drops an unsaved draft, so the controls can
+   never disagree with the figures the rest of the dashboard is showing. */
+function discardUnsavedPlan() {
+  // Covers an invalid draft too: Save is disabled for those, so checking the
+  // button would have left the rejected values sitting in the form.
+  if (samePlan(currentPlan(), appliedPlanState)) return;
+  writeCurrentPlanToForm();
+  onPlanChanged();
+}
+
+/* True while a value is still being typed: allows "", "0." and a partial
+   decimal, but never a sign, an exponent, a letter, or more precision than the
+   unit allows. Keeping this separate from numericFieldProblem() means we do not
+   shout at someone mid-keystroke. */
+function acceptableNumericDraft(text, rules) {
+  if (text === '') return true;
+  if (!/^\d*(\.\d*)?$/.test(text)) return false;
+  const decimals = (text.split('.')[1] || '').length;
+  if (decimals > rules.decimals) return false;
+  const value = Number(text);
+  return !Number.isFinite(value) || value <= rules.max;
+}
+
+/* Refuses the keystroke outright rather than letting an impossible value sit in
+   the box: typing "-", "e" or a letter simply does not appear, and neither does
+   a fifth decimal place or a value past the ceiling. */
+function hardenNumericInput(id) {
+  const input = byId(id), rules = PLAN_NUMERIC_FIELDS[id];
+  if (!input || !rules || typeof input.addEventListener !== 'function') return;
+  let lastAccepted = String(input.value);
+  input.addEventListener('input', () => {
+    if (acceptableNumericDraft(String(input.value), rules)) { lastAccepted = String(input.value); return; }
+    input.value = lastAccepted;
+  });
+  // On the way out, tidy what was typed: trim, drop leading zeros, clamp to the
+  // allowed range. An empty box is left empty so Save can say it is required.
+  input.addEventListener('blur', () => {
+    const text = String(input.value).trim();
+    if (text === '' || !/^\d*(\.\d*)?$/.test(text)) { onPlanChanged(); return; }
+    let value = Number(text);
+    if (!Number.isFinite(value)) { onPlanChanged(); return; }
+    value = Math.min(rules.max, Math.max(rules.min, value));
+    const rounded = Number(value.toFixed(rules.decimals));
+    input.value = String(rounded);
+    lastAccepted = input.value;
+    onPlanChanged();
+  });
+}
+
+/* Called during boot, after the hour selects exist. */
+function restorePlanSettings() {
+  const stored = readStoredPlan();
+  if (stored) applyPlan(stored);
+  onPlanChanged();
+}
+
 </script>
 </body>
 </html>
