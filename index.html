@@ -576,6 +576,10 @@
 .prow-foot{display:flex;flex-wrap:wrap;gap:7px 20px;align-items:center;margin-top:12px;
   font-size:12px;color:var(--muted);line-height:1.55}
 .prow-wx{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.review-prompt{border:1px dashed var(--border);border-radius:10px;padding:16px 18px;
+  background:var(--surface2);white-space:pre-line;font-size:13px;color:var(--muted);
+  line-height:1.7;max-width:74ch}
+.review-prompt::first-line{color:var(--text);font-size:14px}
 .prow-figs{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 16px;margin:10px 0 2px}
 .prow-figs .insight-amount{font-family:var(--font-display);font-size:22px;font-weight:600;line-height:1}
 .prow-cost{text-decoration:none;font-family:var(--font-mono);font-size:13px;color:var(--muted)}
@@ -1789,10 +1793,11 @@ function renderAll() {
   updateHeaderMeta(sortedDays);
   updateDataFreshness(sortedDays);
   renderRedesign();
-  // The weather line and the paid-hours analysis used to appear only after the
-  // Review button was pressed, so the card was half-filled with no sign that
-  // anything was missing. It now renders with everything else.
-  runDaytimeReview();
+  // Deliberately NOT running the analysis here. SMT exports arrive at
+  // unpredictable times, so the resting state of this card is the signal that
+  // the analysis has not yet been run against whatever is currently loaded.
+  // Pressing the button is what says "analyse what I have now".
+  invalidateDaytimeReview();
 }
 
 function invalidateDaytimeReview() {
@@ -1803,8 +1808,14 @@ function invalidateDaytimeReview() {
   document.getElementById('insights-weather').textContent = '';
   const hasData = readings.size > 0;
   document.getElementById('review-daytime-button').disabled = !hasData;
-  document.getElementById('daytime-review-result').textContent = hasData
-    ? 'Ready to review the latest SMT day. Select Review latest day.'
+  // Plain text, not elements: renderCostEstimates() reaches this and is called
+  // directly by the headless tests, whose stubbed nodes support textContent only.
+  const container = document.getElementById('daytime-review-result');
+  container.className = 'review-prompt';
+  container.textContent = hasData
+    ? 'Ready to review ' + fmtDate(day) + ' — the newest SMT day loaded.\n'
+      + 'Select Review latest day to break it into morning, daytime and night. '
+      + 'SMT exports arrive at no fixed time, so refresh from Drive first if you are expecting a newer file.'
     : 'Load SMT data, then review the latest available day.';
 }
 
@@ -2089,6 +2100,7 @@ function runDaytimeReview() {
     const result = analyzeEnergyInsights(day ? readings.get(day) : [], { day, freeNights: freeNightsEnabled, freeStart: freeStartHour, freeEnd: freeEndHour,
       dayRate: readEnergyRate('day-rate'), nightRate: freeNightsEnabled ? readEnergyRate('night-rate') : 0, alertLimits: readAlertLimits(), history: days.filter(date => date < day).map(date => ({day:date, intervals:readings.get(date)})) });
     container.replaceChildren();
+    container.className = '';
     const add = (parent, tag, text, className) => { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; parent.appendChild(node); return node; };
     const takeaway = add(container, 'div', '', 'insight-takeaway' + (result.assessment?.level ? ' level-' + result.assessment.level : ''));
     add(takeaway, 'strong', result.takeawayLabel, 'insight-takeaway-label');

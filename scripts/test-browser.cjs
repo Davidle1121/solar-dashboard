@@ -214,7 +214,7 @@ async function main() {
       await page.locator('#day-rate').fill('50');
       await savePlanEdits(page);
       assert.equal(await page.locator('#cost-daily').textContent(), '$0.02');
-      assert.match(await page.locator('#daytime-review-result').textContent(), /grid electricity during paid hours/);
+      assert.match(await page.locator('#daytime-review-result').textContent(), /Ready to review/);
     });
     await check('free hours update reports while preserving hourly tab', {}, async ({ page, load, ready }) => {
       await ready(); await load(); await page.getByRole('button', { name: 'Hourly Profile Table', exact: true }).click();
@@ -425,7 +425,7 @@ async function main() {
       await page.locator('#day-rate').fill('50');
       await savePlanEdits(page);
       await page.waitForTimeout(650);assert.equal(await page.locator('#insights-weather').isVisible(),false);
-      assert.match(await page.locator('#daytime-review-result').textContent(),/grid electricity during paid hours/);
+      assert.match(await page.locator('#daytime-review-result').textContent(),/Ready to review/);
       await openDashboard(page);
       await page.locator('#review-daytime-button').click();assert.match(await page.locator('#daytime-review-result').textContent(),/2.4¢ at 50¢/);
     });
@@ -530,7 +530,7 @@ async function main() {
       await openPlan(page);
       await page.locator('#alert-yellow').fill('3');
       await savePlanEdits(page);
-      assert.match(await page.locator('#daytime-review-result').textContent(),/grid electricity during paid hours/);
+      assert.match(await page.locator('#daytime-review-result').textContent(),/Ready to review/);
       await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),/Below your spending limit/);

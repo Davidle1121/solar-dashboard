@@ -89,9 +89,17 @@ No changes to the SMT/Drive variables or files are required.
 - `renderRedesign()` is wrapped in try/catch deliberately. These cards are an
   overview; if one fails, the charts, hourly table and cost widget that the rest
   of the dashboard depends on must still render.
-- `runDaytimeReview()` runs as part of `renderAll()`. The weather line and the
-  paid-hours analysis used to appear only after the Review button was pressed,
-  so the card sat half-filled with no sign that anything was missing.
+- The analysis runs only when **Review latest day** is pressed, deliberately.
+  SMT exports arrive at no fixed time — sometimes not until 10pm — so the
+  resting state of that card is the signal that the analysis has not yet been
+  run against whatever is currently loaded. Running it automatically was tried
+  and reverted: it removed that signal, and an analysis of a two-day-old newest
+  day looks identical to one of yesterday.
+- What was actually wrong was the resting state, not the button. The card used
+  to show the period chart with the analysis hidden behind the button, so it
+  read as complete when it was not. The chart now lives inside the analysis, so
+  the whole card is either pending or filled, never half. The prompt names the
+  day that would be analysed and says exports arrive at no fixed time.
 - Each period row carries the weather for its OWN hours, taken from the hourly
   series `api/weather.js` now returns (`hourly=temperature_2m,weather_code`).
   Deriving per-period temperatures from the daily high and low would be a guess
