@@ -92,3 +92,33 @@ test('a rate is spelled back out in dollars per kWh, and only when it is usable'
     assert.equal(c.formatRateEquivalent(bad), '', `"${bad}" must show no equivalent`);
   }
 });
+
+test('an unsaved draft never reaches a calculation once the form is live', () => {
+  const c = plan();
+  const values = { 'day-rate': '25', 'night-rate': '0', 'alert-yellow': '1', 'alert-red': '5' };
+  c.document.getElementById = id => ({
+    style: {}, setAttribute() {}, getContext() { return {}; },
+    get value() { return values[id] === undefined ? '' : values[id]; },
+    set value(next) { values[id] = next; },
+    get checked() { return true; }
+  });
+  // Before the boot path runs, the inputs are the source of truth.
+  assert.equal(c.readEnergyRate('day-rate'), 25);
+  values['day-rate'] = '3';                       // mid-keystroke on the way to 30
+  assert.equal(c.readEnergyRate('day-rate'), 3, 'form still authoritative before boot');
+
+  // Once live, a dirty draft is ignored in favour of the applied plan: this is
+  // what stops a Drive sync costing the history at a half-typed rate.
+  vm.runInContext('planFormReady = true', c);
+  vm.runInContext("appliedPlanState = {freeNights:true,freeStart:21,freeEnd:9,dayRate:'25',nightRate:'0',yellow:'1',red:'5'}", c);
+  assert.equal(c.readEnergyRate('day-rate'), 25, 'draft rate must not be used');
+  const limits = c.readAlertLimits();   // compared field-wise: the VM has its own Object prototype
+  assert.equal(limits.yellow, 1);
+  assert.equal(limits.red, 5);
+
+  values['day-rate'] = '25';                      // draft matches applied again
+  assert.equal(c.readEnergyRate('day-rate'), 25);
+  values['day-rate'] = '40';
+  vm.runInContext("appliedPlanState.dayRate = '40'", c);
+  assert.equal(c.readEnergyRate('day-rate'), 40, 'a saved rate is used immediately');
+});

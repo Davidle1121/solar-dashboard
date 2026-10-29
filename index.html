@@ -777,6 +777,7 @@
             </div>
           </div>
           <div class="chart-note" id="cost-period" style="margin-top:12px">Daytime: 9am&ndash;9pm &middot; Nighttime: 9pm&ndash;9am</div>
+          <div class="chart-note" style="margin-top:6px">Always the newest SMT day, whichever range is selected above.</div>
         </div>
 
         <div class="chart-panel" id="cost-widget">
@@ -1233,6 +1234,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Plan & Rates is restored here instead, after the hour selects exist.
   for (const id of Object.keys(PLAN_NUMERIC_FIELDS)) hardenNumericInput(id);
   restorePlanSettings();
+  // From here on the applied plan, not the form, is what calculations read.
+  planFormReady = true;
   applyViewVisibility();
   renderCostEstimates();
 
@@ -1316,9 +1319,23 @@ function gridEnergyCost(intervals, dayRate, nightRate, day = null) {
     estimated: daytime.estimated || nighttime.estimated };
 }
 
+/* Maps a rate input to its key in the applied plan. */
+const PLAN_RATE_KEY = Object.freeze({ 'day-rate': 'dayRate', 'night-rate': 'nightRate' });
+
+/* True once the plan form has been wired up by the boot path. Before that the
+   inputs ARE the source of truth, which is how the headless test context and
+   any direct caller of renderCostEstimates() still work. */
+let planFormReady = false;
+function planDraftIsDirty() {
+  return planFormReady && !samePlan(currentPlan(), appliedPlanState);
+}
+
 function readEnergyRate(id) {
   const input = document.getElementById(id);
-  const raw = input.value.trim();
+  // A Drive sync finishing mid-edit calls renderAll(). Without this it would
+  // cost the whole history at whatever is half-typed in the box, which is
+  // exactly what deferred apply exists to prevent.
+  const raw = String(planDraftIsDirty() && PLAN_RATE_KEY[id] ? appliedPlanState[PLAN_RATE_KEY[id]] : input.value).trim();
   const value = Number(raw);
   const valid = raw !== '' && Number.isFinite(value) && value >= 0;
   input.setAttribute('aria-invalid', String(!valid));
@@ -1910,8 +1927,11 @@ function validAlertLimits(limits) {
 
 function readAlertLimits() {
   const limits = {};
+  const draft = planDraftIsDirty();
   for (const [key,id] of [['yellow','alert-yellow'],['red','alert-red']]) {
-    const input = document.getElementById(id), raw = input.value.trim();
+    // Same reasoning as readEnergyRate: an unsaved limit must not colour anything.
+    const input = document.getElementById(id);
+    const raw = String(draft ? appliedPlanState[key] : input.value).trim();
     limits[key] = raw === '' ? null : Number(raw);
   }
   const valid = validAlertLimits(limits);
@@ -3108,7 +3128,9 @@ function renderRedesignCards() {
   if (!all.length) return;
   const count = Math.max(1, Math.min(rangeDays, all.length));
   const slice = all.slice(-count);
-  const prior = all.slice(-(count * 2), -count);
+  // Only a prior stretch of the SAME length is comparable; a shorter one would
+  // read as a saving or a spike that is really just missing history.
+  const prior = all.length >= count * 2 ? all.slice(-(count * 2), -count) : [];
   const newest = all[all.length - 1];
   const dayRate = readEnergyRate('day-rate');
   const nightRate = freeNightsEnabled ? readEnergyRate('night-rate') : dayRate;
@@ -3130,8 +3152,20 @@ function renderRedesignCards() {
   const asof = byId('range-asof');
   if (asof) asof.textContent = count === 1 ? fmtDate(newest) : fmtDate(slice[0]) + ' – ' + fmtDate(slice[slice.length - 1]);
 
+  // The donut is deliberately the latest SMT day, not the selected range: its
+  // paid/free legend is written by renderLatestEnergyDay() and is latest-day
+  // only, so following the range here would put two different days in one card.
+  const latestIntervals = readings.get(newest) || [];
+  const latestCost = gridEnergyCost(latestIntervals, dayRate, nightRate, newest);
+  const latestTotals = gridTotals(latestIntervals, newest);
+
   renderVerdict({ count, slice, newest, cost, paidKwh, freeKwh, importKwh, limits, dayRate, anyPartial, anyEstimated });
-  renderDonutCard({ count, cost, paidKwh, freeKwh, importKwh });
+  renderDonutCard({
+    cost: latestCost.cost,
+    paidKwh: latestCost.daytime.kwh,
+    freeKwh: latestCost.nighttime.kwh,
+    importKwh: latestTotals.imported
+  });
   renderComparisonCard({ count, cost, priorCost, priorDays: prior.length });
   renderTrendCard({ all, count, cost, dayRate, nightRate });
   renderExportCard({ count, importKwh, exportKwh, all, dayRate, nightRate });
@@ -3253,7 +3287,7 @@ function renderDonutCard(view) {
   const total = byId('donut-total');
   if (total) total.textContent = view.importKwh == null ? '—' : view.importKwh.toFixed(3) + ' kWh';
   const range = byId('donut-range');
-  if (range) range.textContent = view.count === 1 ? 'Latest SMT day' : 'Last ' + view.count + ' days';
+  if (range) range.textContent = 'Latest SMT day';
 }
 
 /* ---- this period vs the one before ---- */
@@ -3358,6 +3392,21 @@ function renderExportCard(view) {
 }
 
 /* ---- Morning / Daytime / Night rows ---- */
+/* Reading quality for one period across the selected days, taken from the same
+   insightPeriod() the detailed review uses. Averaging kWh per clock hour cannot
+   see this on its own: one 15-minute reading makes the hour look present even
+   when the other three are missing. */
+function segmentQuality(dayKeys, span) {
+  let complete = true, estimated = false, missingDays = 0;
+  for (const day of dayKeys) {
+    const period = insightPeriod(readings.get(day) || [], day,
+      minute => { const hour = Math.floor(minute / 60); return hour >= span.from && hour <= span.to; });
+    if (!period.complete) { complete = false; missingDays += 1; }
+    if (period.estimated) estimated = true;
+  }
+  return { complete, estimated, missingDays };
+}
+
 function renderPeriodRows(view) {
   const list = byId('period-list'); if (!list) return;
   const averages = redesignHourlyAverages(view.slice);
@@ -3385,7 +3434,10 @@ function renderPeriodRows(view) {
     const allFree = freeHours === hours, allPaid = freeHours === 0;
     const costsNothing = allFree && nightRateIsZero();
     const limits = view.limits;
-    const rated = !rateMissing && !missing && validAlertLimits(limits);
+    // Partial or estimated readings never earn a spending rating, matching the
+    // verdict banner and the detailed review.
+    const quality = segmentQuality(view.slice, span);
+    const rated = !rateMissing && !missing && quality.complete && !quality.estimated && validAlertLimits(limits);
     let tone = 'free';
     if (!costsNothing) tone = !rated ? 'none' : cost >= limits.red ? 'bad' : cost >= limits.yellow ? 'warn' : 'good';
     const toneVar = tone === 'bad' ? 'var(--danger)' : tone === 'warn' ? 'var(--accent)'
@@ -3393,6 +3445,9 @@ function renderPeriodRows(view) {
     let chip = costsNothing ? 'Free hours' : !rated ? 'Not rated'
       : cost >= limits.red ? 'High spending' : cost >= limits.yellow ? 'Worth checking' : 'Low spending';
     if (!allFree && !allPaid) chip = 'Mixed hours · ' + chip;
+    if (!costsNothing && !rated && (!quality.complete || quality.estimated)) {
+      chip = quality.estimated && quality.complete ? 'Estimated readings' : 'Partial readings';
+    }
 
     // The meter reports one whole-house figure per interval, so no appliance can
     // be named. Describe the shape of the draw and leave the cause open.
@@ -3404,6 +3459,12 @@ function renderPeriodRows(view) {
     else if (peak != null && peak >= ENERGY_INSIGHT_RULES.peakInterval) note = 'Busiest hour ' + formatHour(peakHour) + ' · ' + peak.toFixed(3) + ' kWh — above your spike threshold.';
     else note = 'Busiest hour ' + formatHour(peakHour) + ' · ' + peak.toFixed(3) + ' kWh. No single hour stands out.';
     if (missing && missing < hours) note += ' ' + missing + ' of ' + hours + ' hours have no readings, so this total covers the rest.';
+    else if (!quality.complete) {
+      note += view.count === 1
+        ? ' Some 15-minute readings in this period are missing, so the total covers the intervals that were reported.'
+        : ' ' + quality.missingDays + ' of ' + view.count + ' days have missing readings in this period.';
+    }
+    if (quality.estimated) note += ' Includes estimated readings.';
 
     let bars = '', axis = '';
     for (let hour = span.from; hour <= span.to; hour++) {
@@ -3621,10 +3682,11 @@ function savePlan() {
   let stored = false;
   try { window.localStorage.setItem(PLAN_STORE_KEY, JSON.stringify(plan)); stored = true; }
   catch (error) { stored = false; }
-  // Rebuild everything the plan feeds: costs, the overview cards and the table.
-  renderCostEstimates();
-  renderRedesign();
-  if (readings.size) renderHourlyTable([...readings.keys()].sort());
+  // renderAll() covers the Daily Grid Import and 15-Minute Detail charts too.
+  // Refreshing only the costs and cards would leave those two showing the old
+  // paid/free split — overnight hours stay blue after free nights are turned off.
+  if (readings.size) renderAll();
+  else { renderCostEstimates(); renderRedesign(); }
   const save = byId('plan-save');
   if (save) save.disabled = true;
   setPlanState('ok', stored
@@ -3635,8 +3697,9 @@ function savePlan() {
 function resetPlanDefaults() {
   applyPlan(PLAN_DEFAULTS);
   try { window.localStorage.removeItem(PLAN_STORE_KEY); } catch (error) { /* nothing to clear */ }
-  renderCostEstimates();
-  renderRedesign();
+  writeCurrentPlanToForm();
+  if (readings.size) renderAll();
+  else { renderCostEstimates(); renderRedesign(); }
   onPlanChanged();
   setPlanState('', 'Defaults restored.');
 }
