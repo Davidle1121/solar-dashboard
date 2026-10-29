@@ -82,12 +82,28 @@ No changes to the SMT/Drive variables or files are required.
 - Compared to Before reports a change only when a prior stretch of the SAME
   length exists. Comparing seven days against the three that happen to be
   retained reads as a spike that is really just missing history.
-- The Drive refresh button and the freshness chip live in the rail and are shown
-  on the Dashboard only. An SMT export is uploaded by hand each day, so refresh
+- The Drive refresh button and the freshness chip sit directly under the rail's
+  navigation rather than pinned to the bottom of the sidebar, where they were
+  easy to miss. They are shown on the Dashboard only. An SMT export is uploaded by hand each day, so refresh
   is a daily action rather than a global header control.
 - `renderRedesign()` is wrapped in try/catch deliberately. These cards are an
   overview; if one fails, the charts, hourly table and cost widget that the rest
   of the dashboard depends on must still render.
+- `runDaytimeReview()` runs as part of `renderAll()`. The weather line and the
+  paid-hours analysis used to appear only after the Review button was pressed,
+  so the card sat half-filled with no sign that anything was missing.
+- Each period row carries the weather for its OWN hours, taken from the hourly
+  series `api/weather.js` now returns (`hourly=temperature_2m,weather_code`).
+  Deriving per-period temperatures from the daily high and low would be a guess
+  presented as a measurement, so `segmentWeather()` returns nothing when the
+  hourly series is unavailable, and nothing for multi-day ranges, where
+  averaging conditions would say very little. The daily line above the rows is
+  kept because it carries sunrise, sunset and the location label, none of which
+  are per-period.
+- The new cards use `formatCompactCost()`, which shows sub-dollar amounts in
+  cents. Dollar rounding made `$0.0048` and `$0.0100` both read as `$0.01`, so
+  Compared to Before reported a percentage change with no visible cause. The
+  original cost cards keep their dollar formatting deliberately.
 - No card names an appliance. The meter reports one whole-house figure per
   interval, so a large overnight draw is described by its shape ("a large
   sustained draw, the kind an EV or home energy storage makes while charging")

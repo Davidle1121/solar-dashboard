@@ -492,7 +492,7 @@
 .rail-nav button.on{background:var(--surface2);color:var(--text);border-left-color:var(--accent)}
 /* Drive sync stays on the Dashboard only: an SMT export is uploaded by hand
    every day, so the refresh is a daily action, not a global header control. */
-.rail-sync{margin-top:auto;display:flex;flex-direction:column;gap:9px}
+.rail-sync{margin-top:2px;display:flex;flex-direction:column;gap:9px}
 .upload-chip{display:flex;align-items:center;justify-content:center;gap:7px;
   font-family:var(--font-mono);font-size:10.5px;color:var(--muted);text-align:center}
 .upload-chip i{width:6px;height:6px;border-radius:50%;background:var(--accent2);flex:0 0 6px}
@@ -575,6 +575,7 @@
   font-family:var(--font-mono);font-size:9.5px;color:var(--muted)}
 .prow-foot{display:flex;flex-wrap:wrap;gap:7px 20px;align-items:center;margin-top:12px;
   font-size:12px;color:var(--muted);line-height:1.55}
+.prow-wx{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap}
 
 /* ---- donut, comparison, trend, export ---- */
 .donut-row{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
@@ -1162,7 +1163,7 @@ async function fetchWeather() {
 }
 
 // Refresh old condition-only storage and HTTP caches once; the SMT cache is unchanged.
-const WEATHER_CACHE_KEY = 'energyWeatherCacheV3';
+const WEATHER_CACHE_KEY = 'energyWeatherCacheV4';
 const WEATHER_CACHE_MS = 12 * 60 * 60 * 1000;
 
 function readWeatherCache(dateKey) {
@@ -1781,6 +1782,10 @@ function renderAll() {
   updateHeaderMeta(sortedDays);
   updateDataFreshness(sortedDays);
   renderRedesign();
+  // The weather line and the paid-hours analysis used to appear only after the
+  // Review button was pressed, so the card was half-filled with no sign that
+  // anything was missing. It now renders with everything else.
+  runDaytimeReview();
 }
 
 function invalidateDaytimeReview() {
@@ -2150,6 +2155,9 @@ async function loadInsightWeather(day, version) {
     const target = document.getElementById('insights-weather');
     target.textContent = lines.join('\n');
     target.hidden = false;
+    // The period rows read the hourly series from the weather cache, which this
+    // request has just filled, so they are redrawn to pick it up.
+    renderRedesign();
   } catch { /* Weather is optional context, never a reason to block the report. */ }
 }
 
@@ -3118,6 +3126,18 @@ function redesignSum(values) {
   return known.length ? known.reduce((total, value) => total + value, 0) : null;
 }
 
+/* Dollar rounding hides sub-cent differences: $0.0048 and $0.0100 both print as
+   "$0.01", which made Compared to Before report a percentage with no visible
+   cause. Below $1 the figure is shown in cents, the same way insightCost() does.
+   The original cost cards keep their dollar formatting deliberately. */
+function formatCompactCost(dollars) {
+  if (typeof dollars !== 'number' || !Number.isFinite(dollars) || dollars < 0) return '—';
+  if (dollars >= 1) return formatEnergyCost(dollars);
+  const cents = dollars * 100;
+  if (cents === 0) return '0¢';
+  return cents < 0.01 ? 'under 0.01¢' : Number(cents.toFixed(2)) + '¢';
+}
+
 function renderRedesign() {
   try { renderRedesignCards(); }
   catch (error) { if (typeof console !== 'undefined' && console.warn) console.warn('Overview cards unavailable', error); }
@@ -3197,7 +3217,7 @@ function renderVerdict(view) {
     head.innerHTML = view.cost == null
       ? 'Grid cost is unavailable for this range.'
       : (freeIsFree ? 'Paid hours cost you ' : 'Grid power cost you ')
-        + '<em>' + formatEnergyCost(view.cost) + '</em>'
+        + '<em>' + formatCompactCost(view.cost) + '</em>'
         + (view.count === 1 ? ' on the latest SMT day.' : ' over ' + view.count + ' days.');
   }
   const sub = byId('v-sub');
@@ -3283,7 +3303,7 @@ function renderDonutCard(view) {
   const title = byId('donut-title');
   if (title) title.textContent = freeNightsEnabled ? 'Free Power vs Paid Power' : 'Grid Power';
   const middle = byId('donut-cost');
-  if (middle) middle.textContent = formatEnergyCost(view.cost);
+  if (middle) middle.textContent = formatCompactCost(view.cost);
   const total = byId('donut-total');
   if (total) total.textContent = view.importKwh == null ? '—' : view.importKwh.toFixed(3) + ' kWh';
   const range = byId('donut-range');
@@ -3299,8 +3319,8 @@ function renderComparisonCard(view) {
   if (thisLabel) thisLabel.textContent = view.count === 1 ? 'Latest' : 'Last ' + view.count;
   if (prevLabel) prevLabel.textContent = view.count === 1 ? 'Day before' : 'Prior ' + view.count;
   const thisValue = byId('cmp-this'), prevValue = byId('cmp-prev');
-  if (thisValue) thisValue.textContent = formatEnergyCost(view.cost);
-  if (prevValue) prevValue.textContent = view.priorDays ? formatEnergyCost(view.priorCost) : '—';
+  if (thisValue) thisValue.textContent = formatCompactCost(view.cost);
+  if (prevValue) prevValue.textContent = view.priorDays ? formatCompactCost(view.priorCost) : '—';
   const highest = Math.max(view.cost || 0, view.priorCost || 0) || 1;
   const thisBar = byId('cmp-this-bar'), prevBar = byId('cmp-prev-bar');
   if (thisBar) thisBar.style.height = Math.max(3, (view.cost || 0) / highest * 90) + 'px';
@@ -3324,7 +3344,7 @@ function renderTrendCard(view) {
     day, cost: gridEnergyCost(readings.get(day) || [], view.dayRate, view.nightRate, day).cost
   }));
   const total = byId('trend-total');
-  if (total) total.textContent = formatEnergyCost(view.cost);
+  if (total) total.textContent = formatCompactCost(view.cost);
   const label = byId('trend-label');
   if (label) label.innerHTML = (view.count === 1 ? 'Latest day' : view.count + '-day total')
     + (view.count === 1 ? '<br>chart shows 7 days' : '');
@@ -3407,6 +3427,38 @@ function segmentQuality(dayKeys, span) {
   return { complete, estimated, missingDays };
 }
 
+/* Weather across one period's own hours, from the hourly series the weather
+   endpoint now returns. Returns '' when the hours are not available, rather
+   than deriving a figure from the daily high and low, which would be a guess.
+   Only offered for a single day: averaging conditions across a range would say
+   very little. */
+function segmentWeather(dayKeys, span) {
+  if (dayKeys.length !== 1) return '';
+  let data = null;
+  try { data = readWeatherCache(dayKeys[0]); } catch (error) { return ''; }
+  const hours = Array.isArray(data && data.hours) ? data.hours : [];
+  const inside = hours.filter(entry => entry && Number.isInteger(entry.hour)
+    && entry.hour >= span.from && entry.hour <= span.to);
+  if (!inside.length) return '';
+  const temps = inside.map(entry => entry.tempF).filter(value => typeof value === 'number' && Number.isFinite(value));
+  const counts = new Map();
+  for (const entry of inside) {
+    if (typeof entry.condition !== 'string' || !entry.condition.trim()) continue;
+    counts.set(entry.condition, (counts.get(entry.condition) || 0) + 1);
+  }
+  let condition = '';
+  for (const [name, count] of counts) {
+    if (!condition || count > counts.get(condition)) condition = name;
+  }
+  const parts = [];
+  if (temps.length) {
+    const low = Math.round(Math.min(...temps)), high = Math.round(Math.max(...temps));
+    parts.push(low === high ? high + '°F' : low + '–' + high + '°F');
+  }
+  if (condition) parts.push(condition);
+  return parts.join(' · ');
+}
+
 function renderPeriodRows(view) {
   const list = byId('period-list'); if (!list) return;
   const averages = redesignHourlyAverages(view.slice);
@@ -3466,6 +3518,8 @@ function renderPeriodRows(view) {
     }
     if (quality.estimated) note += ' Includes estimated readings.';
 
+    const weather = segmentWeather(view.slice, span);
+
     let bars = '', axis = '';
     for (let hour = span.from; hour <= span.to; hour++) {
       const value = averages[hour];
@@ -3481,11 +3535,13 @@ function renderPeriodRows(view) {
       + '<div class="prow-head"><div><div class="prow-name">' + span.name + '</div>'
       + '<div class="prow-hours">' + formatHour(span.from) + ' – ' + (span.to === 23 ? '12am' : formatHour(span.to + 1)) + '</div></div>'
       + '<div class="prow-fig"><b>' + total.toFixed(3) + ' kWh</b><u>'
-      + (costsNothing ? '$0.00' : rateMissing ? 'Rate unset' : formatEnergyCost(cost)) + '</u>'
+      + (costsNothing ? '$0.00' : rateMissing ? 'Rate unset' : formatCompactCost(cost)) + '</u>'
       + '<span class="prow-chip">' + chip + '</span></div></div>'
       + '<div class="prow-bars">' + bars + '</div>'
       + '<div class="prow-axis">' + axis + '</div>'
-      + '<div class="prow-foot"><span>' + note + '</span></div></div>');
+      + '<div class="prow-foot"><span>' + note + '</span>'
+      + (weather ? '<span class="prow-wx">' + weather + '</span>' : '')
+      + '</div></div>');
   }
   list.innerHTML = parts.join('');
 }
