@@ -626,6 +626,19 @@
   text-transform:uppercase;color:var(--muted)}
 .plan-field.bad input,.plan-field.bad select{border-color:var(--danger)}
 .plan-field input,.plan-field select{padding:9px 10px;border-radius:7px}
+/* The unit lives inside the box, so a rate can never be read as dollars.
+   aria-hidden: the label already says the unit, so screen readers are not
+   told it twice. */
+.unit-wrap{position:relative;display:flex;align-items:center}
+.unit-wrap input{width:100%}
+.unit-wrap.suffix input{padding-right:32px}
+.unit-wrap.prefix input{padding-left:28px}
+.unit-mark{position:absolute;pointer-events:none;color:var(--muted);
+  font-family:var(--font-mono);font-size:15px;line-height:1}
+.unit-wrap.suffix .unit-mark{right:11px}
+.unit-wrap.prefix .unit-mark{left:11px}
+.rate-equiv{font-family:var(--font-mono);font-size:11px;color:var(--muted);
+  margin-top:6px;min-height:1.3em}
 .plan-field input:focus,.plan-field select:focus{outline:2px solid var(--accent3);outline-offset:1px}
 .plan-row{display:flex;flex-wrap:wrap;gap:14px}
 /* Save bar sticks to the bottom so the button is reachable without scrolling
@@ -895,12 +908,12 @@
 
         <div class="chart-panel">
           <div class="chart-header"><div class="chart-title">Rates</div></div>
-          <div class="chart-note">Cents per kWh, energy charge only</div>
+          <div class="chart-note">Energy charge only. Rates are in cents per kWh, the way a plan quotes them.</div>
           <div class="plan-row" style="margin-top:14px">
             <div class="plan-field" id="field-day"><label for="day-rate" id="day-rate-label">Day rate (&cent;/kWh)</label>
-              <input id="day-rate" type="text" value="25" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="rate-help" oninput="onPlanChanged()"></div>
+              <div class="unit-wrap suffix"><input id="day-rate" type="text" value="25" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="day-rate-equiv" oninput="onPlanChanged()"><span class="unit-mark" aria-hidden="true">&cent;</span></div><div class="rate-equiv" id="day-rate-equiv"></div></div>
             <div class="plan-field" id="field-night"><label for="night-rate">Night rate (&cent;/kWh)</label>
-              <input id="night-rate" type="text" value="0" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="rate-help" oninput="onPlanChanged()"></div>
+              <div class="unit-wrap suffix"><input id="night-rate" type="text" value="0" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="night-rate-equiv" oninput="onPlanChanged()"><span class="unit-mark" aria-hidden="true">&cent;</span></div><div class="rate-equiv" id="night-rate-equiv"></div></div>
           </div>
           <div id="rate-validation" role="alert" style="color:var(--danger);margin-top:10px"></div>
           <div class="chart-note" id="rate-help" style="margin-top:10px">Excludes delivery charges, taxes, fixed fees and export credits, so these figures are lower than your bill. Changing a rate recalculates your history at the new rate; it does not show what you were actually billed on past days.</div>
@@ -911,9 +924,9 @@
           <div class="chart-note">Daily limits that colour the banner</div>
           <div class="plan-row" style="margin-top:14px">
             <div class="plan-field" id="field-yellow"><label for="alert-yellow">Yellow at ($/day)</label>
-              <input id="alert-yellow" type="text" value="1" inputmode="decimal" autocomplete="off" spellcheck="false" oninput="onPlanChanged()"></div>
+              <div class="unit-wrap prefix"><span class="unit-mark" aria-hidden="true">$</span><input id="alert-yellow" type="text" value="1" inputmode="decimal" autocomplete="off" spellcheck="false" oninput="onPlanChanged()"></div></div>
             <div class="plan-field" id="field-red"><label for="alert-red">Red at ($/day)</label>
-              <input id="alert-red" type="text" value="5" inputmode="decimal" autocomplete="off" spellcheck="false" oninput="onPlanChanged()"></div>
+              <div class="unit-wrap prefix"><span class="unit-mark" aria-hidden="true">$</span><input id="alert-red" type="text" value="5" inputmode="decimal" autocomplete="off" spellcheck="false" oninput="onPlanChanged()"></div></div>
           </div>
           <div id="alert-validation" role="alert" style="color:var(--danger);margin-top:10px"></div>
           <div class="chart-note" style="margin-top:10px">Red must be higher than yellow. Colours indicate spending, not equipment faults.</div>
@@ -3547,9 +3560,30 @@ function syncPlanControls(plan) {
   if (label) label.textContent = plan.freeNights ? 'Day rate (¢/kWh)' : 'Electricity rate (¢/kWh)';
 }
 
+/* Spells the rate back out in dollars per kWh. A plan is quoted in cents, so a
+   whole number is the normal case; showing the dollar value underneath removes
+   any doubt about which unit the box wants. */
+function formatRateEquivalent(raw) {
+  const text = String(raw).trim();
+  if (text === '' || !/^\d+(\.\d+)?$/.test(text)) return '';
+  const cents = Number(text);
+  if (!Number.isFinite(cents)) return '';
+  let dollars = (cents / 100).toFixed(5).replace(/0+$/, '').replace(/\.$/, '');
+  if (dollars === '' || dollars === '0') dollars = '0';
+  return cents + '¢/kWh = $' + dollars + ' per kWh';
+}
+
+function updateRateEquivalents(plan) {
+  const day = byId('day-rate-equiv');
+  if (day) day.textContent = formatRateEquivalent(plan.dayRate);
+  const night = byId('night-rate-equiv');
+  if (night) night.textContent = plan.freeNights ? formatRateEquivalent(plan.nightRate) : '';
+}
+
 function onPlanChanged() {
   const plan = currentPlan();
   syncPlanControls(plan);
+  updateRateEquivalents(plan);
   const problems = planProblems(plan);
   const list = byId('plan-errors');
   if (list) { list.hidden = !problems.length; list.innerHTML = problems.map(text => '<li>' + text + '</li>').join(''); }

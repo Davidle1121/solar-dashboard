@@ -116,6 +116,12 @@ No changes to the SMT/Drive variables or files are required.
   is left empty so Save can say it is required.
 - Free-night hours come from pick lists, but `planProblems()` still checks they
   are distinct whole hours of the day, so a tampered value cannot be applied.
+- Each numeric box carries its unit inside it: a trailing `¢` on the rates, a
+  leading `$` on the alert limits. A plan is quoted in cents per kWh, so a whole
+  number is the normal entry, and the rate fields spell the value back out
+  underneath (`25¢/kWh = $0.25 per kWh`) so the two units can never be confused.
+  The equivalent line clears itself while a value is unusable rather than
+  showing a figure derived from nonsense.
 - `tests/plan-input.test.cjs` covers these rules, including a case asserting that
   every alert limit the form accepts is one `validAlertLimits()` also accepts.
 - Validation moved out of toasts and into the form. Equal free-night hours are

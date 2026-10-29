@@ -80,3 +80,15 @@ test('a draft is accepted while typing but never with a sign, letter or overflow
     assert.ok(!draft(bad, rules), `"${bad}" should be blocked while typing`);
   }
 });
+
+test('a rate is spelled back out in dollars per kWh, and only when it is usable', () => {
+  const c = plan();
+  assert.equal(c.formatRateEquivalent('25'), '25¢/kWh = $0.25 per kWh');
+  assert.equal(c.formatRateEquivalent('12.5'), '12.5¢/kWh = $0.125 per kWh');
+  assert.equal(c.formatRateEquivalent('9'), '9¢/kWh = $0.09 per kWh');
+  assert.equal(c.formatRateEquivalent('0'), '0¢/kWh = $0 per kWh');
+  assert.equal(c.formatRateEquivalent('100'), '100¢/kWh = $1 per kWh');
+  for (const bad of ['', ' ', '-5', 'abc', '1e3', '.']) {
+    assert.equal(c.formatRateEquivalent(bad), '', `"${bad}" must show no equivalent`);
+  }
+});
