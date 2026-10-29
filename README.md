@@ -195,7 +195,11 @@ No changes to the SMT/Drive variables or files are required.
   whose readings are incomplete or estimated — so there is one spending label
   per row rather than a chip and a label saying the same thing.
 - Because the analysis is inherently about one day, that card is always the
-  newest SMT day. The range toggle drives Compared to Before, Cost Day by Day
+  newest SMT day, and `#insights-date` says so in full ("Latest SMT day · Wed,
+  Oct 28, 2026") in ordinary text rather than a muted note. Delivery is
+  irregular enough that the day on screen may not be yesterday, so the date has
+  to be readable without hunting for it. It is shown before the analysis is run
+  and stays visible afterwards. The range toggle drives Compared to Before, Cost Day by Day
   and Sent to the Grid.
 - **Energy Insights** reviews the newest SMT day on demand, using local rules and
   the configured free-night hours and rates. It shows one short assessment, up to

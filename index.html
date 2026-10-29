@@ -273,7 +273,7 @@
   .insight-detail { font-size:13px; color:var(--text); margin-top:6px; line-height:1.6; }
   .insight-attention-label { display:block; font-weight:600; color:var(--accent); font-size:13px; margin-bottom:6px; }
   .insight-exports { color:var(--text); font-size:13px; padding:4px 0; }
-  #insights-date { margin-top:6px; }
+  #insights-date { margin-top:6px; color:var(--text); font-size:13px; }
   #insights-weather { margin-bottom:12px; white-space:pre-line; font-size:12px; line-height:1.7; }
   @media (max-width:600px) {
     .insight-row { padding:14px; }
@@ -1803,7 +1803,13 @@ function renderAll() {
 function invalidateDaytimeReview() {
   energyInsightsVersion++;
   const days = [...readings.keys()].sort(), day = days[days.length - 1];
-  document.getElementById('insights-date').textContent = day ? new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', {timeZone:'America/Chicago', month:'short',day:'numeric',year:'numeric'}) : 'No SMT data loaded';
+  // Labelled, not a bare date: this card is always the newest loaded day, and
+  // SMT delivery is irregular enough that the day on screen may not be
+  // yesterday. The date has to be readable without hunting for it.
+  document.getElementById('insights-date').textContent = day
+    ? 'Latest SMT day · ' + new Date(day + 'T12:00:00Z').toLocaleDateString('en-US',
+        {timeZone:'America/Chicago', weekday:'short', month:'short', day:'numeric', year:'numeric'})
+    : 'No SMT data loaded';
   document.getElementById('insights-weather').hidden = true;
   document.getElementById('insights-weather').textContent = '';
   const hasData = readings.size > 0;
