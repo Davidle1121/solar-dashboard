@@ -576,6 +576,33 @@
 .prow-foot{display:flex;flex-wrap:wrap;gap:7px 20px;align-items:center;margin-top:12px;
   font-size:12px;color:var(--muted);line-height:1.55}
 .prow-wx{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap}
+/* Both columns are a stack of panels on the same 14px rhythm, each with the
+   same border, radius and padding, so the two sides line up as one grid rather
+   than two lists that happen to sit side by side. */
+.analysis-split{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);
+  gap:14px;align-items:start}
+.analysis-main,.analysis-side{min-width:0;display:flex;flex-direction:column;gap:14px}
+.analysis-side{position:sticky;top:16px}
+@media (max-width:1080px){
+  .analysis-split{grid-template-columns:minmax(0,1fr)}
+  .analysis-side{position:static}
+}
+/* The rows and the takeaway set their own margins elsewhere; inside the split
+   the column gap is the only spacing, so nothing drifts out of alignment. */
+.analysis-main .insight-row,
+.analysis-side .insight-takeaway{margin:0}
+/* Compared to Before had no panel of its own, which left the right column with
+   one bordered box above a bare block. It now matches the takeaway exactly. */
+.analysis-side #cost-widget{background:var(--surface2);border:1px solid #344052;
+  border-radius:8px;padding:16px}
+.analysis-side #cost-widget .chart-header{margin:0 0 2px;display:block}
+.analysis-side #cost-widget .cmp-row{padding:10px 0 2px}
+.analysis-side #cost-widget .settings-bar{margin:14px 0 0;padding:0;background:none;border:0}
+.analysis-side .energy-stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+.analysis-side .energy-stat{display:flex;flex-direction:column;justify-content:center}
+/* The export line closes the left column; give it the same inset as the rows
+   above it instead of sitting flush against the card edge. */
+.analysis-main .insight-exports{padding:2px 16px 0}
 .review-prompt{border:1px dashed var(--border);border-radius:10px;padding:16px 18px;
   background:var(--surface2);white-space:pre-line;font-size:13px;color:var(--muted);
   line-height:1.7;max-width:74ch}
@@ -583,8 +610,11 @@
 .prow-figs{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 16px;margin:10px 0 2px}
 .prow-figs .insight-amount{font-family:var(--font-display);font-size:22px;font-weight:600;line-height:1}
 .prow-cost{text-decoration:none;font-family:var(--font-mono);font-size:13px;color:var(--muted)}
-.insight-row .prow-bars{margin-top:12px}
-.insight-row .insight-row-body{margin-top:12px}
+.insight-row .prow-bars{margin-top:14px}
+.insight-row .insight-row-body{margin-top:14px}
+.insight-row .prow-figs{margin:10px 0 0}
+.insight-row-content p{margin:0 0 8px}
+.insight-row-content p:last-child{margin-bottom:0}
 .insight-row-header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
 .insight-row-header .insight-level{margin-left:auto}
 
@@ -740,99 +770,63 @@
         </div>
       </div>
 
-      <div class="card-grid">
-        <!-- Morning / Daytime / Night. Same three periods the Energy Insights
-             engine already produces, drawn as rows instead of paragraphs. -->
-        <div class="chart-panel span2" id="daytime-review-widget">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">Morning, Daytime, Night</div>
-              <div class="chart-note" id="insights-date">No SMT data loaded</div>
+      <!-- One analysis card. The donut, the daily-cost line and the export card
+           were dropped: the banner already states the day's cost, and three more
+           cards restating slices of it made the page something to wade through.
+           Graphs read down the left, the analysis beside them on the right. -->
+      <div class="chart-panel" id="daytime-review-widget">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Morning, Daytime, Night</div>
+            <div class="chart-note" id="insights-date">No SMT data loaded</div>
+          </div>
+          <button class="table-action" id="review-daytime-button" onclick="runDaytimeReview()" disabled>Review latest day</button>
+        </div>
+        <div class="chart-note" id="insights-weather" hidden></div>
+        <div class="chart-note" id="period-sub" style="margin-bottom:12px">Always the newest SMT day &middot; each period shows its hours, usage, cost, weather and what the readings say</div>
+
+        <div class="analysis-split">
+          <div class="analysis-main" id="analysis-rows"></div>
+          <aside class="analysis-side">
+            <div id="daytime-review-result" aria-live="polite" style="line-height:1.7"></div>
+
+            <div id="cost-widget">
+              <div class="chart-header" style="margin-top:4px">
+                <div class="chart-title" style="font-size:16px">Compared to Before</div>
+              </div>
+              <div class="chart-note" id="cmp-sub">&mdash;</div>
+              <div class="cmp-row">
+                <div class="cmp-bar"><b id="cmp-prev">&mdash;</b><i id="cmp-prev-bar" style="background:#2d4a63;height:30px"></i><span id="cmp-prev-lab">Prior</span></div>
+                <div class="cmp-bar"><b id="cmp-this">&mdash;</b><i id="cmp-this-bar" style="background:var(--accent);height:30px"></i><span id="cmp-this-lab">Latest</span></div>
+                <div class="cmp-delta"><b id="cmp-pct">&mdash;</b><span id="cmp-dir">&mdash;</span></div>
+              </div>
+              <div class="settings-bar" style="margin-top:14px">
+                <div class="rate-control"><label for="cost-day">Selected day</label>
+                  <select id="cost-day" onchange="selectDay(this.value)"></select></div>
+              </div>
+              <div class="energy-stats-row">
+                <div class="energy-stat"><div class="energy-stat-label">Selected day</div><div class="energy-stat-value" id="cost-daily">&mdash;</div><div class="stat-sub" id="cost-daily-note">Load SMT data to calculate.</div></div>
+                <div class="energy-stat"><div class="energy-stat-label">7 days ending on selected day</div><div class="energy-stat-value" id="cost-weekly">&mdash;</div><div class="stat-sub" id="cost-weekly-note">Available daytime + nighttime imports only.</div></div>
+              </div>
+              <div class="chart-note">Energy charge only: excludes delivery charges, taxes, fixed fees and export credits. Missing readings are not projected.</div>
             </div>
-            <button class="table-action" id="review-daytime-button" onclick="runDaytimeReview()" disabled>Review latest day</button>
-          </div>
-          <div class="chart-note" id="insights-weather" hidden></div>
-          <div class="chart-note" id="period-sub" style="margin-bottom:12px">Always the newest SMT day &middot; each period shows its hours, usage, cost, weather and what the readings say</div>
-          <div class="period-list" id="period-list"></div>
-          <div id="daytime-review-result" aria-live="polite" style="margin:14px 0 0;line-height:1.7"></div>
-          <div class="chart-note" style="margin-top:12px">Based on SMT grid readings &middot; uses your saved free-night hours and rates &middot; energy charges only</div>
+          </aside>
         </div>
 
-        <div class="chart-panel" id="latest-energy-widget">
-          <div class="chart-header">
-            <div class="chart-title" id="donut-title">Free Power vs Paid Power</div>
-          </div>
-          <div class="chart-note" id="donut-sub"><span id="donut-range">Latest SMT day</span> &mdash; <span id="latest-energy-date">No data loaded</span></div>
-          <div class="donut-row" style="margin-top:14px">
-            <div class="donut-wrap">
-              <svg width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="donut-aria">
-                <title id="donut-aria">Share of grid import that fell in paid hours</title>
-                <circle cx="64" cy="64" r="50" fill="none" stroke="var(--surface2)" stroke-width="15"></circle>
-                <circle id="donut-free" cx="64" cy="64" r="50" fill="none" stroke="var(--accent3)" stroke-width="15"></circle>
-                <circle id="donut-paid" cx="64" cy="64" r="50" fill="none" stroke="var(--accent)" stroke-width="15"></circle>
-              </svg>
-              <div class="donut-mid"><b id="donut-cost">&mdash;</b><span>Cost</span></div>
-            </div>
-            <div class="donut-keys">
-              <div class="dkey"><i style="background:var(--accent)"></i><div>
-                <b id="latest-day-import">&mdash;</b>
-                <span id="latest-day-import-note">Paid hours</span>
-                <span id="latest-day-cost">&mdash;</span>
-                <span id="latest-day-cost-note">&mdash;</span></div></div>
-              <div class="dkey"><i style="background:var(--accent3)"></i><div>
-                <b id="latest-night-import">&mdash;</b>
-                <span id="latest-night-import-note">Free window</span>
-                <span id="latest-night-cost">&mdash;</span>
-                <span id="latest-night-cost-note">&mdash;</span></div></div>
-              <div class="dkey"><i style="background:var(--surface2);box-shadow:inset 0 0 0 1px var(--border)"></i><div>
-                <b id="donut-total">&mdash;</b><span>Total grid import</span></div></div>
-            </div>
-          </div>
-          <div class="chart-note" id="cost-period" style="margin-top:12px">Daytime: 9am&ndash;9pm &middot; Nighttime: 9pm&ndash;9am</div>
-          <div class="chart-note" style="margin-top:6px">Always the newest SMT day, whichever range is selected above.</div>
-        </div>
+        <div class="chart-note" style="margin-top:12px">Based on SMT grid readings &middot; uses your saved free-night hours and rates &middot; energy charges only</div>
+      </div>
 
-        <div class="chart-panel" id="cost-widget">
-          <div class="chart-header">
-            <div class="chart-title">Compared to Before</div>
-            <div class="chart-note" id="cmp-sub">&mdash;</div>
-          </div>
-          <div class="cmp-row">
-            <div class="cmp-bar"><b id="cmp-prev">&mdash;</b><i id="cmp-prev-bar" style="background:#2d4a63;height:30px"></i><span id="cmp-prev-lab">Prior</span></div>
-            <div class="cmp-bar"><b id="cmp-this">&mdash;</b><i id="cmp-this-bar" style="background:var(--accent);height:30px"></i><span id="cmp-this-lab">Latest</span></div>
-            <div class="cmp-delta"><b id="cmp-pct">&mdash;</b><span id="cmp-dir">&mdash;</span></div>
-          </div>
-          <div class="settings-bar" style="margin-top:14px">
-            <div class="rate-control"><label for="cost-day">Selected day</label>
-              <select id="cost-day" onchange="selectDay(this.value)"></select></div>
-          </div>
-          <div class="energy-stats-row">
-            <div class="energy-stat"><div class="energy-stat-label">Selected day</div><div class="energy-stat-value" id="cost-daily">&mdash;</div><div class="stat-sub" id="cost-daily-note">Load SMT data to calculate.</div></div>
-            <div class="energy-stat"><div class="energy-stat-label">7 days ending on selected day</div><div class="energy-stat-value" id="cost-weekly">&mdash;</div><div class="stat-sub" id="cost-weekly-note">Available daytime + nighttime imports only.</div></div>
-          </div>
-          <div class="chart-note">Energy charge only: excludes delivery charges, taxes, fixed fees and export credits. Missing readings are not projected.</div>
-        </div>
-
-        <div class="chart-panel">
-          <div class="chart-header">
-            <div class="chart-title">Cost Day by Day</div>
-            <div class="chart-note">What each day cost you &middot; missing days are never filled in</div>
-          </div>
-          <div class="trend-head"><b id="trend-total">&mdash;</b><span id="trend-label">&mdash;</span></div>
-          <svg class="trend-plot" id="trend-plot" viewBox="0 0 320 112" preserveAspectRatio="none" role="img" aria-labelledby="trend-aria"><title id="trend-aria">Daily grid energy cost</title></svg>
-          <div class="trend-axis" id="trend-axis"></div>
-        </div>
-
-        <div class="chart-panel">
-          <div class="chart-header">
-            <div class="chart-title">Sent to the Grid</div>
-            <div class="chart-note">Surplus generation reported by SMT &mdash; not total solar output</div>
-          </div>
-          <div class="exp-row"><div class="exp-top"><span id="exp-lab1">Export</span><b id="exp-val1">&mdash;</b></div><div class="exp-track"><i id="exp-bar1" style="width:0%"></i></div></div>
-          <div class="exp-row"><div class="exp-top"><span id="exp-lab2">Range export</span><b id="exp-val2">&mdash;</b></div><div class="exp-track"><i id="exp-bar2" style="width:0%;background:var(--accent3)"></i></div></div>
-          <div class="exp-row"><div class="exp-top"><span>Net (import &minus; export)</span><b id="exp-val3">&mdash;</b></div><div class="exp-track"><i id="exp-bar3" style="width:0%"></i></div></div>
-          <div class="chart-note" id="exp-note" style="margin-top:12px">Export credits are not included in any cost on this page.</div>
-        </div>
+      <!-- The latest-day paid/free figures are no longer shown as their own card;
+           the banner states them in a sentence. renderLatestEnergyDay() still
+           computes them and the regression suites still assert them, so the
+           elements stay here rather than deleting that coverage. -->
+      <div id="latest-energy-widget" hidden>
+        <span id="latest-energy-date"></span>
+        <span id="latest-day-import"></span><span id="latest-day-import-note"></span>
+        <span id="latest-day-cost"></span><span id="latest-day-cost-note"></span>
+        <span id="latest-night-import"></span><span id="latest-night-import-note"></span>
+        <span id="latest-night-cost"></span><span id="latest-night-cost-note"></span>
+        <span id="cost-period"></span>
       </div>
 
       <div id="section-tabs" style="display:none"></div>
@@ -1816,6 +1810,8 @@ function invalidateDaytimeReview() {
   document.getElementById('review-daytime-button').disabled = !hasData;
   // Plain text, not elements: renderCostEstimates() reaches this and is called
   // directly by the headless tests, whose stubbed nodes support textContent only.
+  const rowsHost = document.getElementById('analysis-rows');
+  if (rowsHost && rowsHost.replaceChildren) rowsHost.replaceChildren();
   const container = document.getElementById('daytime-review-result');
   container.className = 'review-prompt';
   container.textContent = hasData
@@ -2107,6 +2103,10 @@ function runDaytimeReview() {
       dayRate: readEnergyRate('day-rate'), nightRate: freeNightsEnabled ? readEnergyRate('night-rate') : 0, alertLimits: readAlertLimits(), history: days.filter(date => date < day).map(date => ({day:date, intervals:readings.get(date)})) });
     container.replaceChildren();
     container.className = '';
+    // Takeaway on the right, the period rows beside it on the left, so the
+    // graphs read down one column and the analysis down the other.
+    const rowsHost = document.getElementById('analysis-rows');
+    if (rowsHost) rowsHost.replaceChildren();
     const add = (parent, tag, text, className) => { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; parent.appendChild(node); return node; };
     const takeaway = add(container, 'div', '', 'insight-takeaway' + (result.assessment?.level ? ' level-' + result.assessment.level : ''));
     add(takeaway, 'strong', result.takeawayLabel, 'insight-takeaway-label');
@@ -2126,7 +2126,7 @@ function runDaytimeReview() {
     const busiest = Math.max(...hourly.filter(value => value != null), 0) || 1;
 
     result.rows.forEach((row, index) => {
-      const section = add(container, 'section', '', 'insight-row ' + (row.level ? 'level-' + row.level : row.tone === 'attention' ? 'attention' : ''));
+      const section = add(rowsHost || container, 'section', '', 'insight-row ' + (row.level ? 'level-' + row.level : row.tone === 'attention' ? 'attention' : ''));
       section.setAttribute('aria-labelledby', 'insight-period-' + index);
       const header = add(section, 'div', '', 'insight-row-header');
       const heading = add(header, 'h3', row.name, 'insight-heading');
@@ -2156,7 +2156,7 @@ function runDaytimeReview() {
       if (row.detail) add(explanation, 'p', row.detail, 'insight-detail');
       if (row.cost) add(explanation, 'p', row.cost, 'insight-detail');
     });
-    add(container, 'p', result.exports, 'insight-exports');
+    add(rowsHost || container, 'p', result.exports, 'insight-exports');
     if (day) loadInsightWeather(day, version);
   } catch (error) {
     // A report failure must remain inside this panel; charts, tables and rates
@@ -2205,7 +2205,7 @@ async function loadInsightWeather(day, version) {
     // rather than re-running the analysis (which would request weather again).
     renderRedesign();
     const spans = redesignSegments();
-    const sections = document.querySelectorAll('#daytime-review-result .insight-row');
+    const sections = document.querySelectorAll('#analysis-rows .insight-row');
     for (let index = 0; index < sections.length; index += 1) {
       const span = spans[index];
       if (!span) continue;
@@ -3232,23 +3232,8 @@ function renderRedesignCards() {
   const asof = byId('range-asof');
   if (asof) asof.textContent = count === 1 ? fmtDate(newest) : fmtDate(slice[0]) + ' – ' + fmtDate(slice[slice.length - 1]);
 
-  // The donut is deliberately the latest SMT day, not the selected range: its
-  // paid/free legend is written by renderLatestEnergyDay() and is latest-day
-  // only, so following the range here would put two different days in one card.
-  const latestIntervals = readings.get(newest) || [];
-  const latestCost = gridEnergyCost(latestIntervals, dayRate, nightRate, newest);
-  const latestTotals = gridTotals(latestIntervals, newest);
-
   renderVerdict({ count, slice, newest, cost, paidKwh, freeKwh, importKwh, limits, dayRate, anyPartial, anyEstimated });
-  renderDonutCard({
-    cost: latestCost.cost,
-    paidKwh: latestCost.daytime.kwh,
-    freeKwh: latestCost.nighttime.kwh,
-    importKwh: latestTotals.imported
-  });
   renderComparisonCard({ count, cost, priorCost, priorDays: prior.length });
-  renderTrendCard({ all, count, cost, dayRate, nightRate });
-  renderExportCard({ count, importKwh, exportKwh, all, dayRate, nightRate });
 }
 
 /* ---- verdict banner ---- */
@@ -3343,31 +3328,6 @@ function nightRateIsZero() {
   return rate === 0;
 }
 
-/* ---- free vs paid donut ---- */
-function renderDonutCard(view) {
-  const circumference = 2 * Math.PI * 50;
-  const share = view.importKwh && view.paidKwh != null ? view.paidKwh / view.importKwh : 0;
-  const gap = 2;
-  const paidArc = Math.max(share * circumference - gap, 1);
-  const freeArc = Math.max((1 - share) * circumference - gap, 1);
-  const paid = byId('donut-paid'), free = byId('donut-free');
-  if (paid && paid.setAttribute) {
-    paid.setAttribute('stroke-dasharray', paidArc + ' ' + (circumference - paidArc));
-    paid.setAttribute('stroke-dashoffset', '0');
-  }
-  if (free && free.setAttribute) {
-    free.setAttribute('stroke-dasharray', freeArc + ' ' + (circumference - freeArc));
-    free.setAttribute('stroke-dashoffset', String(-(paidArc + gap)));
-  }
-  const title = byId('donut-title');
-  if (title) title.textContent = freeNightsEnabled ? 'Free Power vs Paid Power' : 'Grid Power';
-  const middle = byId('donut-cost');
-  if (middle) middle.textContent = formatCompactCost(view.cost);
-  const total = byId('donut-total');
-  if (total) total.textContent = view.importKwh == null ? '—' : view.importKwh.toFixed(3) + ' kWh';
-  const range = byId('donut-range');
-  if (range) range.textContent = 'Latest SMT day';
-}
 
 /* ---- this period vs the one before ---- */
 function renderComparisonCard(view) {
@@ -3397,78 +3357,7 @@ function renderComparisonCard(view) {
   if (dir) dir.innerHTML = (down ? 'Decrease' : 'Increase') + '<br>in cost';
 }
 
-/* ---- daily cost line ---- */
-function renderTrendCard(view) {
-  const series = view.all.slice(-Math.max(view.count, 7)).map(day => ({
-    day, cost: gridEnergyCost(readings.get(day) || [], view.dayRate, view.nightRate, day).cost
-  }));
-  const total = byId('trend-total');
-  if (total) total.textContent = formatCompactCost(view.cost);
-  const label = byId('trend-label');
-  if (label) label.innerHTML = (view.count === 1 ? 'Latest day' : view.count + '-day total')
-    + (view.count === 1 ? '<br>chart shows 7 days' : '');
 
-  const svg = byId('trend-plot'), axis = byId('trend-axis');
-  if (!svg || !svg.setAttribute || typeof document.createElementNS !== 'function') return;
-  while (svg.lastChild && svg.childNodes.length > 1) svg.removeChild(svg.lastChild);
-  const known = series.filter(point => point.cost != null);
-  if (!known.length) { if (axis) axis.innerHTML = ''; return; }
-  const NS = 'http://www.w3.org/2000/svg';
-  const W = 320, H = 112, PAD = 8;
-  const max = Math.max(...known.map(point => point.cost)) * 1.12 || 1;
-  const xAt = index => PAD + index * (W - PAD * 2) / Math.max(1, series.length - 1);
-  const yAt = value => H - 6 - (value / max) * (H - 18);
-  const add = (tag, attrs) => { const node = document.createElementNS(NS, tag);
-    for (const key of Object.keys(attrs)) node.setAttribute(key, attrs[key]); svg.appendChild(node); return node; };
-  for (const line of [0.5, 1, 1.5, 2, 3, 5]) if (line < max)
-    add('line', { x1: PAD, x2: W - PAD, y1: yAt(line), y2: yAt(line), stroke: 'rgba(255,255,255,0.055)', 'stroke-width': 1 });
-  // Days with no cost are skipped, never drawn as zero.
-  const points = series.map((point, index) => point.cost == null ? null : xAt(index).toFixed(1) + ',' + yAt(point.cost).toFixed(1)).filter(Boolean).join(' ');
-  add('polyline', { points, fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'vector-effect': 'non-scaling-stroke' });
-  let peakIndex = series.findIndex(point => point.cost === Math.max(...known.map(entry => entry.cost)));
-  if (peakIndex >= 0) add('circle', { cx: xAt(peakIndex), cy: yAt(series[peakIndex].cost), r: 4, fill: 'var(--accent)', stroke: 'var(--surface)', 'stroke-width': 2 });
-  const lastIndex = series.length - 1;
-  if (series[lastIndex].cost != null) add('circle', { cx: xAt(lastIndex), cy: yAt(series[lastIndex].cost), r: 4, fill: 'var(--surface)', stroke: 'var(--accent)', 'stroke-width': 2 });
-
-  if (axis) {
-    const points = series.length, step = Math.max(1, Math.ceil((points - 1) / 4)), picks = [];
-    for (let index = 0; index < points; index += step) picks.push(index);
-    if (picks[picks.length - 1] !== points - 1) picks.push(points - 1);
-    if (picks.length > 2 && points - 1 - picks[picks.length - 2] < step * 0.6) picks.splice(picks.length - 2, 1);
-    axis.innerHTML = picks.map(index => {
-      const style = index === 0 ? 'left:0' : index === points - 1 ? 'right:0'
-        : 'left:' + (xAt(index) / W * 100).toFixed(2) + '%;transform:translateX(-50%)';
-      return '<span style="' + style + '">' + fmtDate(series[index].day) + '</span>';
-    }).join('');
-  }
-}
-
-/* ---- surplus sent back ---- */
-function renderExportCard(view) {
-  const everything = redesignSum(view.all.map(day => gridTotals(readings.get(day) || [], day).exported));
-  const label1 = byId('exp-lab1'), value1 = byId('exp-val1'), bar1 = byId('exp-bar1');
-  if (label1) label1.textContent = view.count === 1 ? 'Latest day export' : 'Last ' + view.count + ' days export';
-  if (value1) value1.textContent = view.exportKwh == null ? 'Unavailable' : view.exportKwh.toFixed(3) + ' kWh';
-  if (bar1) bar1.style.width = (view.exportKwh != null && everything ? Math.min(100, view.exportKwh / everything * 100) : 0).toFixed(0) + '%';
-  const label2 = byId('exp-lab2'), value2 = byId('exp-val2'), bar2 = byId('exp-bar2');
-  if (label2) label2.textContent = 'All ' + view.all.length + ' retained days';
-  if (value2) value2.textContent = everything == null ? 'Unavailable' : everything.toFixed(3) + ' kWh';
-  if (bar2) bar2.style.width = everything == null ? '0%' : '88%';
-  const value3 = byId('exp-val3'), bar3 = byId('exp-bar3'), note = byId('exp-note');
-  const net = view.importKwh == null || view.exportKwh == null ? null : view.importKwh - view.exportKwh;
-  if (value3) {
-    value3.textContent = net == null ? 'Unavailable' : (net > 0 ? '+' : '−') + Math.abs(net).toFixed(3) + ' kWh';
-    value3.style.color = net == null ? 'var(--muted)' : net > 0 ? 'var(--danger)' : 'var(--accent2)';
-  }
-  if (bar3) {
-    bar3.style.width = net == null ? '0%' : Math.min(100, Math.abs(net) / Math.max(view.importKwh || 1, view.exportKwh || 1) * 100).toFixed(0) + '%';
-    bar3.style.background = net == null ? 'var(--muted)' : net > 0 ? 'var(--danger)' : 'var(--accent2)';
-  }
-  if (note) note.textContent = net == null
-    ? 'Net needs matching import and export readings for the same intervals, so it is unavailable here. Export credits are not included in any cost on this page.'
-    : (net > 0 ? 'You pulled more than you sent back over this period. ' : 'You sent back more than you pulled. ')
-      + 'Export credits are not included in any cost on this page.';
-}
 
 /* ---- Morning / Daytime / Night rows ----
    The bars, figures and weather live INSIDE the analysis row rather than in a

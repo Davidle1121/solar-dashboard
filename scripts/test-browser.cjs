@@ -427,7 +427,7 @@ async function main() {
       await page.waitForTimeout(650);assert.equal(await page.locator('#insights-weather').isVisible(),false);
       assert.match(await page.locator('#daytime-review-result').textContent(),/Ready to review/);
       await openDashboard(page);
-      await page.locator('#review-daytime-button').click();assert.match(await page.locator('#daytime-review-result').textContent(),/2.4¢ at 50¢/);
+      await page.locator('#review-daytime-button').click();assert.match(await page.locator('#analysis-rows').textContent(),/2.4¢ at 50¢/);
     });
     await check('weather content is text, never injected HTML',{weather:'html'},async ({page,load,ready})=>{
       await ready();
@@ -494,7 +494,7 @@ async function main() {
       assert.equal(await page.locator('.insight-status').count(),0);
       assert.equal(await page.locator('.insight-takeaway-label').textContent(),'Paid-hours grid use · 9am–9pm');
       assert.match(await page.locator('.insight-summary').textContent(),/only 0.048 kWh of grid electricity during paid hours/);
-      assert.doesNotMatch(await page.locator('#daytime-review-result').textContent(),/Looks normal|Imports dropped/);
+      assert.doesNotMatch(await page.locator('#daytime-review-widget').textContent(),/Looks normal|Imports dropped/);
       assert.deepEqual(await page.locator('.insight-heading').allTextContents(),['Morning','Daytime','Night']);
       const sections=await page.locator('.insight-row').evaluateAll(rows=>rows.map(row=>({
         border:parseFloat(getComputedStyle(row).borderTopWidth),radius:parseFloat(getComputedStyle(row).borderRadius),
