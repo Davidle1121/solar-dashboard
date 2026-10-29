@@ -325,7 +325,8 @@
     border-radius: 8px;
     font-size: 11px;
   }
-  .settings-bar select, .settings-bar input {
+  .settings-bar select, .settings-bar input,
+  .plan-field select, .plan-field input {
     background: var(--surface2);
     border: 1px solid var(--border);
     color: var(--text);
@@ -525,7 +526,7 @@
 .verdict.warn{--tone:var(--accent);--tint:rgba(240,165,0,.12);--line:rgba(240,165,0,.32)}
 .verdict.alert{--tone:var(--danger);--tint:rgba(248,81,73,.12);--line:rgba(248,81,73,.32)}
 .verdict.neutral{--tone:var(--muted);--tint:rgba(125,133,144,.1);--line:rgba(125,133,144,.3)}
-.verdict-main{min-width:0;flex:1 1 300px}
+.verdict-main{min-width:0}
 .v-label{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);
   font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--tone);margin-bottom:9px}
 .v-label i{width:7px;height:7px;border-radius:50%;background:var(--tone)}
@@ -535,15 +536,16 @@
 .v-flag{margin-top:11px;display:flex;gap:9px;align-items:flex-start;font-size:12.5px;
   background:rgba(240,165,0,.09);border:1px solid rgba(240,165,0,.26);border-radius:8px;
   padding:9px 12px;max-width:56ch;line-height:1.5}
-.v-meter{flex:0 0 auto;min-width:190px}
+.v-meter{flex:0 1 330px;min-width:190px;max-width:380px}
+.verdict-main{flex:1 1 420px}
 .v-meter-top{display:flex;justify-content:space-between;gap:12px;font-family:var(--font-mono);
   font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
 .v-track{height:8px;border-radius:999px;background:var(--surface2);overflow:hidden}
 .v-track i{display:block;height:100%;background:var(--accent2)}
 .v-scale{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10.5px;
   color:var(--muted);margin-top:6px}
-.v-wx{display:flex;align-items:center;gap:10px;margin-top:15px;padding-top:14px;
-  border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.5}
+.v-wx{display:block;margin-top:15px;padding-top:14px;
+  border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.6}
 
 /* ---- card grid ---- */
 .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-bottom:16px}
@@ -623,6 +625,8 @@
 .plan-field label{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--muted)}
 .plan-field.bad input,.plan-field.bad select{border-color:var(--danger)}
+.plan-field input,.plan-field select{padding:9px 10px;border-radius:7px}
+.plan-field input:focus,.plan-field select:focus{outline:2px solid var(--accent3);outline-offset:1px}
 .plan-row{display:flex;flex-wrap:wrap;gap:14px}
 /* Save bar sticks to the bottom so the button is reachable without scrolling
    back up after editing the last field. */
@@ -879,12 +883,12 @@
           <div class="chart-header"><div class="chart-title">Free Nights</div></div>
           <div class="chart-note">Hours billed at your night rate</div>
           <label class="free-night-toggle" style="margin-top:14px">
-            <input id="free-nights-enabled" type="checkbox" checked onchange="updateFreeNights(); onPlanChanged()"> Free nights enabled</label>
+            <input id="free-nights-enabled" type="checkbox" checked onchange="onPlanChanged()"> Free nights enabled</label>
           <div class="plan-row" style="margin-top:14px">
             <div class="plan-field" id="field-start"><label for="free-start">Starts</label>
-              <select id="free-start" onchange="updateFreeHours(); onPlanChanged()"></select></div>
+              <select id="free-start" onchange="onPlanChanged()"></select></div>
             <div class="plan-field" id="field-end"><label for="free-end">Ends</label>
-              <select id="free-end" onchange="updateFreeHours(); onPlanChanged()"></select></div>
+              <select id="free-end" onchange="onPlanChanged()"></select></div>
           </div>
           <div class="chart-note" style="margin-top:12px">Start and end must differ. Changing these re-splits every figure on the Dashboard and recolours the Hourly Table, because free and paid hours are decided in one place and used everywhere.</div>
         </div>
@@ -894,9 +898,9 @@
           <div class="chart-note">Cents per kWh, energy charge only</div>
           <div class="plan-row" style="margin-top:14px">
             <div class="plan-field" id="field-day"><label for="day-rate" id="day-rate-label">Day rate (&cent;/kWh)</label>
-              <input id="day-rate" type="number" min="0" step="any" value="25" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates(); onPlanChanged()"></div>
+              <input id="day-rate" type="number" min="0" step="any" value="25" inputmode="decimal" autocomplete="off" oninput="onPlanChanged()"></div>
             <div class="plan-field" id="field-night"><label for="night-rate">Night rate (&cent;/kWh)</label>
-              <input id="night-rate" type="number" min="0" step="any" value="0" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates(); onPlanChanged()"></div>
+              <input id="night-rate" type="number" min="0" step="any" value="0" inputmode="decimal" autocomplete="off" oninput="onPlanChanged()"></div>
           </div>
           <div id="rate-validation" role="alert" style="color:var(--danger);margin-top:10px"></div>
           <div class="chart-note" id="rate-help" style="margin-top:10px">Excludes delivery charges, taxes, fixed fees and export credits, so these figures are lower than your bill. Changing a rate recalculates your history at the new rate; it does not show what you were actually billed on past days.</div>
@@ -907,9 +911,9 @@
           <div class="chart-note">Daily limits that colour the banner</div>
           <div class="plan-row" style="margin-top:14px">
             <div class="plan-field" id="field-yellow"><label for="alert-yellow">Yellow at ($/day)</label>
-              <input id="alert-yellow" type="number" min="0.01" step="0.01" value="1" inputmode="decimal" oninput="updateAlertLimits(); onPlanChanged()"></div>
+              <input id="alert-yellow" type="number" min="0.01" step="0.01" value="1" inputmode="decimal" oninput="onPlanChanged()"></div>
             <div class="plan-field" id="field-red"><label for="alert-red">Red at ($/day)</label>
-              <input id="alert-red" type="number" min="0.01" step="0.01" value="5" inputmode="decimal" oninput="updateAlertLimits(); onPlanChanged()"></div>
+              <input id="alert-red" type="number" min="0.01" step="0.01" value="5" inputmode="decimal" oninput="onPlanChanged()"></div>
           </div>
           <div id="alert-validation" role="alert" style="color:var(--danger);margin-top:10px"></div>
           <div class="chart-note" style="margin-top:10px">Red must be higher than yellow. Colours indicate spending, not equipment faults.</div>
@@ -2969,6 +2973,9 @@ function showToast(msg, type='') {
 const PLAN_STORE_KEY = 'energyPlanV1';
 const PLAN_DEFAULTS = Object.freeze({ freeNights: true, freeStart: 21, freeEnd: 9, dayRate: '25', nightRate: '0', yellow: '1', red: '5' });
 let activeView = 'dashboard';
+/* The plan currently in force. The form may hold an unsaved draft, so the two
+   are kept apart: everything outside Plan & Rates reflects this object. */
+let appliedPlanState = Object.assign({}, PLAN_DEFAULTS);
 let rangeDays = 1;              // Today by default: the daily answer is why this page exists.
 let _redesignTimer = null;
 
@@ -2995,6 +3002,7 @@ function applyViewVisibility() {
 }
 
 function showView(name) {
+  const previous = activeView;
   activeView = name === 'hourly' || name === 'plan' ? name : 'dashboard';
   // Kept in step so any remaining activeTab reader stays correct.
   activeTab = activeView === 'hourly' ? 'hourly' : 'daily';
@@ -3006,7 +3014,8 @@ function showView(name) {
     }
   }
   if (activeView === 'hourly' && readings.size) renderHourlyTable([...readings.keys()].sort());
-  if (activeView === 'plan') onPlanChanged();
+  if (activeView === 'plan') { writeCurrentPlanToForm(); onPlanChanged(); }
+  else if (previous === 'plan') discardUnsavedPlan();
 }
 
 function setRange(count, button) {
@@ -3469,8 +3478,10 @@ function applyPlan(plan) {
   freeNightsEnabled = plan.freeNights;
   freeStartHour = plan.freeStart;
   freeEndHour = plan.freeEnd;
-  updateFreeNights();
-  updateAlertLimits();
+  syncPlanControls(plan);
+  readAlertLimits();
+  invalidateDaytimeReview();
+  appliedPlanState = Object.assign({}, plan);
 }
 
 function setPlanState(kind, message) {
@@ -3479,8 +3490,21 @@ function setPlanState(kind, message) {
   state.textContent = message;
 }
 
+/* Mirrors the enabled/disabled affordance without touching globals or
+   rendering: with free nights off there is no night window and no night rate,
+   and the day rate becomes the only rate. */
+function syncPlanControls(plan) {
+  for (const id of ['free-start', 'free-end', 'night-rate']) {
+    const node = byId(id);
+    if (node) node.disabled = !plan.freeNights;
+  }
+  const label = byId('day-rate-label');
+  if (label) label.textContent = plan.freeNights ? 'Day rate (¢/kWh)' : 'Electricity rate (¢/kWh)';
+}
+
 function onPlanChanged() {
   const plan = currentPlan();
+  syncPlanControls(plan);
   const problems = planProblems(plan);
   const list = byId('plan-errors');
   if (list) { list.hidden = !problems.length; list.innerHTML = problems.map(text => '<li>' + text + '</li>').join(''); }
@@ -3495,29 +3519,37 @@ function onPlanChanged() {
     if (node && node.classList) node.classList.toggle('bad', !!flags[id]);
   }
   const save = byId('plan-save');
-  const stored = readStoredPlan() || PLAN_DEFAULTS;
   if (problems.length) {
     if (save) save.disabled = true;
     setPlanState('err', 'Fix the problems below, then save.');
-  } else if (samePlan(plan, stored)) {
+  } else if (samePlan(plan, appliedPlanState)) {
     if (save) save.disabled = true;
     setPlanState('', readStoredPlan() ? 'Saved settings are in use.' : 'These are the default settings.');
   } else {
     if (save) save.disabled = false;
-    setPlanState('dirty', 'Previewing unsaved changes — click Save to keep them after a reload.');
+    setPlanState('dirty', 'Unsaved changes. The Dashboard still shows your saved settings until you click Save.');
   }
 }
 
+/* Save is the ONLY thing that applies a plan. Typing a rate stages it and
+   nothing else moves, so a half-typed "3" on the way to "30" can never
+   recalculate the dashboard, and the figures on screen always correspond to a
+   plan that was deliberately saved. */
 function savePlan() {
   const plan = currentPlan();
   if (planProblems(plan).length) { onPlanChanged(); return; }
+  applyPlan(plan);
   let stored = false;
   try { window.localStorage.setItem(PLAN_STORE_KEY, JSON.stringify(plan)); stored = true; }
   catch (error) { stored = false; }
+  // Rebuild everything the plan feeds: costs, the overview cards and the table.
+  renderCostEstimates();
+  renderRedesign();
+  if (readings.size) renderHourlyTable([...readings.keys()].sort());
   const save = byId('plan-save');
   if (save) save.disabled = true;
   setPlanState('ok', stored
-    ? 'Saved. These settings will be used the next time you open the dashboard.'
+    ? 'Saved. The Dashboard and Hourly Table now use these settings.'
     : 'Applied, but this browser would not store it — it will reset on reload.');
 }
 
@@ -3528,6 +3560,28 @@ function resetPlanDefaults() {
   renderRedesign();
   onPlanChanged();
   setPlanState('', 'Defaults restored.');
+}
+
+function writeCurrentPlanToForm() {
+  const plan = appliedPlanState;
+  byId('free-nights-enabled').checked = plan.freeNights;
+  byId('free-start').value = String(plan.freeStart);
+  byId('free-end').value = String(plan.freeEnd);
+  byId('day-rate').value = plan.dayRate;
+  byId('night-rate').value = plan.nightRate;
+  byId('alert-yellow').value = plan.yellow;
+  byId('alert-red').value = plan.red;
+  syncPlanControls(plan);
+}
+
+/* Navigating away from Plan & Rates drops an unsaved draft, so the controls can
+   never disagree with the figures the rest of the dashboard is showing. */
+function discardUnsavedPlan() {
+  // Covers an invalid draft too: Save is disabled for those, so checking the
+  // button would have left the rejected values sitting in the form.
+  if (samePlan(currentPlan(), appliedPlanState)) return;
+  writeCurrentPlanToForm();
+  onPlanChanged();
 }
 
 /* Called during boot, after the hour selects exist. */

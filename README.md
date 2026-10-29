@@ -88,11 +88,20 @@ No changes to the SMT/Drive variables or files are required.
 - Rates, free-night hours and alert limits are saved under `energyPlanV1` in
   `localStorage` by the **Save settings** button and restored on load. Before
   this they reset to 25¢ / 0¢ / 9pm–9am on every reload.
-- Editing a control still previews immediately, exactly as before; Save only
-  controls whether the change survives a reload. The Save button is disabled
-  until the form differs from what is stored and validates. Invalid input blocks
-  the save, names the problem and outlines the offending field; it never silently
-  falls back to the previous values.
+- Edits are DEFERRED: typing a rate stages it and nothing else moves. Save is
+  the only thing that applies a plan, so a half-typed "3" on the way to "30" can
+  never recalculate the dashboard, and every figure on screen corresponds to a
+  plan that was deliberately saved. `appliedPlanState` holds the plan in force,
+  kept separate from whatever draft the form is showing.
+- The Save button is disabled until the draft differs from the applied plan and
+  validates. Invalid input blocks the save, names the problem and outlines the
+  offending field; it never silently falls back to the previous values, and an
+  invalid draft is never applied.
+- Navigating away from Plan & Rates discards an unsaved draft, including an
+  invalid one, so the controls can never disagree with the figures shown
+  everywhere else.
+- Validation moved out of toasts and into the form. Equal free-night hours are
+  refused in place rather than silently reverted with a toast.
 - A stored plan that no longer validates is discarded on load rather than
   applied, and every storage read and write is wrapped in try/catch so blocked or
   corrupt storage cannot stop the page booting.

@@ -16,6 +16,12 @@ const openView = async (page, name) => {
 const openPlan = page => openView(page, 'Plan & Rates');
 const openDashboard = page => openView(page, 'Dashboard');
 const openHourly = page => openView(page, 'Hourly Profile Table');
+// Plan edits are deferred: staging a value changes nothing until Save is clicked.
+// Invalid drafts leave Save disabled, so this is a no-op for them by design.
+const savePlanEdits = async page => {
+  const save = page.locator('#plan-save');
+  if (await save.isEnabled()) await save.click();
+};
 
 const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -200,16 +206,21 @@ async function main() {
       await page.locator('#review-daytime-button').click();
       await openPlan(page);
       await page.locator('#day-rate').fill('');
-      assert.equal(await page.locator('#cost-daily').textContent(), '—');
+      // An unusable rate cannot be applied at all, so nothing downstream changes.
+      assert.equal(await page.locator('#plan-save').isDisabled(), true);
+      assert.match(await page.locator('#plan-errors').textContent(), /rate must be 0 or more/);
+      await savePlanEdits(page);
       assert.equal(await page.locator('#latest-day-import').textContent(), '0.048 kWh');
+      await page.locator('#day-rate').fill('50');
+      await savePlanEdits(page);
+      assert.equal(await page.locator('#cost-daily').textContent(), '$0.02');
       assert.match(await page.locator('#daytime-review-result').textContent(), /Ready to review/);
-      await openPlan(page);
-      await page.locator('#day-rate').fill('50'); assert.equal(await page.locator('#cost-daily').textContent(), '$0.02');
     });
     await check('free hours update reports while preserving hourly tab', {}, async ({ page, load, ready }) => {
       await ready(); await load(); await page.getByRole('button', { name: 'Hourly Profile Table', exact: true }).click();
       await openPlan(page);
       await page.locator('#free-end').selectOption('8');
+      await savePlanEdits(page);
       assert.equal(await page.locator('#latest-day-import').textContent(), '4.048 kWh');
       await openHourly(page);
       assert.equal(await page.locator('#tab-hourly').isVisible(), true);
@@ -224,16 +235,18 @@ async function main() {
       for(const id of ['free-start','free-end','night-rate'])assert.equal(await page.locator('#'+id).isDisabled(),true);
       assert.equal(await page.locator('#day-rate').isEnabled(),true);
       assert.equal(await page.locator('#day-rate-label').textContent(),'Electricity rate (¢/kWh)');
+      await savePlanEdits(page);
       await load();
       assert.equal(await page.locator('#latest-day-import').textContent(),'48.048 kWh');
       assert.equal(await page.locator('#latest-night-import').textContent(),'Not used');
       assert.equal(await page.locator('#cost-daily').textContent(),'$12.01');
       await openPlan(page);
       await page.locator('#day-rate').fill('');
-      assert.equal(await page.locator('#cost-daily').textContent(),'—');
-      assert.match(await page.locator('#rate-validation').textContent(),/electricity rate/);
-      await openPlan(page);
+      assert.equal(await page.locator('#plan-save').isDisabled(),true);
+      assert.match(await page.locator('#plan-errors').textContent(),/Electricity rate must be 0 or more/);
+      assert.equal(await page.locator('#cost-daily').textContent(),'$12.01');
       await page.locator('#day-rate').fill('30');
+      await savePlanEdits(page);
       assert.equal(await page.locator('#cost-daily').textContent(),'$14.41');
       await openDashboard(page);
       await page.locator('#review-daytime-button').click();
@@ -243,14 +256,15 @@ async function main() {
     await check('schedule toggle reclassifies every view and restores custom times and rates', {}, async ({page,ready,load})=>{
       await ready();await load();
       await openPlan(page);
+      // Deferred apply: the whole schedule change is staged, then applied once.
       await page.locator('#free-start').selectOption('20');
-      await openPlan(page);
       await page.locator('#free-end').selectOption('8');
-      await openPlan(page);
       await page.locator('#night-rate').fill('2');
+      await savePlanEdits(page);
       await page.getByRole('button',{name:'Hourly Profile Table',exact:true}).click();
       await openPlan(page);
       await page.locator('#free-nights-enabled').uncheck();
+      await savePlanEdits(page);
       const split=await page.evaluate(()=>({
         free:charts['chart-daily'].data.datasets.filter(d=>d.label.includes('Free kWh')).flatMap(d=>d.data),
         boundaryLabels:charts['chart-detail'].data.labels.filter(x=>/🟢|🔴/.test(x)),
@@ -258,15 +272,18 @@ async function main() {
       }));
       assert.ok(split.free.every(x=>x===0));assert.deepEqual(split.boundaryLabels,[]);
       assert.ok(Math.abs(split.cost-12.012)<1e-9);
+      await openHourly(page);
       assert.equal(await page.locator('#tab-hourly').isVisible(),true);
-      // A stale invalid night rate is irrelevant in all-day mode.
-      await page.evaluate(()=>{document.getElementById('night-rate').value='';renderCostEstimates()});
+      // An empty night rate is not required in all-day mode, so this still saves.
+      await openPlan(page);
+      await page.locator('#night-rate').fill('');
+      await savePlanEdits(page);
       assert.equal(await page.locator('#cost-daily').textContent(),'$12.01');
-      await openPlan(page);
+      // Turning free nights back on makes the night rate required again.
       await page.locator('#free-nights-enabled').check();
-      assert.equal(await page.locator('#cost-daily').textContent(),'—');
-      await openPlan(page);
+      assert.equal(await page.locator('#plan-save').isDisabled(),true);
       await page.locator('#night-rate').fill('2');
+      await savePlanEdits(page);
       assert.equal(await page.locator('#free-start').inputValue(),'20');assert.equal(await page.locator('#free-end').inputValue(),'8');
       assert.equal(await page.locator('#latest-day-import').textContent(),'4.044 kWh');
       await openDashboard(page);
@@ -280,9 +297,13 @@ async function main() {
       await load();
       await openPlan(page);
       await page.locator('#free-end').selectOption('21');
-      assert.equal(await page.locator('#free-end').inputValue(), '9');
+      // Validation now lives in the form: the draft is refused rather than
+      // silently reverted, and nothing downstream moves.
+      assert.equal(await page.locator('#plan-save').isDisabled(), true);
+      assert.match(await page.locator('#plan-errors').textContent(), /different hours/);
       assert.equal(await page.locator('#latest-day-import').textContent(), '0.048 kWh');
-      assert.match(await page.locator('#toast').textContent(), /different/);
+      await openDashboard(page);
+      assert.equal(await page.locator('#free-end').inputValue(), '9');
     });
     await check('latest review remains pinned while historical day changes', {}, async ({ page, load, ready }) => {
       await ready();
@@ -402,6 +423,7 @@ async function main() {
       await page.locator('#review-daytime-button').click();
       await openPlan(page);
       await page.locator('#day-rate').fill('50');
+      await savePlanEdits(page);
       await page.waitForTimeout(650);assert.equal(await page.locator('#insights-weather').isVisible(),false);
       assert.match(await page.locator('#daytime-review-result').textContent(),/Ready to review/);
       await openDashboard(page);
@@ -431,7 +453,9 @@ async function main() {
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('#daytime-review-result').textContent(),/temporarily unavailable/);
       await openPlan(page);
-      await page.locator('#day-rate').fill('50');assert.equal(await page.locator('#cost-daily').textContent(),'$0.02');
+      await page.locator('#day-rate').fill('50');
+      await savePlanEdits(page);
+      assert.equal(await page.locator('#cost-daily').textContent(),'$0.02');
       await page.getByRole('button',{name:'Hourly Profile Table',exact:true}).click();assert.equal(await page.locator('#hourly-table-body tr').count(),2);
     });
     for (const weatherDetails of [{},{highF:null,lowF:'0',sunrise:'25:00',sunset:'bad'}]) {
@@ -505,27 +529,29 @@ async function main() {
       assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),/Worth reviewing.*2.00/);
       await openPlan(page);
       await page.locator('#alert-yellow').fill('3');
+      await savePlanEdits(page);
       assert.match(await page.locator('#daytime-review-result').textContent(),/Ready to review/);
       await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),/Below your spending limit/);
+      // A red limit at or below yellow is refused by the form, so it is never applied.
       await openPlan(page);
       await page.locator('#alert-red').fill('2');
-      await openDashboard(page);
-      await page.locator('#review-daytime-button').click();
-      assert.equal(await page.locator('.insight-row.level-good').count(),0);
-      assert.match(await page.locator('#alert-validation').textContent(),/red higher than yellow/);
-      await openPlan(page);
+      assert.equal(await page.locator('#plan-save').isDisabled(),true);
+      assert.match(await page.locator('#plan-errors').textContent(),/higher than the yellow limit/);
       await page.locator('#alert-red').fill('10');
+      await savePlanEdits(page);
+      // Saved limits survive a reload; this is what the Save button buys.
       await page.reload();await ready();
+      await openPlan(page);
       assert.equal(await page.locator('#alert-yellow').inputValue(),'3');assert.equal(await page.locator('#alert-red').inputValue(),'10');
       await load();
       await openPlan(page);
       await page.locator('#day-rate').fill('');
+      assert.equal(await page.locator('#plan-save').isDisabled(),true);
       await openDashboard(page);
       await page.locator('#review-daytime-button').click();
-      assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),/valid electricity rate/);
-      assert.equal(await page.locator('.insight-row.level-good').count(),0);
+      assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),/Below your spending limit/);
     });
     await check('half-cent cost display agrees with color and partial-data explanations', {}, async ({page,ready})=>{
       await ready();
@@ -546,6 +572,7 @@ async function main() {
       await load();
       await openPlan(page);
       await page.locator('#free-nights-enabled').uncheck();
+      await savePlanEdits(page);
       await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),/High spending.*12.01/);
@@ -564,12 +591,14 @@ async function main() {
         else assert.match(await page.locator('#hourly-table-body').textContent(),/repeated hour unverified/);
         await openPlan(page);
         await page.locator('#free-nights-enabled').uncheck();
+        await savePlanEdits(page);
         await openDashboard(page);
         await page.locator('#review-daytime-button').click();
         assert.match(await page.locator('#latest-day-import-note').textContent(),spring?/Complete period/:/Partial period/);
         assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),spring?/Worth reviewing/:/Incomplete/);
         await openPlan(page);
         await page.locator('#free-nights-enabled').check();
+        await savePlanEdits(page);
       }
     });
     for (const [width, height] of [[320, 568], [375, 667], [390, 844], [430, 932], [768, 1024], [820, 1180], [1024, 768], [1180, 820]]) {
