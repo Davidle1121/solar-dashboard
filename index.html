@@ -545,8 +545,6 @@
 .v-track i{display:block;height:100%;background:var(--accent2)}
 .v-scale{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10.5px;
   color:var(--muted);margin-top:6px}
-.v-wx{display:block;margin-top:15px;padding-top:14px;
-  border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.6}
 
 /* ---- card grid ---- */
 .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-bottom:16px}
@@ -743,7 +741,6 @@
           <div class="v-meter-top"><span id="v-meter-label">vs your limits</span><span id="v-tone">&mdash;</span></div>
           <div class="v-track"><i id="v-bar" style="width:0%"></i></div>
           <div class="v-scale"><span>$0</span><span id="v-yellow-label">$1 yellow</span><span id="v-red-label">$5 red</span></div>
-          <div class="v-wx" id="v-wx" style="display:none"></div>
         </div>
       </div>
 
@@ -3308,21 +3305,6 @@ function renderVerdict(view) {
     } else { flag.style.display = 'none'; flagText.textContent = ''; }
   }
 
-  // Weather is shown only when it is already cached for that date: this card
-  // must never trigger a fresh request of its own.
-  const wx = byId('v-wx');
-  if (wx) {
-    let text = '';
-    try {
-      const cached = view.count === 1 ? readWeatherCache(view.newest) : null;
-      if (cached) {
-        const lines = insightWeatherLines(cached);
-        text = Array.isArray(lines) ? lines.join(' · ') : String(lines || '');
-      }
-    } catch (error) { text = ''; }
-    wx.textContent = text;
-    wx.style.display = text ? 'flex' : 'none';
-  }
 }
 
 function nightRateIsZero() {

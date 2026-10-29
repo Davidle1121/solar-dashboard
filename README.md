@@ -93,6 +93,9 @@ No changes to the SMT/Drive variables or files are required.
   reaches into the rendered rows must target `#analysis-rows`, not the review
   container — the per-period weather injection in `loadInsightWeather()` kept
   the old selector when the card split and silently stopped appearing.
+- The verdict banner does not repeat the weather. `#insights-weather` in the
+  card directly below printed the identical sentence, which on a phone put the
+  same line on screen twice within one scroll.
 - On a phone the header stacks: title, then the range toggle across the full
   width with equal buttons, then the date and the weather widget sharing a row.
   Laying those four out with `space-between` left gaps that read as a bug.
