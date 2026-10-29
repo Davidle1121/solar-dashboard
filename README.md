@@ -179,6 +179,16 @@ No changes to the SMT/Drive variables or files are required.
   of historical day selection, and trailing seven-day costs remain available.
 - The five average summary cards have been removed. The charts and hourly table
   retain detailed usage and import/export information for the latest 30 calendar days.
+- The Morning / Daytime / Night card is ONE thing: each `.insight-row` the
+  insights engine produces now carries that period's hour bars, kWh, cost and
+  weather alongside its prose. They were previously a chart list above and a
+  prose list below, which described the same three periods twice on one card.
+  Severity comes from the engine alone — it already refuses to rate a period
+  whose readings are incomplete or estimated — so there is one spending label
+  per row rather than a chip and a label saying the same thing.
+- Because the analysis is inherently about one day, that card is always the
+  newest SMT day. The range toggle drives Compared to Before, Cost Day by Day
+  and Sent to the Grid.
 - **Energy Insights** reviews the newest SMT day on demand, using local rules and
   the configured free-night hours and rates. It shows one short assessment, up to
   three morning/daytime/night rows with exact hours, and a daily export line.
