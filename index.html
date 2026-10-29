@@ -576,17 +576,33 @@
 .prow-foot{display:flex;flex-wrap:wrap;gap:7px 20px;align-items:center;margin-top:12px;
   font-size:12px;color:var(--muted);line-height:1.55}
 .prow-wx{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap}
+/* Both columns are a stack of panels on the same 14px rhythm, each with the
+   same border, radius and padding, so the two sides line up as one grid rather
+   than two lists that happen to sit side by side. */
 .analysis-split{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);
-  gap:18px;align-items:start}
-.analysis-main{min-width:0;display:flex;flex-direction:column;gap:12px}
-.analysis-side{min-width:0;display:flex;flex-direction:column;gap:14px;
-  position:sticky;top:16px}
+  gap:14px;align-items:start}
+.analysis-main,.analysis-side{min-width:0;display:flex;flex-direction:column;gap:14px}
+.analysis-side{position:sticky;top:16px}
 @media (max-width:1080px){
   .analysis-split{grid-template-columns:minmax(0,1fr)}
   .analysis-side{position:static}
 }
+/* The rows and the takeaway set their own margins elsewhere; inside the split
+   the column gap is the only spacing, so nothing drifts out of alignment. */
+.analysis-main .insight-row,
 .analysis-side .insight-takeaway{margin:0}
-.analysis-side #cost-widget{border-top:1px solid var(--border);padding-top:14px}
+/* Compared to Before had no panel of its own, which left the right column with
+   one bordered box above a bare block. It now matches the takeaway exactly. */
+.analysis-side #cost-widget{background:var(--surface2);border:1px solid #344052;
+  border-radius:8px;padding:16px}
+.analysis-side #cost-widget .chart-header{margin:0 0 2px;display:block}
+.analysis-side #cost-widget .cmp-row{padding:10px 0 2px}
+.analysis-side #cost-widget .settings-bar{margin:14px 0 0;padding:0;background:none;border:0}
+.analysis-side .energy-stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+.analysis-side .energy-stat{display:flex;flex-direction:column;justify-content:center}
+/* The export line closes the left column; give it the same inset as the rows
+   above it instead of sitting flush against the card edge. */
+.analysis-main .insight-exports{padding:2px 16px 0}
 .review-prompt{border:1px dashed var(--border);border-radius:10px;padding:16px 18px;
   background:var(--surface2);white-space:pre-line;font-size:13px;color:var(--muted);
   line-height:1.7;max-width:74ch}
@@ -594,8 +610,11 @@
 .prow-figs{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 16px;margin:10px 0 2px}
 .prow-figs .insight-amount{font-family:var(--font-display);font-size:22px;font-weight:600;line-height:1}
 .prow-cost{text-decoration:none;font-family:var(--font-mono);font-size:13px;color:var(--muted)}
-.insight-row .prow-bars{margin-top:12px}
-.insight-row .insight-row-body{margin-top:12px}
+.insight-row .prow-bars{margin-top:14px}
+.insight-row .insight-row-body{margin-top:14px}
+.insight-row .prow-figs{margin:10px 0 0}
+.insight-row-content p{margin:0 0 8px}
+.insight-row-content p:last-child{margin-bottom:0}
 .insight-row-header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
 .insight-row-header .insight-level{margin-left:auto}
 
@@ -2186,7 +2205,7 @@ async function loadInsightWeather(day, version) {
     // rather than re-running the analysis (which would request weather again).
     renderRedesign();
     const spans = redesignSegments();
-    const sections = document.querySelectorAll('#daytime-review-result .insight-row');
+    const sections = document.querySelectorAll('#analysis-rows .insight-row');
     for (let index = 0; index < sections.length; index += 1) {
       const span = spans[index];
       if (!span) continue;
