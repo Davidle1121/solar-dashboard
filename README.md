@@ -36,6 +36,68 @@ No changes to the SMT/Drive variables or files are required.
 
 ## Design decisions and future reference
 
+### Navigation and the 2026-10 redesign
+
+- The page is split into three views behind a left rail: **Dashboard**, **Hourly
+  Profile Table** and **Plan & Rates**. This replaced the two-tab strip. The old
+  `tab-daily` / `tab-hourly` containers survive inside their views, and
+  `applyViewVisibility()` is the single place that decides what is on screen, so
+  `renderAll()`, the rail and the range toggle cannot disagree.
+- The seven Electricity plan inputs moved off the Dashboard onto Plan & Rates.
+  They used to sit above every figure on the page while being touched perhaps
+  once a month.
+- The Dashboard opens with a **verdict banner**: one sentence naming what the
+  grid cost, coloured green/amber/red against the saved daily alert limits, with
+  the largest single paid interval called out beneath it when it crosses
+  `ENERGY_INSIGHT_RULES.peakInterval`. Partial or estimated readings render as
+  "Not rated" rather than a reassuring green.
+- A **Today / 7 Days / 30 Days** toggle re-scopes every card. `Today` is the
+  default because the daily answer is why the site exists. There is no Year view:
+  only the latest 30 days are retained.
+- Five cards follow: Morning/Daytime/Night, Free Power vs Paid Power, Compared to
+  Before, Cost Day by Day, and Sent to the Grid. The existing Daily Grid Import
+  and 15-Minute Detail charts remain below them, unchanged.
+- Morning/Daytime/Night is one **full-width row per period**, not three columns:
+  three columns gave each period a third of the card and every label was cramped.
+  Each row carries the period name, its exact hours, kWh, cost, a status chip, an
+  hour-by-hour bar strip with every hour labelled, and one line of assessment.
+  The rows render automatically; the Review latest day button still produces the
+  detailed text report below them.
+- Period boundaries come from `redesignSegments()`, which mirrors the
+  `daytimePaid` rule in `analyzeEnergyInsights`: only a free window that wraps
+  midnight (end < start) can define the spans. An inverted window would otherwise
+  produce overlapping, double-counted periods, so it falls back to a plain
+  12am / 9am / 9pm split and each row labels itself as mixed.
+- Hourly averages keep a missing hour as `null` rather than zero, so a partial
+  day cannot flatter a period total; the row says how many hours are missing.
+- The Drive refresh button and the freshness chip live in the rail and are shown
+  on the Dashboard only. An SMT export is uploaded by hand each day, so refresh
+  is a daily action rather than a global header control.
+- `renderRedesign()` is wrapped in try/catch deliberately. These cards are an
+  overview; if one fails, the charts, hourly table and cost widget that the rest
+  of the dashboard depends on must still render.
+- No card names an appliance. The meter reports one whole-house figure per
+  interval, so a large overnight draw is described by its shape ("a large
+  sustained draw, the kind an EV or home energy storage makes while charging")
+  rather than attributed to a device. `tests/smt-only.test.cjs` forbids the word
+  that previously named the retired integration, which is why that wording avoids
+  it.
+
+### Saved plan settings
+
+- Rates, free-night hours and alert limits are saved under `energyPlanV1` in
+  `localStorage` by the **Save settings** button and restored on load. Before
+  this they reset to 25¢ / 0¢ / 9pm–9am on every reload.
+- Editing a control still previews immediately, exactly as before; Save only
+  controls whether the change survives a reload. The Save button is disabled
+  until the form differs from what is stored and validates. Invalid input blocks
+  the save, names the problem and outlines the offending field; it never silently
+  falls back to the previous values.
+- A stored plan that no longer validates is discarded on load rather than
+  applied, and every storage read and write is wrapped in try/catch so blocked or
+  corrupt storage cannot stop the page booting.
+- Reset to defaults clears the stored plan as well as restoring the defaults.
+
 ### Dashboard scope
 
 - The live navigation contains **Daily View** and **Hourly Profile Table**.
@@ -206,6 +268,12 @@ verification, and media download—plus denial/error behavior and normalized wea
   bundle to exercise actual chart rendering; otherwise charts are stubbed and the
   suite prints that limitation. Optional `BROWSER_QA_OUTPUT` captures phone/tablet
   screenshots outside the published assets.
+
+Because the redesign moved the plan controls, the Drive button and the review
+button onto separate views, each browser scenario now opens the owning view
+first (`openPlan`, `openDashboard`, `openHourly` in `scripts/test-browser.cjs`).
+Reading hidden text still works; Playwright only refuses to *act* on a control
+that is not visible.
 
 Browser scenarios cover cold and delayed startup, failed/partial syncs, manual
 retry, duplicate refresh requests, disabled storage, bad cache, clearing data,

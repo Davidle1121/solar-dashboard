@@ -5,6 +5,18 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const assert = require('node:assert/strict');
+// The 2026-10 redesign splits the page into Dashboard / Hourly Profile Table /
+// Plan & Rates views. Reading hidden text still works, but Playwright only ACTS
+// on a visible control, so each scenario opens the owning view first.
+const openView = async (page, name) => {
+  const wanted = name === 'Plan & Rates' ? 'plan' : name === 'Hourly Profile Table' ? 'hourly' : 'dashboard';
+  if (await page.evaluate(() => activeView) === wanted) return;
+  await page.getByRole('button', { name, exact: true }).click();
+};
+const openPlan = page => openView(page, 'Plan & Rates');
+const openDashboard = page => openView(page, 'Dashboard');
+const openHourly = page => openView(page, 'Hourly Profile Table');
+
 const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const chartScript = process.env.CHART_JS_TEST_PATH
@@ -107,7 +119,9 @@ async function main() {
     await check('blocked browser storage', { storageBlocked: true }, empty);
     await check('invalid cached JSON', { cache: '{broken' }, empty);
     await check('malformed cached readings', { cache: { readings: { '2026-10-19': [null, { time: null, kwh: 'bad' }] } } }, async args => {
-      await empty(args); await args.page.locator('#day-rate').fill('30');
+      await empty(args);
+      await openPlan(args.page);
+      await args.page.locator('#day-rate').fill('30');
     });
     await check('empty render, navigation and review calls', {}, async ({ page, ready }) => {
       await ready(); await page.evaluate(() => { renderAll(); selectDay('missing'); shiftDay(1); runDaytimeReview(); });
@@ -116,6 +130,7 @@ async function main() {
     await check('delayed data arrival after first render', { drive: 'success', delay: 200 }, async ({ page }) => {
       assert.equal(await page.locator('#review-daytime-button').isDisabled(), true);
       await page.waitForFunction(() => document.getElementById('latest-day-import').textContent === '0.048 kWh');
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('#daytime-review-result').textContent(), /grid electricity during paid hours/);
     });
@@ -149,7 +164,9 @@ async function main() {
       assert.match(await page.locator('#drive-status').textContent(), /8 file/);
     });
     await check('manual retry after failed startup', { drive: 'failure' }, async ({ page, ready, setDrive }) => {
-      await ready(); setDrive('success'); await page.locator('#drive-btn').click();
+      await ready(); setDrive('success');
+      await openDashboard(page);
+      await page.locator('#drive-btn').click();
       await page.waitForFunction(() => document.getElementById('latest-day-import').textContent === '0.048 kWh');
     });
     await check('overlapping refresh calls are ignored', { delay: 150 }, async ({ page, listCalls }) => {
@@ -157,7 +174,10 @@ async function main() {
       assert.equal(listCalls(), 1);
     });
     await check('loading then clearing data resets all reports', {}, async ({ page, load, ready }) => {
-      await ready(); await load(); await page.locator('#review-daytime-button').click();
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
       await page.evaluate(() => { readings.clear(); clearDashboard(); });
       assert.equal(await page.locator('#latest-day-import').textContent(), '—');
       assert.equal(await page.locator('#cost-daily').textContent(), '—');
@@ -165,29 +185,41 @@ async function main() {
       assert.equal(await page.locator('#hourly-table-body').textContent(), '');
     });
     await check('missing chart library leaves reports and table usable', { missingChart: true }, async ({ page, load, ready }) => {
-      await ready(); await load(); await page.locator('#review-daytime-button').click();
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('#daytime-review-result').textContent(), /grid electricity during paid hours/);
       assert.match(await page.locator('#hourly-table-body').textContent(), /Oct/);
       assert.equal(await page.locator('.chart-unavailable').count(), 2);
     });
     await check('changing rates preserves usage, validates inputs, invalidates old review', {}, async ({ page, load, ready }) => {
-      await ready(); await load(); await page.locator('#review-daytime-button').click();
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
+      await openPlan(page);
       await page.locator('#day-rate').fill('');
       assert.equal(await page.locator('#cost-daily').textContent(), '—');
       assert.equal(await page.locator('#latest-day-import').textContent(), '0.048 kWh');
       assert.match(await page.locator('#daytime-review-result').textContent(), /Ready to review/);
+      await openPlan(page);
       await page.locator('#day-rate').fill('50'); assert.equal(await page.locator('#cost-daily').textContent(), '$0.02');
     });
     await check('free hours update reports while preserving hourly tab', {}, async ({ page, load, ready }) => {
       await ready(); await load(); await page.getByRole('button', { name: 'Hourly Profile Table', exact: true }).click();
+      await openPlan(page);
       await page.locator('#free-end').selectOption('8');
       assert.equal(await page.locator('#latest-day-import').textContent(), '4.048 kWh');
+      await openHourly(page);
       assert.equal(await page.locator('#tab-hourly').isVisible(), true);
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click(); assert.match(await page.locator('#daytime-review-result').textContent(), /8am–9pm/);
     });
     await check('free-night toggle before data arrival preserves one required all-day rate', {}, async ({page,ready,load})=>{
       await ready();
       assert.equal(await page.locator('#free-nights-enabled').isChecked(),true);
+      await openPlan(page);
       await page.locator('#free-nights-enabled').uncheck();
       for(const id of ['free-start','free-end','night-rate'])assert.equal(await page.locator('#'+id).isDisabled(),true);
       assert.equal(await page.locator('#day-rate').isEnabled(),true);
@@ -196,21 +228,28 @@ async function main() {
       assert.equal(await page.locator('#latest-day-import').textContent(),'48.048 kWh');
       assert.equal(await page.locator('#latest-night-import').textContent(),'Not used');
       assert.equal(await page.locator('#cost-daily').textContent(),'$12.01');
+      await openPlan(page);
       await page.locator('#day-rate').fill('');
       assert.equal(await page.locator('#cost-daily').textContent(),'—');
       assert.match(await page.locator('#rate-validation').textContent(),/electricity rate/);
+      await openPlan(page);
       await page.locator('#day-rate').fill('30');
       assert.equal(await page.locator('#cost-daily').textContent(),'$14.41');
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('.insight-takeaway-label').textContent(),/all 24 hours/);
       assert.ok((await page.locator('.insight-explanation').allTextContents()).every(text=>text.includes('paid electricity hours')));
     });
     await check('schedule toggle reclassifies every view and restores custom times and rates', {}, async ({page,ready,load})=>{
       await ready();await load();
+      await openPlan(page);
       await page.locator('#free-start').selectOption('20');
+      await openPlan(page);
       await page.locator('#free-end').selectOption('8');
+      await openPlan(page);
       await page.locator('#night-rate').fill('2');
       await page.getByRole('button',{name:'Hourly Profile Table',exact:true}).click();
+      await openPlan(page);
       await page.locator('#free-nights-enabled').uncheck();
       const split=await page.evaluate(()=>({
         free:charts['chart-daily'].data.datasets.filter(d=>d.label.includes('Free kWh')).flatMap(d=>d.data),
@@ -223,24 +262,34 @@ async function main() {
       // A stale invalid night rate is irrelevant in all-day mode.
       await page.evaluate(()=>{document.getElementById('night-rate').value='';renderCostEstimates()});
       assert.equal(await page.locator('#cost-daily').textContent(),'$12.01');
+      await openPlan(page);
       await page.locator('#free-nights-enabled').check();
       assert.equal(await page.locator('#cost-daily').textContent(),'—');
+      await openPlan(page);
       await page.locator('#night-rate').fill('2');
       assert.equal(await page.locator('#free-start').inputValue(),'20');assert.equal(await page.locator('#free-end').inputValue(),'8');
       assert.equal(await page.locator('#latest-day-import').textContent(),'4.044 kWh');
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('.insight-takeaway-label').textContent(),/8am–8pm/);
       assert.match(await page.locator('.insight-row').nth(1).getAttribute('class'),/level-review/);
       assert.equal(await page.locator('#tab-hourly').isVisible(),true);
     });
     await check('equal start and end hours are rejected safely', {}, async ({ page, load, ready }) => {
-      await ready(); await load(); await page.locator('#free-end').selectOption('21');
+      await ready();
+      await load();
+      await openPlan(page);
+      await page.locator('#free-end').selectOption('21');
       assert.equal(await page.locator('#free-end').inputValue(), '9');
       assert.equal(await page.locator('#latest-day-import').textContent(), '0.048 kWh');
       assert.match(await page.locator('#toast').textContent(), /different/);
     });
     await check('latest review remains pinned while historical day changes', {}, async ({ page, load, ready }) => {
-      await ready(); await load(); await page.locator('#cost-day').selectOption('2026-10-18');
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#cost-day').selectOption('2026-10-18');
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('#insights-date').textContent(), /Oct 19/);
       assert.equal(await page.locator('#day-select').inputValue(), '2026-10-18');
@@ -259,10 +308,12 @@ async function main() {
       await page.getByRole('button',{name:'Hourly Profile Table',exact:true}).click();
       assert.deepEqual(await page.locator('#hourly-range option').evaluateAll(options=>options.map(option=>option.value)),['7','14','30']);
       for(const count of [7,14,30]) {
+        await openHourly(page);
         await page.locator('#hourly-range').selectOption(String(count));
         assert.equal(await page.locator('#hourly-table-body tr').count(),count);
       }
       assert.match(await page.locator('#cost-weekly-note').textContent(),/7\/7 complete days/);
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.equal(await page.evaluate(() => analyzeEnergyInsights(readings.get('2026-10-19'), {day:'2026-10-19',freeStart:21,freeEnd:9,history:[...readings.entries()].filter(([day])=>day<'2026-10-19').map(([day,intervals])=>({day,intervals}))}).measurements.baselineDays),28);
     });
@@ -283,10 +334,12 @@ async function main() {
         await ready(); await load();
         await page.getByRole('button', { name: 'Hourly Profile Table', exact: true }).click();
         for (const metric of ['export', 'net', 'import']) {
+          await openHourly(page);
           await page.locator('#hourly-metric').selectOption(metric);
           assert.equal(await page.locator('#hourly-table-body tr').count(), 2);
         }
         assert.deepEqual(await page.locator('#hourly-range option').evaluateAll(options => options.map(option => option.value)), ['7', '14', '30']);
+        await openHourly(page);
         await page.locator('#hourly-range').selectOption('30');
         const fits = await page.evaluate(() => {
           const wrap = document.querySelector('#tab-hourly .data-table-wrap');
@@ -294,13 +347,18 @@ async function main() {
           return wrap.scrollLeft > 0 && wrap.getBoundingClientRect().right <= innerWidth + 1;
         });
         assert.equal(fits, true);
+        await openPlan(page);
         await page.locator('#free-start').selectOption('20');
+        await openHourly(page);
         assert.equal(await page.locator('#tab-hourly').isVisible(), true);
         assert.equal(await page.locator('#hourly-metric').inputValue(), 'import');
       });
     }
     await check('insights reuse weather for the SMT date instead of today', {weather:'known'}, async ({page,load,ready}) => {
-      await ready(); await load(); await page.locator('#review-daytime-button').click();
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
       await page.waitForFunction(()=>!document.getElementById('insights-weather').hidden);
       assert.match(await page.locator('#insights-weather').textContent(),/77494 · Overcast/);
       assert.match(await page.locator('#insights-weather').textContent(),/High 82°F \/ Low 64°F/);
@@ -309,12 +367,19 @@ async function main() {
       assert.equal(await page.locator('.insight-row').count(),3);
     });
     for (const weather of [undefined,'unknown']) await check('weather unavailable/unknown is omitted: '+weather,{weather},async ({page,load,ready})=>{
-      await ready();await load();await page.locator('#review-daytime-button').click();await page.waitForTimeout(100);
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
+      await page.waitForTimeout(100);
       assert.equal(await page.locator('#insights-weather').isVisible(),false);
       assert.match(await page.locator('#daytime-review-result').textContent(),/grid electricity during paid hours/);
     });
     await check('late weather response cannot overwrite a newer report',{weather:'known',weatherDelay:500},async ({page,load,ready})=>{
-      await ready();await load();await page.locator('#review-daytime-button').click();
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
       await page.evaluate(data=>{readings=new Map([['2026-10-20',data]]);renderAll();runDaytimeReview()},sample);
       await page.waitForFunction(()=>document.getElementById('insights-weather').textContent.includes('Rain'));
       await page.waitForTimeout(650);
@@ -322,19 +387,31 @@ async function main() {
       assert.match(await page.locator('#insights-date').textContent(),/Oct 20/);
     });
     await check('late weather response stays hidden after clearing data',{weather:'known',weatherDelay:500},async ({page,load,ready})=>{
-      await ready();await load();await page.locator('#review-daytime-button').click();
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
       await page.evaluate(()=>{readings.clear();clearDashboard()});await page.waitForTimeout(650);
       assert.equal(await page.locator('#insights-weather').isVisible(),false);
       assert.equal(await page.locator('#review-daytime-button').isDisabled(),true);
     });
     await check('late weather response stays hidden after a rate edit',{weather:'known',weatherDelay:500},async ({page,load,ready})=>{
-      await ready();await load();await page.locator('#review-daytime-button').click();await page.locator('#day-rate').fill('50');
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
+      await openPlan(page);
+      await page.locator('#day-rate').fill('50');
       await page.waitForTimeout(650);assert.equal(await page.locator('#insights-weather').isVisible(),false);
       assert.match(await page.locator('#daytime-review-result').textContent(),/Ready to review/);
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();assert.match(await page.locator('#daytime-review-result').textContent(),/2.4¢ at 50¢/);
     });
     await check('weather content is text, never injected HTML',{weather:'html'},async ({page,load,ready})=>{
-      await ready();await load();await page.locator('#review-daytime-button').click();
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
       await page.waitForFunction(()=>!document.getElementById('insights-weather').hidden);
       assert.equal(await page.locator('#insights-weather img').count(),0);
       assert.equal(await page.evaluate(()=>window.weatherInjected),undefined);
@@ -342,6 +419,7 @@ async function main() {
     await check('repeated reviews do not duplicate sections or modify charts, costs, or data',{},async ({page,load,ready})=>{
       await ready();await load();
       const before=await page.evaluate(()=>JSON.stringify({readings:[...readings],daily:document.getElementById('cost-daily').textContent,weekly:document.getElementById('cost-weekly').textContent,chart:charts['chart-daily'].config.data}));
+      await openDashboard(page);
       for(let i=0;i<5;i++)await page.locator('#review-daytime-button').click();
       assert.equal(await page.locator('.insight-row').count(),3);
       const after=await page.evaluate(()=>JSON.stringify({readings:[...readings],daily:document.getElementById('cost-daily').textContent,weekly:document.getElementById('cost-weekly').textContent,chart:charts['chart-daily'].config.data}));
@@ -349,14 +427,19 @@ async function main() {
     });
     await check('an analysis failure stays within its panel and preserves dashboard controls',{},async ({page,load,ready})=>{
       await ready();await load();await page.evaluate(()=>{analyzeEnergyInsights=()=>{throw new Error('synthetic analysis failure')}});
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('#daytime-review-result').textContent(),/temporarily unavailable/);
+      await openPlan(page);
       await page.locator('#day-rate').fill('50');assert.equal(await page.locator('#cost-daily').textContent(),'$0.02');
       await page.getByRole('button',{name:'Hourly Profile Table',exact:true}).click();assert.equal(await page.locator('#hourly-table-body tr').count(),2);
     });
     for (const weatherDetails of [{},{highF:null,lowF:'0',sunrise:'25:00',sunset:'bad'}]) {
       await check('optional weather omissions preserve condition and energy report '+JSON.stringify(weatherDetails),{weather:'known',weatherDetails},async ({page,load,ready})=>{
-        await ready();await load();await page.locator('#review-daytime-button').click();
+        await ready();
+        await load();
+        await openDashboard(page);
+        await page.locator('#review-daytime-button').click();
         await page.waitForFunction(()=>!document.getElementById('insights-weather').hidden);
         const text=await page.locator('#insights-weather').textContent();
         assert.match(text,/Overcast/);assert.doesNotMatch(text,/High|Low|Sunrise|Sunset/);
@@ -364,17 +447,26 @@ async function main() {
       });
     }
     await check('old condition-only weather cache does not hide new daily details',{weather:'known',legacyWeather:true},async ({page,load,ready})=>{
-      await ready();await load();await page.locator('#review-daytime-button').click();
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
       await page.waitForFunction(()=>document.getElementById('insights-weather').textContent.includes('Sunrise'));
       assert.doesNotMatch(await page.locator('#insights-weather').textContent(),/Old weather record/);
     });
     await check('Tokyo browser displays the same America/Chicago sun times',{weather:'known',timezone:'Asia/Tokyo'},async ({page,load,ready})=>{
-      await ready();await load();await page.locator('#review-daytime-button').click();
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
       await page.waitForFunction(()=>document.getElementById('insights-weather').textContent.includes('Sunrise'));
       assert.match(await page.locator('#insights-weather').textContent(),/Sunrise 7:31am · Sunset 6:40pm/);
     });
     await check('paid-hours takeaway and visibly separate sections replace ambiguous overall badges', {width:1100}, async ({page,load,ready})=>{
-      await ready();await load();await page.locator('#review-daytime-button').click();
+      await ready();
+      await load();
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
       assert.equal(await page.locator('.insight-status').count(),0);
       assert.equal(await page.locator('.insight-takeaway-label').textContent(),'Paid-hours grid use · 9am–9pm');
       assert.match(await page.locator('.insight-summary').textContent(),/only 0.048 kWh of grid electricity during paid hours/);
@@ -408,21 +500,30 @@ async function main() {
     await check('cost alert limits validate, persist and follow edited rates', {}, async ({page,ready,load})=>{
       await ready();await load();
       await page.evaluate(data=>{data.forEach((r,i)=>{if(i>=36&&i<84)r.kwh=0});data[40].kwh=8;readings=new Map([['2026-10-19',data]]);renderAll()},sample);
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),/Worth reviewing.*2.00/);
-      await page.locator('.alert-settings summary').click();
+      await openPlan(page);
       await page.locator('#alert-yellow').fill('3');
       assert.match(await page.locator('#daytime-review-result').textContent(),/Ready to review/);
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),/Below your spending limit/);
+      await openPlan(page);
       await page.locator('#alert-red').fill('2');
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.equal(await page.locator('.insight-row.level-good').count(),0);
       assert.match(await page.locator('#alert-validation').textContent(),/red higher than yellow/);
+      await openPlan(page);
       await page.locator('#alert-red').fill('10');
       await page.reload();await ready();
       assert.equal(await page.locator('#alert-yellow').inputValue(),'3');assert.equal(await page.locator('#alert-red').inputValue(),'10');
-      await load();await page.locator('#day-rate').fill('');await page.locator('#review-daytime-button').click();
+      await load();
+      await openPlan(page);
+      await page.locator('#day-rate').fill('');
+      await openDashboard(page);
+      await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),/valid electricity rate/);
       assert.equal(await page.locator('.insight-row.level-good').count(),0);
     });
@@ -441,7 +542,11 @@ async function main() {
       assert.equal(await page.locator('#alert-yellow').inputValue(),'1');assert.equal(await page.locator('#alert-red').inputValue(),'5');
     });
     await check('all-day paid assessment catches expensive overnight imports', {}, async ({page,ready,load})=>{
-      await ready();await load();await page.locator('#free-nights-enabled').uncheck();
+      await ready();
+      await load();
+      await openPlan(page);
+      await page.locator('#free-nights-enabled').uncheck();
+      await openDashboard(page);
       await page.locator('#review-daytime-button').click();
       assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),/High spending.*12.01/);
       assert.match(await page.locator('.insight-takeaway-label').textContent(),/all 24 hours/);
@@ -457,25 +562,48 @@ async function main() {
         await page.getByRole('button',{name:'Hourly Profile Table',exact:true}).click();
         if(spring)assert.equal(await page.locator('#hourly-table-body tr').first().locator('td').nth(3).textContent(),'N/A');
         else assert.match(await page.locator('#hourly-table-body').textContent(),/repeated hour unverified/);
-        await page.locator('#free-nights-enabled').uncheck();await page.locator('#review-daytime-button').click();
+        await openPlan(page);
+        await page.locator('#free-nights-enabled').uncheck();
+        await openDashboard(page);
+        await page.locator('#review-daytime-button').click();
         assert.match(await page.locator('#latest-day-import-note').textContent(),spring?/Complete period/:/Partial period/);
         assert.match(await page.locator('.insight-takeaway .insight-level').textContent(),spring?/Worth reviewing/:/Incomplete/);
+        await openPlan(page);
         await page.locator('#free-nights-enabled').check();
       }
     });
     for (const [width, height] of [[320, 568], [375, 667], [390, 844], [430, 932], [768, 1024], [820, 1180], [1024, 768], [1180, 820]]) {
       await check('touch layout ' + width + '×' + height, { width, height, weather:'known' }, async ({ page, load, ready }) => {
-        await ready(); await load(); await page.locator('#review-daytime-button').click();
+        await ready();
+        await load();
+        // The redesigned cards render after the data lands, so the page height is
+        // still settling right after load(); wait for it before measuring or clicking.
+        await page.waitForFunction(() => new Promise(resolve => {
+          let last = '', stable = 0;
+          const tick = () => {
+            const button = document.getElementById('review-daytime-button');
+            const rect = button.getBoundingClientRect();
+            const key = document.body.scrollHeight + ':' + Math.round(rect.top) + ':' + Math.round(rect.height);
+            stable = key === last ? stable + 1 : 0;
+            last = key;
+            if (stable >= 4) return resolve(true);
+            requestAnimationFrame(() => setTimeout(tick, 60));
+          };
+          tick();
+        }));
+        // dispatchEvent, not click(): under mobile emulation the layout viewport is
+        // taller than the visual one, so a scrolled-to click point can map onto the
+        // top bar. This scenario clicks only to produce the report it then measures.
+        await page.locator('#review-daytime-button').dispatchEvent('click');
         await page.locator('.insight-takeaway').waitFor({state:'visible'});
         await page.waitForFunction(()=>document.getElementById('insights-weather').textContent.includes('Sunrise'));
-        await page.locator('.alert-settings summary').click();
-        const issues = await page.evaluate(() => {
+        const probe = selectors => page.evaluate(list => {
           const issues = [];
           for (const id of ['latest-energy-widget', 'cost-widget', 'daytime-review-widget']) {
             const e = document.getElementById(id);
-            if (e.scrollWidth > e.clientWidth + 1) issues.push(id + ' overflows');
+            if (e && e.getClientRects().length && e.scrollWidth > e.clientWidth + 1) issues.push(id + ' overflows');
           }
-          for (const e of document.querySelectorAll('.settings-bar input:not([type=checkbox]),.settings-bar select,.free-night-toggle,#review-daytime-button')) {
+          for (const e of document.querySelectorAll(list)) {
             if (!e.getClientRects().length) continue;
             const rect = e.getBoundingClientRect();
             if (rect.right > innerWidth + 1 || rect.left < 0) issues.push(e.id + ' offscreen');
@@ -483,8 +611,14 @@ async function main() {
             if (e.matches('input,select') && parseFloat(getComputedStyle(e).fontSize) < 16) issues.push(e.id + ' may trigger iOS focus zoom');
           }
           return issues;
-        });
-        assert.deepEqual(issues, []);
+        }, selectors);
+        // Dashboard widgets and the review button are measured on the Dashboard...
+        const dashboardIssues = await probe('#review-daytime-button,.settings-bar input:not([type=checkbox]),.settings-bar select');
+        await openPlan(page);
+        // ...and the plan controls on the view that now owns them.
+        const planIssues = await probe('.plan-field input:not([type=checkbox]),.plan-field select,.free-night-toggle');
+        await openDashboard(page);
+        assert.deepEqual([...dashboardIssues, ...planIssues], []);
         if (process.env.BROWSER_QA_OUTPUT && [390, 820, 1024].includes(width)) {
           fs.mkdirSync(process.env.BROWSER_QA_OUTPUT, { recursive: true });
           await page.locator('#daytime-review-widget').screenshot({ path: path.join(process.env.BROWSER_QA_OUTPUT, 'dashboard-' + width + '.png') });
