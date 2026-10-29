@@ -89,7 +89,13 @@ No changes to the SMT/Drive variables or files are required.
   sit beside them on the right. Reading a graph and then its analysis works
   better across than down. The columns stack below 1080px.
 - `#daytime-review-result` holds the takeaway and the resting prompt;
-  `#analysis-rows` holds the period sections and the export line.
+  `#analysis-rows` holds the period sections and the export line. Anything that
+  reaches into the rendered rows must target `#analysis-rows`, not the review
+  container — the per-period weather injection in `loadInsightWeather()` kept
+  the old selector when the card split and silently stopped appearing.
+- On a phone the header stacks: title, then the range toggle across the full
+  width with equal buttons, then the date and the weather widget sharing a row.
+  Laying those four out with `space-between` left gaps that read as a bug.
 - Compared to Before reports a change only when a prior stretch of the SAME
   length exists. Comparing seven days against the three that happen to be
   retained reads as a spike that is really just missing history.
