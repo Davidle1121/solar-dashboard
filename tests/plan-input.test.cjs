@@ -159,3 +159,27 @@ test('a period is costed on both halves, not just its paid hours', () => {
   assert.equal(charge(1.83, 34.6, 25, 3).toFixed(4), '1.4955', 'both halves are included');
   assert.equal(charge(1.83, 34.6, null, 0), null, 'an unset rate yields no figure');
 });
+
+test('costs read as dollars, keeping sub-cent detail without the cent sign', () => {
+  const c = plan();
+  // "0.68¢" is easily misread as 68 cents and "45.75¢" as $45.75, so every cost
+  // is a dollar amount. The extra places below a dollar are what the cents were
+  // really for: telling two small days apart.
+  for (const [value, shown] of [
+    [0, '$0.00'], [0.0068, '$0.0068'], [0.012, '$0.012'], [0.25, '$0.25'],
+    [0.4575, '$0.4575'], [0.5, '$0.50'], [1, '$1.00'], [12.345, '$12.35']
+  ]) assert.equal(c.formatCostDollars(value), shown, value + ' should show as ' + shown);
+  assert.equal(c.formatCostDollars(0.00001), 'under $0.0001', 'nothing is shown as $0.0000');
+  for (const bad of [null, undefined, NaN, -1, 'x']) assert.equal(c.formatCostDollars(bad), '—');
+
+  // Prose rounds: a headline reading "$0.4575" looks like a typo.
+  assert.equal(c.describeCost(0.4575), '$0.46');
+  assert.equal(c.describeCost(0.0068), 'less than a penny');
+  assert.equal(c.describeCost(0.012), '$0.01');
+  assert.equal(c.describeCost(0), '$0.00');
+  assert.equal(c.describeCost(null), '—');
+
+  // The rate keeps its cent sign: that is how a plan quotes it.
+  assert.match(c.insightCost(1.83, 25), /\$0\.4575 at 25¢\/kWh/);
+  assert.match(c.insightCost(0, 25), /\$0\.00 at 25¢\/kWh/);
+});

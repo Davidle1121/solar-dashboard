@@ -427,7 +427,7 @@ async function main() {
       await page.waitForTimeout(650);assert.equal(await page.locator('#insights-weather').isVisible(),false);
       assert.match(await page.locator('#daytime-review-result').textContent(),/Ready to review/);
       await openDashboard(page);
-      await page.locator('#review-daytime-button').click();assert.match(await page.locator('#analysis-rows').textContent(),/2.4¢ at 50¢/);
+      await page.locator('#review-daytime-button').click();assert.match(await page.locator('#analysis-rows').textContent(),/\$0\.024 at 50¢/);
     });
     await check('weather content is text, never injected HTML',{weather:'html'},async ({page,load,ready})=>{
       await ready();

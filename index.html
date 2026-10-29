@@ -1971,10 +1971,9 @@ function assessEnergyCost(period, rate, limits) {
 
 function insightCost(kwh, rate) {
   if (kwh == null || !Number.isFinite(rate) || rate < 0 || !Number.isFinite(kwh * rate)) return '';
-  const cents = kwh * rate;
-  // Dollar rounding hides sub-cent costs. Show cents below $1 without claiming
-  // tiny nonzero charges are zero, and keep the normal cost cards unchanged.
-  const amount = cents === 0 ? '0¢' : cents < 0.01 ? 'less than 0.01¢' : cents < 100 ? Number(cents.toFixed(2)) + '¢' : formatEnergyCost(cents / 100);
+  // Costs in dollars, the rate in cents per kWh the way the plan quotes it.
+  // Showing the cost in cents too made "45.75¢" sit beside "$0.46" in one row.
+  const amount = formatCostDollars(kwh * rate / 100);
   return 'Cost for this period: ' + amount + ' at ' + rate + '¢/kWh.';
 }
 
@@ -2125,7 +2124,7 @@ function runDaytimeReview() {
       const freeCharge = energyCharge(periodFree == null ? 0 : periodFree, periodNightRate);
       const periodCost = row.measurements.kwh == null || paidCharge == null || freeCharge == null
         ? null : paidCharge + freeCharge;
-      if (periodCost != null) add(figures, 'u', formatCompactCost(periodCost), 'prow-cost');
+      if (periodCost != null) add(figures, 'u', formatCostDollars(periodCost), 'prow-cost');
       const span = spans[index];
       const weather = span ? segmentWeather([day], span) : '';
       if (weather) add(figures, 'span', weather, 'prow-wx');
@@ -3178,16 +3177,36 @@ function redesignSum(values) {
   return known.length ? known.reduce((total, value) => total + value, 0) : null;
 }
 
-/* Dollar rounding hides sub-cent differences: $0.0048 and $0.0100 both print as
-   "$0.01", which made Compared to Before report a percentage with no visible
-   cause. Below $1 the figure is shown in cents, the same way insightCost() does.
-   The original cost cards keep their dollar formatting deliberately. */
-function formatCompactCost(dollars) {
+/* Costs are always dollars. An earlier version switched to cents below a dollar
+   so that Compared to Before could explain a percentage between two figures
+   that both rounded to $0.01 — but "0.68¢" is easily misread as 68 cents, and
+   "45.75¢" as $45.75, which is the opposite of helpful on a page about money.
+   Dollars keep one unit everywhere; the extra decimals below a cent keep the
+   sub-cent difference visible, which is what the cents were really for.
+   Rates stay in cents per kWh: that is how a plan quotes them. */
+function formatCostDollars(dollars) {
   if (typeof dollars !== 'number' || !Number.isFinite(dollars) || dollars < 0) return '—';
-  if (dollars >= 1) return formatEnergyCost(dollars);
-  const cents = dollars * 100;
-  if (cents === 0) return '0¢';
-  return cents < 0.01 ? 'under 0.01¢' : Number(cents.toFixed(2)) + '¢';
+  if (dollars >= 1) return '$' + dollars.toFixed(2);
+  // Under a dollar, keep up to four places so two small days can be told apart,
+  // then trim the zeros back to the familiar two. $0.46 stays $0.46, while
+  // $0.012 and $0.0068 keep the detail that made them different. Anything that
+  // would still round away is described rather than shown as $0.0000.
+  if (dollars > 0 && dollars.toFixed(4) === '0.0000') return 'under $0.0001';
+  let text = dollars.toFixed(4).replace(/0+$/, '');
+  if (text.endsWith('.')) text += '0';
+  // Pad back to the familiar two places: $0.5 would read as a typo.
+  if (text.length - text.indexOf('.') - 1 < 2) text += '0';
+  return '$' + text;
+}
+
+/* For sentences. A headline reading "$0.4575" looks like a typo, so prose
+   rounds to cents and says "less than a penny" when there is nothing to round
+   to. The exact figure is in the row directly beneath it, which is where the
+   precision belongs. */
+function describeCost(dollars) {
+  if (typeof dollars !== 'number' || !Number.isFinite(dollars) || dollars < 0) return '—';
+  if (dollars === 0) return '$0.00';
+  return dollars < 0.01 ? 'less than a penny' : '$' + dollars.toFixed(2);
 }
 
 /* Wrapped on purpose. These cards are an overview sitting above the charts,
@@ -3260,7 +3279,7 @@ function renderVerdict(view) {
     head.innerHTML = view.cost == null
       ? 'Grid cost is unavailable for this range.'
       : (freeIsFree ? 'Paid hours cost you ' : 'Grid power cost you ')
-        + '<em>' + formatCompactCost(view.cost) + '</em>'
+        + '<em>' + describeCost(view.cost) + '</em>'
         + (view.count === 1 ? ' on the latest SMT day.' : ' over ' + view.count + ' days.');
   }
   const sub = byId('v-sub');
@@ -3322,8 +3341,8 @@ function renderComparisonCard(view) {
   if (thisLabel) thisLabel.textContent = view.count === 1 ? 'Latest' : 'Last ' + view.count;
   if (prevLabel) prevLabel.textContent = view.count === 1 ? 'Day before' : 'Prior ' + view.count;
   const thisValue = byId('cmp-this'), prevValue = byId('cmp-prev');
-  if (thisValue) thisValue.textContent = formatCompactCost(view.cost);
-  if (prevValue) prevValue.textContent = view.priorDays ? formatCompactCost(view.priorCost) : '—';
+  if (thisValue) thisValue.textContent = formatCostDollars(view.cost);
+  if (prevValue) prevValue.textContent = view.priorDays ? formatCostDollars(view.priorCost) : '—';
   const highest = Math.max(view.cost || 0, view.priorCost || 0) || 1;
   const thisBar = byId('cmp-this-bar'), prevBar = byId('cmp-prev-bar');
   if (thisBar) thisBar.style.height = Math.max(3, (view.cost || 0) / highest * 90) + 'px';
