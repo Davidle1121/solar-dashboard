@@ -144,3 +144,18 @@ test('period weather is taken from the hourly series, never from the daily range
   c.readWeatherCache = () => { throw new Error('storage blocked'); };
   assert.equal(c.segmentWeather(['2026-10-27'], span), '');
 });
+
+test('a period is costed on both halves, not just its paid hours', () => {
+  const c = plan();
+  // A free window with a non-zero night rate is allowed by the Plan view, so a
+  // period row that charged only its paid kWh would report such a period as 0.
+  const charge = (paidKwh, freeKwh, dayRate, nightRate) => {
+    const paid = c.energyCharge(paidKwh, dayRate);
+    const free = c.energyCharge(freeKwh, nightRate);
+    return paid == null || free == null ? null : paid + free;
+  };
+  assert.equal(charge(1.83, 34.6, 25, 0).toFixed(4), '0.4575', 'zero night rate costs only paid hours');
+  assert.equal(charge(0, 34.6, 25, 3).toFixed(4), '1.0380', 'a free window is not free at 3 cents');
+  assert.equal(charge(1.83, 34.6, 25, 3).toFixed(4), '1.4955', 'both halves are included');
+  assert.equal(charge(1.83, 34.6, null, 0), null, 'an unset rate yields no figure');
+});
