@@ -37,29 +37,31 @@ test('zero imports and exports are measured zero, without invented percentages o
   assert.doesNotMatch(JSON.stringify(result),/NaN|Infinity|%/);
 });
 
-test('large free-night charging remains informational while paid spikes take priority',()=>{
+test('large free-night charging and small paid spikes do not override spending severity',()=>{
   const c=engine(), rows=intervals(0.001,5);
   assert.equal(c.analyzeEnergyInsights(rows,options).status,'Looks normal');
   rows[56].kwh=0.6;
   const result=c.analyzeEnergyInsights(rows,options);
-  assert.equal(result.status,'Worth checking');assert.equal(result.rows[1].category,'daytime');
-  assert.equal(result.rows[1].tone,'attention');assert.match(result.rows[1].detail,/2pm–2:15pm/);
+  assert.equal(result.status,'Looks normal');assert.equal(result.rows[1].category,'daytime');
+  assert.equal(result.rows[1].tone,'good');assert.match(result.rows[1].detail,/2pm–2:15pm/);
   assert.ok(result.rows.every(row=>!/caused|powered by|battery state/i.test(row.text+row.detail)));
 });
 
 test('sustained small draws require adjacent intervals',()=>{
   const c=engine(),rows=intervals(0,0);
   rows[40].kwh=rows[41].kwh=0.125;
-  assert.equal(c.analyzeEnergyInsights(rows,options).status,'Worth checking');
+  assert.equal(c.analyzeEnergyInsights(rows,options).status,'Looks normal');
+  assert.match(c.analyzeEnergyInsights(rows,options).rows[1].detail,/Largest recorded 15-minute/);
   rows[41].kwh=0;rows[42].kwh=0.125;
   assert.equal(c.analyzeEnergyInsights(rows,options).status,'Looks normal');
+  assert.equal(c.analyzeEnergyInsights(rows,options).rows[1].detail,'');
 });
 
 test('recent baseline catches increased paid use and excludes incomplete or estimated history',()=>{
   const c=engine();
   const history=Array.from({length:8},(_,i)=>({day:'2026-10-'+(19+i),intervals:intervals(0,0)}));
   const result=c.analyzeEnergyInsights(intervals(0.015,0),{...options,history});
-  assert.equal(result.status,'Worth checking');assert.match(result.rows[1].detail,/above your recent pattern/);
+  assert.equal(result.status,'Looks normal');assert.match(result.rows[1].detail,/above your recent pattern/);
   history.forEach(item=>{item.intervals[40].importEstimated=true});
   const excluded=c.analyzeEnergyInsights(intervals(0.015,0),{...options,history});
   assert.equal(excluded.measurements.baselineDays,0);assert.equal(excluded.status,'Looks normal');
@@ -126,7 +128,7 @@ test('America/Chicago DST days are handled conservatively and independently of h
 test('analysis sanitizes duplicate revisions without mutating the source or accepting invalid intervals',()=>{
   const c=engine(),rows=intervals();rows.push({...rows[40],kwh:0.6,importRevision:123},null,{time:'25:00',kwh:5});
   const before=JSON.stringify(rows);const result=c.analyzeEnergyInsights(rows,options);
-  assert.equal(JSON.stringify(rows),before);assert.equal(result.status,'Worth checking');
+  assert.equal(JSON.stringify(rows),before);assert.equal(result.status,'Looks normal');
   assert.equal(result.measurements.peakPaid.kwh,0.6);
   const huge=intervals(1e308,1e308);
   assert.doesNotMatch(JSON.stringify(c.analyzeEnergyInsights(huge,options)),/Infinity|NaN/);
@@ -196,7 +198,137 @@ test('takeaway names paid-hours scope and sections keep a stable chronological o
   rows[40].kwh=0.6;
   const warning=c.analyzeEnergyInsights(rows,options);
   assert.deepEqual(JSON.parse(JSON.stringify(warning.rows.map(row=>row.name))),['Morning','Daytime','Night']);
-  assert.equal(warning.rows[1].tone,'attention');assert.match(warning.summary,/highlighted period/);
+  assert.equal(warning.rows[1].tone,'good');assert.match(warning.summary,/paid-hours details/);
   rows.splice(0,1);
   assert.equal(c.analyzeEnergyInsights(rows,options).takeawayLabel,'Meter readings are incomplete');
+});
+
+
+test('paid-hours color bands include exact boundaries and match 25-cent costs',()=>{
+  const c=engine();
+  for(const [kwh,level,cost] of [[0,'good','0¢'],[1,'good','25¢'],[4,'review','$1.00'],[8,'review','$2.00'],[20,'high','$5.00'],[80,'high','$20.00']]) {
+    const rows=intervals(0,0);rows[40].kwh=kwh;
+    const result=c.analyzeEnergyInsights(rows,options);
+    assert.equal(result.rows[1].level,level);assert.ok(result.rows[1].cost.includes(cost));
+    assert.equal(result.rows[0].level,null);assert.equal(result.rows[2].level,null);
+  }
+  // Repeated decimal additions must not turn exactly $5 yellow.
+  assert.equal(c.analyzeEnergyInsights(intervals(20/48,0),options).rows[1].level,'high');
+});
+
+test('color bands require complete actual paid readings and follow configured hours',()=>{
+  const c=engine(),rows=intervals(0,0);rows[40].kwh=6;
+  rows[40].importEstimated=true;
+  assert.equal(c.analyzeEnergyInsights(rows,options).rows[1].level,null);
+  rows[40].importEstimated=false;rows.splice(40,1);
+  assert.equal(c.analyzeEnergyInsights(rows,options).rows[1].level,null);
+  const missingMorning=intervals(0,0).slice(1);
+  assert.equal(c.analyzeEnergyInsights(missingMorning,options).rows[1].level,'good');
+  const reversed=c.analyzeEnergyInsights(intervals(0,0),{...options,freeStart:9,freeEnd:21});
+  assert.equal(reversed.rows[1].level,null);
+  const changed=c.analyzeEnergyInsights(intervals(0,0),{...options,freeEnd:8});
+  assert.equal(changed.rows[1].level,'good');assert.equal(changed.rows[1].timeRange,'8am–9pm');
+});
+
+
+test('disabling free nights makes all hours paid with one rate and no free-window claims',()=>{
+  const c=engine(),rows=intervals();
+  const result=c.analyzeEnergyInsights(rows,{...options,freeNights:false,nightRate:null});
+  near(result.measurements.paid.kwh,9.648);
+  assert.equal(result.takeawayLabel,'Paid-hours grid use · all 24 hours');
+  assert.ok(result.rows.every(row=>/paid electricity hours/.test(row.explanation)));
+  assert.ok(result.rows.every(row=>row.cost.includes('25¢/kWh')));
+  assert.equal(result.rows[0].level,null);assert.equal(result.rows[2].level,null);
+  assert.equal(result.rows[1].level,'good');
+  vm.runInContext('freeNightsEnabled=false',c);
+  for(let h=0;h<24;h++)assert.equal(c.isFreeHour(h),false);
+  const cost=c.gridEnergyCost(rows,25,0);
+  near(cost.daytime.kwh,9.648);near(cost.nighttime.kwh,0);near(cost.cost,2.412);
+  assert.equal(cost.complete,true);
+  vm.runInContext('freeNightsEnabled=true;freeStartHour=20;freeEndHour=8',c);
+  assert.equal(c.isFreeHour(8),false);assert.equal(c.isFreeHour(20),true);
+  assert.equal(c.isFreeHour(7.75),true);assert.equal(c.isFreeHour(19.75),false);
+});
+
+
+test('dollar limits validate, use current rate, and do not diagnose equipment from spikes',()=>{
+  const c=engine();
+  for(const limits of [null,{}, {yellow:0,red:5},{yellow:5,red:1},{yellow:1,red:1},{yellow:NaN,red:5},{yellow:1,red:Infinity},{yellow:1.001,red:5}]) {
+    const r=c.analyzeEnergyInsights(intervals(),{...options,alertLimits:limits});
+    assert.equal(r.assessment.level,null);assert.equal(r.rows[1].level,null);
+  }
+  const rows=intervals(0,0);rows[40].kwh=8;
+  assert.equal(c.analyzeEnergyInsights(rows,options).assessment.level,'review');
+  assert.equal(c.analyzeEnergyInsights(rows,{...options,dayRate:100}).assessment.level,'high');
+  assert.equal(c.analyzeEnergyInsights(rows,{...options,dayRate:0}).assessment.level,'good');
+  for(const rate of [null,undefined,-1,NaN,Infinity,'25']) {
+    const r=c.analyzeEnergyInsights(rows,{...options,dayRate:rate});
+    assert.equal(r.assessment.level,null);assert.equal(r.rows[1].level,null);assert.equal(r.weekly.cost,null);
+  }
+  assert.equal(c.analyzeEnergyInsights(rows,{...options,alertLimits:{yellow:3,red:10}}).assessment.level,'good');
+  const period={kwh:3.98,complete:true,estimated:false};
+  assert.equal(c.assessEnergyCost(period,25,{yellow:1,red:5}).level,'review'); // $0.995 displays $1.00
+});
+
+test('weekly frequency uses seven calendar dates including the report day, with honest gaps',()=>{
+  const c=engine();
+  const make=kwh=>{const rows=intervals(0,0);rows[40].kwh=kwh;return rows};
+  const history=Array.from({length:6},(_,i)=>({day:'2026-10-'+(21+i),intervals:make(0)}));
+  history.push({day:'2026-10-20',intervals:make(80)},{day:'2026-10-28',intervals:make(80)});
+  let r=c.analyzeEnergyInsights(make(8),{...options,history});
+  assert.equal(r.weekly.completeDays,7);assert.equal(r.weekly.reviewDays,1);near(r.weekly.cost,2);
+  history[0].intervals=make(8);history[1].intervals=make(8);
+  r=c.analyzeEnergyInsights(make(8),{...options,history});
+  assert.equal(r.weekly.reviewDays,3);near(r.weekly.cost,6);
+  history[0].intervals[40].importEstimated=true;history[1].intervals.splice(40,1);history.splice(2,1);
+  r=c.analyzeEnergyInsights(make(8),{...options,history});
+  assert.equal(r.weekly.completeDays,4);assert.equal(r.weekly.observedDays,6);assert.equal(r.weekly.reviewDays,1);near(r.weekly.cost,4);
+  // A rate edit recalculates comparison costs; it does not invent historical tariffs.
+  near(c.analyzeEnergyInsights(make(8),{...options,dayRate:50,history}).weekly.cost,8);
+});
+
+test('2026 clock changes agree across cost cards, insights and completeness checks',()=>{
+  const c=engine();
+  for(const [day,count] of [['2026-03-08',92],['2026-11-01',100]]) {
+    const times=[...new Set(c.insightExpectedTimes(day))];
+    const rows=times.map(time=>({time,kwh:0.01,hasImport:true,exportKwh:0}));
+    assert.equal(c.insightExpectedTimes(day).length,count);
+    const insight=c.analyzeEnergyInsights(rows,{...options,day});
+    const cost=c.gridEnergyCost(rows,25,0,day);
+    assert.equal(cost.complete,insight.measurements.total.complete);
+    assert.equal(cost.daytime.complete,true);assert.equal(insight.assessment.level,'good');
+    assert.equal(cost.nighttime.complete,count===92);
+    assert.equal(c.isCompleteDay(rows,day),count===92);
+    near(cost.cost,insight.assessment.cost);
+    assert.match(insight.summary,count===92?/23-hour/:/25-hour/);
+    vm.runInContext('freeNightsEnabled=false',c);
+    const allDay=c.gridEnergyCost(rows,25,0,day);
+    assert.equal(allDay.complete,count===92);
+    assert.equal(c.analyzeEnergyInsights(rows,{...options,day,freeNights:false}).assessment.level,count===92?'good':null);
+    vm.runInContext('freeNightsEnabled=true',c);
+  }
+});
+
+
+test('displayed dollars and alert colors agree at half-cent and repeated-decimal boundaries',()=>{
+  const c=engine(),limits={yellow:1,red:5};
+  for(const [cost,display,level] of [[0.994,'$0.99','good'],[0.995,'$1.00','review'],[4.994,'$4.99','review'],[4.995,'$5.00','high'],[19.995,'$20.00','high']]) {
+    const result=c.assessEnergyCost({kwh:cost*4,complete:true,estimated:false},25,limits);
+    assert.equal(c.formatEnergyCost(result.cost),display);assert.equal(result.level,level);
+  }
+  assert.equal(c.formatEnergyCost(NaN),'—');assert.equal(c.formatEnergyCost(Infinity),'—');
+});
+
+test('partial or estimated paid readings never become a factual historical comparison',()=>{
+  const c=engine(),history=Array.from({length:8},(_,i)=>({day:'2026-10-'+(19+i),intervals:intervals(0,0)}));
+  const rows=intervals(0,0);rows[40].kwh=80;rows[40].importEstimated=true;
+  let result=c.analyzeEnergyInsights(rows,{...options,history});
+  assert.equal(result.elevated,false);assert.equal(result.assessment.level,null);
+  assert.match(result.rows[1].cost,/based on available readings/);
+  assert.match(result.rows[1].detail,/Largest recorded 15-minute/);
+  assert.doesNotMatch(result.rows[1].detail,/above your recent pattern/);
+  rows[40].importEstimated=false;rows.splice(41,1);
+  result=c.analyzeEnergyInsights(rows,{...options,history});
+  assert.equal(result.elevated,false);assert.equal(result.assessment.level,null);
+  assert.match(result.rows[1].cost,/based on available readings/);
 });

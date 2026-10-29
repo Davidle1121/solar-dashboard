@@ -238,6 +238,14 @@
   @media (max-width: 359px) {
     .latest-energy-grid, .energy-stats-row { grid-template-columns: minmax(0, 1fr); }
   }
+  .alert-settings summary { cursor:pointer; min-height:44px; display:list-item; padding-top:12px; box-sizing:border-box; }
+  .insight-takeaway.level-good { border-color:#4ade80; }
+  .insight-takeaway.level-review { border-color:#facc15; }
+  .insight-takeaway.level-high { border-color:#f87171; }
+  .plan-help { flex-basis:100%; color:var(--muted); font-size:11px; line-height:1.5; }
+  .free-night-toggle { display:flex; align-items:center; gap:8px; min-height:44px; cursor:pointer; }
+  #free-nights-enabled { width:20px; min-width:20px; margin:0; }
+  select:disabled, input:disabled { opacity:.5; cursor:not-allowed; }
   #daytime-review-widget { font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
   .insight-takeaway { padding:14px 16px; margin-bottom:16px; background:var(--surface2); border:1px solid #344052; border-radius:8px; }
   .insight-takeaway.attention { border-color:var(--accent); }
@@ -245,6 +253,13 @@
   .insight-summary { font-size:15px; line-height:1.6; color:var(--text); }
   .insight-row { border:1px solid #344052; border-radius:8px; background:var(--surface2); padding:16px; margin:12px 0; }
   .insight-row.attention { border-color:var(--accent); }
+  .insight-row.level-good { border-color:#4ade80; background:rgba(74,222,128,.06); }
+  .insight-row.level-review { border-color:#facc15; background:rgba(250,204,21,.06); }
+  .insight-row.level-high { border-color:#f87171; background:rgba(248,113,113,.06); }
+  .insight-level { display:block; font-size:13px; font-weight:600; margin-bottom:6px; }
+  .level-good .insight-level, .level-good .insight-amount { color:#4ade80; }
+  .level-review .insight-level, .level-review .insight-amount { color:#facc15; }
+  .level-high .insight-level, .level-high .insight-amount { color:#f87171; }
   .insight-row-header { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px 16px; margin-bottom:12px; }
   .insight-heading { font-size:16px; font-weight:600; color:var(--text); }
   .insight-period { font-size:13px; color:var(--text); }
@@ -476,37 +491,47 @@
     <span class="drive-status" id="last-sync-label"></span>
   </div>
 
-  <div class="settings-bar">
+  <div class="settings-bar" id="electricity-plan">
+    <strong class="plan-help" style="color:var(--text);font-size:14px">Electricity plan</strong>
+    <label class="free-night-toggle"><input id="free-nights-enabled" type="checkbox" checked onchange="updateFreeNights()"> Free nights</label>
     <div>
-      <span style="color:var(--muted)">Free Night Start:</span>
+      <label for="free-start" style="color:var(--muted)">Free Night Start:</label>
       <select id="free-start" onchange="updateFreeHours()"></select>
     </div>
     <div>
-      <span style="color:var(--muted)">Free Night End:</span>
+      <label for="free-end" style="color:var(--muted)">Free Night End:</label>
       <select id="free-end" onchange="updateFreeHours()"></select>
     </div>
+      <div class="rate-control"><label for="day-rate" id="day-rate-label">Day rate (¢/kWh)</label>
+      <input id="day-rate" type="number" min="0" step="any" value="25" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px"></div>
+      <div class="rate-control"><label for="night-rate">Night rate (¢/kWh)</label>
+      <input id="night-rate" type="number" min="0" step="any" value="0" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px"></div>
+    <div class="plan-help"><span id="rate-help">Rates reset to 25¢ day / 0¢ night on page reload.</span></div>
+    <div id="rate-validation" role="alert" style="color:var(--danger)"></div>
+    <details class="plan-help alert-settings"><summary>Alert settings</summary>
+      <div class="settings-bar" style="margin:10px 0">
+        <div class="rate-control"><label for="alert-yellow">Yellow starts at ($/day)</label><input id="alert-yellow" type="number" min="0.01" step="0.01" value="1" inputmode="decimal" oninput="updateAlertLimits()" style="width:95px"></div>
+        <div class="rate-control"><label for="alert-red">Red starts at ($/day)</label><input id="alert-red" type="number" min="0.01" step="0.01" value="5" inputmode="decimal" oninput="updateAlertLimits()" style="width:95px"></div>
+      </div>
+      <div id="alert-validation" role="alert" style="color:var(--danger)"></div>
+      <div>Paid-hours energy charges only. Limits are saved in this browser; rates and plan hours reset on reload. Colors indicate spending, not equipment faults.</div>
+    </details>
   </div>
 
   <div class="chart-panel" id="latest-energy-widget">
     <div class="chart-header"><div class="chart-title">Latest SMT Day &amp; Grid Energy Cost — <span id="latest-energy-date">No data loaded</span></div><div class="chart-note">Latest available day; SMT readings usually arrive one day later.</div></div>
     <div class="latest-energy-grid" aria-live="polite">
-      <div class="energy-stat"><div class="energy-stat-label">Daytime Import</div><div class="energy-stat-value" id="latest-day-import" style="color:var(--accent)">—</div><div class="stat-sub" id="latest-day-import-note">9am–9pm</div></div>
-      <div class="energy-stat"><div class="energy-stat-label">Daytime Cost</div><div class="energy-stat-value" id="latest-day-cost">—</div><div class="stat-sub" id="latest-day-cost-note">25¢/kWh</div></div>
-      <div class="energy-stat"><div class="energy-stat-label">Nighttime Import</div><div class="energy-stat-value" id="latest-night-import" style="color:var(--accent3)">—</div><div class="stat-sub" id="latest-night-import-note">9pm–9am</div></div>
-      <div class="energy-stat"><div class="energy-stat-label">Nighttime Cost</div><div class="energy-stat-value" id="latest-night-cost">—</div><div class="stat-sub" id="latest-night-cost-note">0¢/kWh</div></div>
+      <div class="energy-stat"><div class="energy-stat-label">Paid-hours Import</div><div class="energy-stat-value" id="latest-day-import" style="color:var(--accent)">—</div><div class="stat-sub" id="latest-day-import-note">9am–9pm</div></div>
+      <div class="energy-stat"><div class="energy-stat-label">Paid-hours Cost</div><div class="energy-stat-value" id="latest-day-cost">—</div><div class="stat-sub" id="latest-day-cost-note">25¢/kWh</div></div>
+      <div class="energy-stat"><div class="energy-stat-label">Free-window Import</div><div class="energy-stat-value" id="latest-night-import" style="color:var(--accent3)">—</div><div class="stat-sub" id="latest-night-import-note">9pm–9am</div></div>
+      <div class="energy-stat"><div class="energy-stat-label">Free-window Cost</div><div class="energy-stat-value" id="latest-night-cost">—</div><div class="stat-sub" id="latest-night-cost-note">0¢/kWh</div></div>
     </div>
     <div class="chart-note" id="cost-period">Daytime: 9am–9pm · Nighttime: 9pm–9am</div>
     <div id="cost-widget">
     <div class="settings-bar">
-      <div class="rate-control"><label for="day-rate">Day rate (¢/kWh)</label>
-      <input id="day-rate" type="number" min="0" step="any" value="25" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px"></div>
-      <div class="rate-control"><label for="night-rate">Night rate (¢/kWh)</label>
-      <input id="night-rate" type="number" min="0" step="any" value="0" inputmode="decimal" autocomplete="off" oninput="renderCostEstimates()" style="width:95px"></div>
       <div class="rate-control"><label for="cost-day">Day</label>
       <select id="cost-day" onchange="selectDay(this.value)"></select></div>
-      <span>Rates reset to 25¢ day / 0¢ night on page reload.</span>
     </div>
-    <div id="rate-validation" role="alert" style="color:var(--danger)"></div>
     <div class="energy-stats-row">
       <div class="energy-stat"><div class="energy-stat-label">Selected day</div><div class="energy-stat-value" id="cost-daily">—</div><div class="stat-sub" id="cost-daily-note">Load SMT data to calculate.</div></div>
       <div class="energy-stat"><div class="energy-stat-label">7 days ending on selected day</div><div class="energy-stat-value" id="cost-weekly">—</div><div class="stat-sub" id="cost-weekly-note">Available daytime + nighttime imports only.</div></div>
@@ -689,6 +714,7 @@ let currentDayIndex = 0;
 let charts = {};
 let dailyChartDays = [];
 let dailyChartLookup = { previous: Array(7).fill(null), current: Array(7).fill(null) };
+let freeNightsEnabled = true;
 let freeStartHour = 21;
 let freeEndHour = 9;
 const AUTO_SYNC_MODE = 'smart';
@@ -928,6 +954,9 @@ function weatherIcon(condition = '') {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // Plan controls and rates default each page load; cached SMT data never changes them.
+  document.getElementById('free-nights-enabled').checked = freeNightsEnabled;
+  restoreAlertLimits();
   // Rates are session-only preferences: never restore them from cached data.
   document.getElementById('day-rate').value = '25';
   document.getElementById('night-rate').value = '0';
@@ -964,7 +993,31 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+// One schedule predicate below drives every cost, chart, table and report.
+// Keep the selected hours/rate when disabling so re-enabling restores them.
+function updateFreeNights() {
+  freeNightsEnabled = document.getElementById('free-nights-enabled').checked;
+  for (const id of ['free-start', 'free-end', 'night-rate']) document.getElementById(id).disabled = !freeNightsEnabled;
+  document.getElementById('day-rate-label').textContent = freeNightsEnabled ? 'Day rate (¢/kWh)' : 'Electricity rate (¢/kWh)';
+  document.getElementById('rate-help').textContent = freeNightsEnabled ? 'Rates reset to 25¢ day / 0¢ night on page reload.' : 'This rate applies to all 24 hours. Free-night settings are not used.';
+  refreshFreeNightViews();
+}
+
+function refreshFreeNightViews() {
+  renderCostEstimates();
+  if (readings.size) {
+    const days = [...readings.keys()].sort();
+    renderDailyChart(days);
+    renderDetailChart(days, currentDayIndex);
+    renderHourlyTable(days);
+    // These tabs are currently hidden, but must not retain a previous split.
+    if (activeTab === 'monthly') renderMonthly(days);
+  }
+}
+
 function updateFreeHours() {
+  if (!freeNightsEnabled) return;
+
   const start = Number(document.getElementById('free-start').value);
   const end = Number(document.getElementById('free-end').value);
   if (![start, end].every(hour => Number.isInteger(hour) && hour >= 0 && hour < 24) || start === end) {
@@ -975,35 +1028,23 @@ function updateFreeHours() {
   }
   freeStartHour = start;
   freeEndHour = end;
-  if (readings.size > 0) {
-    // Reclassify the readings already in memory. Avoid renderAll() here because it
-    // would unnecessarily reset the user from the hourly tab back to the daily tab.
-    const days = [...readings.keys()].sort();
-    renderDailyChart(days);
-    renderDetailChart(days, currentDayIndex);
-    renderHourlyTable(days);
-  } else {
-    renderCostEstimates();
-  }
+  refreshFreeNightViews();
 }
 
 // Keep import energy separate from exports: export credits do not reduce these charges.
-function periodEnergyCost(intervals, rateCents, nighttime = false) {
-  const imports = intervals.filter(r => r.hasImport !== false);
-  const period = imports.filter(r => isFreeHour(Number(r.time.split(':')[0])) === nighttime);
-  const expected = Array.from({ length: 24 }, (_, hour) => hour).filter(hour => isFreeHour(hour) === nighttime).length * 4;
-  const kwh = period.length ? period.reduce((sum, r) => sum + r.kwh, 0) : expected === 0 && imports.length ? 0 : null;
-  return {
-    kwh,
-    cost: kwh == null ? null : kwh * rateCents / 100,
-    complete: kwh != null && new Set(period.map(r => r.time)).size === expected,
-    estimated: period.some(r => r.importEstimated)
-  };
+function periodEnergyCost(intervals, rateCents, nighttime = false, day = null) {
+  // Production callers supply the SMT date. Keep an ordinary-day fallback for
+  // diagnostic callers that have no date; never use the browser's current date.
+  const period = insightPeriod(intervals, validDateKey(day) ? day : '2026-10-27', minute => isFreeHour(minute / 60) === nighttime);
+  if (!intervals.some(r => r.hasImport !== false) && period.expected === 0) {
+    period.kwh = null; period.complete = false;
+  }
+  return { ...period, cost: energyCharge(period.kwh, rateCents) };
 }
 
-function gridEnergyCost(intervals, dayRate, nightRate) {
-  const daytime = periodEnergyCost(intervals, dayRate);
-  const nighttime = periodEnergyCost(intervals, nightRate, true);
+function gridEnergyCost(intervals, dayRate, nightRate, day = null) {
+  const daytime = periodEnergyCost(intervals, dayRate, false, day);
+  const nighttime = periodEnergyCost(intervals, nightRate, true, day);
   const known = [daytime.cost, nighttime.cost].filter(value => value != null);
   return { daytime, nighttime,
     cost: known.length ? known.reduce((sum, value) => sum + value, 0) : null,
@@ -1020,8 +1061,16 @@ function readEnergyRate(id) {
   return valid ? value : null;
 }
 
+// Use the same cent rounding for labels and severity. Binary floating point
+// otherwise displays $0.99 while classifying a $0.995 charge at the $1 limit.
+function energyCostCents(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.round((value + Number.EPSILON * Math.max(1, value)) * 100) : null;
+}
+
 function formatEnergyCost(value) {
-  return value == null ? '—' : '$' + value.toFixed(2);
+  const cents = energyCostCents(value);
+  return cents == null || !Number.isFinite(cents) ? '—' : '$' + (cents / 100).toFixed(2);
 }
 
 function renderLatestEnergyDay(days, dayRate, nightRate) {
@@ -1029,14 +1078,21 @@ function renderLatestEnergyDay(days, dayRate, nightRate) {
   const day = days[days.length - 1];
   document.getElementById('latest-energy-date').textContent = day ? fmtDate(day) : 'No data loaded';
   for (const [name, rate, isNight] of [['day', dayRate, false], ['night', nightRate, true]]) {
-    const period = periodEnergyCost(day ? readings.get(day) : [], rate, isNight);
-    const window = isNight ? formatHour(freeStartHour) + '–' + formatHour(freeEndHour) : formatHour(freeEndHour) + '–' + formatHour(freeStartHour);
+    const period = periodEnergyCost(day ? readings.get(day) : [], rate, isNight, day);
+    const window = !freeNightsEnabled ? isNight ? 'Free nights disabled' : 'All 24 hours' : isNight ? formatHour(freeStartHour) + '–' + formatHour(freeEndHour) : formatHour(freeEndHour) + '–' + formatHour(freeStartHour);
     const status = period.kwh == null ? 'No readings' : period.complete ? 'Complete period' : 'Partial period';
     const quality = period.estimated ? ' · includes estimated readings' : '';
+    if (isNight && !freeNightsEnabled) {
+      for (const metric of ['import','cost']) {
+        document.getElementById('latest-night-' + metric).textContent = 'Not used';
+        document.getElementById('latest-night-' + metric + '-note').textContent = 'Free nights disabled';
+      }
+      continue;
+    }
     document.getElementById('latest-' + name + '-import').textContent = period.kwh == null ? '—' : period.kwh.toFixed(3) + ' kWh';
     document.getElementById('latest-' + name + '-cost').textContent = formatEnergyCost(rate == null ? null : period.cost);
     document.getElementById('latest-' + name + '-import-note').textContent = window + ' · ' + status + quality;
-    document.getElementById('latest-' + name + '-cost-note').textContent = rate == null ? 'Enter a valid ' + name + ' rate below.' : rate + '¢/kWh · ' + status + quality;
+    document.getElementById('latest-' + name + '-cost-note').textContent = rate == null ? 'Enter a valid ' + name + ' rate in Electricity plan.' : rate + '¢/kWh · ' + status + quality;
   }
 }
 
@@ -1049,11 +1105,12 @@ function renderCostEstimates() {
   if (day) selector.value = day;
   selector.disabled = !day;
   const dayRate = readEnergyRate('day-rate');
-  const nightRate = readEnergyRate('night-rate');
+  const nightRate = freeNightsEnabled ? readEnergyRate('night-rate') : 0;
+  if (!freeNightsEnabled) document.getElementById('night-rate').setAttribute('aria-invalid', 'false');
   const valid = dayRate != null && nightRate != null;
   renderLatestEnergyDay(days, dayRate, nightRate);
-  document.getElementById('rate-validation').textContent = valid ? '' : 'Enter non-negative day and night rates in cents per kWh.';
-  document.getElementById('cost-period').textContent = 'Daytime: ' + formatHour(freeEndHour) + '–' + formatHour(freeStartHour) + ' · Nighttime: ' + formatHour(freeStartHour) + '–' + formatHour(freeEndHour);
+  document.getElementById('rate-validation').textContent = valid ? '' : freeNightsEnabled ? 'Enter non-negative day and night rates in cents per kWh.' : 'Enter a non-negative electricity rate in cents per kWh.';
+  document.getElementById('cost-period').textContent = !freeNightsEnabled ? 'All 24 hours use your electricity rate · Free nights disabled' : 'Paid hours: ' + formatHour(freeEndHour) + '–' + formatHour(freeStartHour) + ' · Free window: ' + formatHour(freeStartHour) + '–' + formatHour(freeEndHour);
   const dailyValue = document.getElementById('cost-daily');
   const weeklyValue = document.getElementById('cost-weekly');
   if (!day || !valid) {
@@ -1062,19 +1119,19 @@ function renderCostEstimates() {
     document.getElementById('cost-weekly-note').textContent = 'Available daytime + nighttime imports only.';
     return;
   }
-  const daily = gridEnergyCost(readings.get(day), dayRate, nightRate);
+  const daily = gridEnergyCost(readings.get(day), dayRate, nightRate, day);
   const weekDays = Array.from({ length: 7 }, (_, index) => {
     const date = parseDateKey(day);
     date.setDate(date.getDate() - 6 + index);
     return toDateKey(date);
   });
-  const weekly = weekDays.map(date => gridEnergyCost(readings.get(date) || [], dayRate, nightRate));
+  const weekly = weekDays.map(date => gridEnergyCost(readings.get(date) || [], dayRate, nightRate, date));
   const available = weekly.filter(item => item.cost != null);
   dailyValue.textContent = formatEnergyCost(daily.cost);
   // Sum available intervals without projecting missing days or inventing zero usage.
   weeklyValue.textContent = formatEnergyCost(available.length ? available.reduce((sum, item) => sum + item.cost, 0) : null);
   const usage = period => period.kwh == null ? '—' : period.kwh.toFixed(3);
-  document.getElementById('cost-daily-note').textContent = fmtDate(day) + ' · ' + usage(daily.daytime) + ' day / ' + usage(daily.nighttime) + ' night kWh · ' +
+  document.getElementById('cost-daily-note').textContent = fmtDate(day) + ' · ' + (freeNightsEnabled ? usage(daily.daytime) + ' paid / ' + usage(daily.nighttime) + ' free-window kWh' : usage(daily.daytime) + ' kWh · all hours paid') + ' · ' +
     (daily.cost == null ? 'No import readings' : daily.complete ? 'Complete day' : 'Partial day') +
     (daily.estimated ? ' · includes estimated readings' : '');
   document.getElementById('cost-weekly-note').textContent = fmtDate(weekDays[0]) + '–' + fmtDate(day) + ' · ' +
@@ -1082,9 +1139,10 @@ function renderCostEstimates() {
     (available.some(item => item.estimated) ? ' · includes estimated readings' : '');
 }
 
-function isFreeHour(h) {
-  if (freeStartHour < freeEndHour) return h >= freeStartHour && h < freeEndHour;
-  return h >= freeStartHour || h < freeEndHour;
+function isFreeHour(h, enabled = freeNightsEnabled, start = freeStartHour, end = freeEndHour) {
+  if (!enabled) return false;
+  if (start < end) return h >= start && h < end;
+  return h >= start || h < end;
 }
 
 async function parseFile(file) {
@@ -1233,7 +1291,7 @@ function mergeInterval(intervals, incoming) {
   }
 }
 
-function gridTotals(intervals) {
+function gridTotals(intervals, day = null) {
   const imports = intervals.filter(r => r.hasImport !== false);
   const exports = intervals.filter(r => Number.isFinite(r.exportKwh));
   // Net is valid only when both directions cover the same intervals.
@@ -1242,7 +1300,7 @@ function gridTotals(intervals) {
   const exported = exports.length ? exports.reduce((sum, r) => sum + r.exportKwh, 0) : null;
   return { imported, exported, net: matched ? imported - exported : null,
     estimated: intervals.some(r => r.importEstimated || r.exportEstimated),
-    complete: matched && isCompleteDay(intervals) };
+    complete: matched && isCompleteDay(intervals, day) && (!validDateKey(day) || insightPeriod(intervals, day, () => true, 'export').complete) };
 }
 
 function netColor(value) {
@@ -1512,7 +1570,7 @@ function daytimeReview(days) {
   const peak = paid.reduce((a,b) => a.kwh > b.kwh ? a : b);
   const minutes = time => Number(time.slice(0,2)) * 60 + Number(time.slice(3,5));
   const sustained = paid.some((r,i) => i > 0 && r.kwh >= 0.125 && paid[i-1].kwh >= 0.125 && minutes(r.time) - minutes(paid[i-1].time) === 15);
-  const prior = days.filter(d => d < day).slice(-28).map(d => periodEnergyCost(readings.get(d), 0)).filter(p => p.complete && !p.estimated && p.kwh != null);
+  const prior = days.filter(d => d < day).slice(-28).map(d => periodEnergyCost(readings.get(d), 0, false, d)).filter(p => p.complete && !p.estimated && p.kwh != null);
   const baseline = prior.map(p => p.kwh).sort((a,b) => a-b);
   const median = baseline.length ? (baseline[Math.floor((baseline.length-1)/2)] + baseline[Math.floor(baseline.length/2)]) / 2 : null;
   const elevated = baseline.length >= 7 && period.kwh > Math.max(median * 2, median + 0.5);
@@ -1529,7 +1587,9 @@ function daytimeReview(days) {
   return { day, status, lines };
 }
 
-// Local rules only. Thresholds are in kWh per paid period / 15-minute interval.
+// Local observation rules in kWh per paid period / 15-minute interval.
+// These explain patterns only. assessEnergyCost is the sole spending severity
+// decision, so a small spike cannot turn a below-budget day into a warning.
 // Keep routine free-window charging informational; no equipment identification.
 const ENERGY_INSIGHT_RULES = Object.freeze({ lowPaid: 0.1, paidDaily: 1, peakInterval: 0.5, sustainedInterval: 0.125, baselineMinimum: 7, baselineExtra: 0.5 });
 let energyInsightsVersion = 0;
@@ -1575,12 +1635,62 @@ function insightTime(minute) {
   return String(hour % 12 || 12) + (remainder ? ':' + String(remainder).padStart(2, '0') : '') + (hour < 12 ? 'am' : 'pm');
 }
 
+function energyCharge(kwh, rate) {
+  return typeof kwh === 'number' && Number.isFinite(kwh) && kwh >= 0 &&
+    typeof rate === 'number' && Number.isFinite(rate) && rate >= 0 && Number.isFinite(kwh * rate)
+    ? kwh * rate / 100 : null;
+}
+
+function validAlertLimits(limits) {
+  return !!limits && [limits.yellow, limits.red].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0.01 && n <= 1000000 && Math.abs(n * 100 - Math.round(n * 100)) < 1e-6) && limits.red > limits.yellow;
+}
+
+function readAlertLimits() {
+  const limits = {};
+  for (const [key,id] of [['yellow','alert-yellow'],['red','alert-red']]) {
+    const input = document.getElementById(id), raw = input.value.trim();
+    limits[key] = raw === '' ? null : Number(raw);
+  }
+  const valid = validAlertLimits(limits);
+  for (const id of ['alert-yellow','alert-red']) document.getElementById(id).setAttribute('aria-invalid', String(!valid));
+  document.getElementById('alert-validation').textContent = valid ? '' : 'Enter positive dollar amounts in cents, with red higher than yellow (maximum $1,000,000).';
+  return valid ? limits : null;
+}
+
+function updateAlertLimits() {
+  const limits = readAlertLimits();
+  if (limits) { try { localStorage.setItem('energyAlertLimitsV1', JSON.stringify(limits)); } catch {} }
+  invalidateDaytimeReview();
+}
+
+function restoreAlertLimits() {
+  try {
+    const limits = JSON.parse(readSyncPreference('energyAlertLimitsV1') || 'null');
+    if (validAlertLimits(limits)) {
+      document.getElementById('alert-yellow').value = String(limits.yellow);
+      document.getElementById('alert-red').value = String(limits.red);
+    }
+  } catch {} // Corrupt or unavailable storage must never block startup.
+}
+
+function assessEnergyCost(period, rate, limits) {
+  const cost = energyCharge(period.kwh, rate);
+  if (!validAlertLimits(limits)) return {level:null, label:'Set valid alert limits', cost};
+  if (period.kwh == null) return {level:null, label:'Readings unavailable', cost:null};
+  if (cost == null) return {level:null, label:'Enter a valid electricity rate', cost:null};
+  if (!period.complete || period.estimated) return {level:null, label:'Incomplete or estimated readings', cost};
+  // Compare at displayed cent precision, avoiding 0.999999 becoming green at $1.
+  const cents = energyCostCents(cost);
+  const level = cents >= Math.round(limits.red * 100) ? 'high' : cents >= Math.round(limits.yellow * 100) ? 'review' : 'good';
+  return {level, cost, label:level === 'high' ? 'High spending' : level === 'review' ? 'Worth reviewing' : 'Below your spending limit'};
+}
+
 function insightCost(kwh, rate) {
   if (kwh == null || !Number.isFinite(rate) || rate < 0 || !Number.isFinite(kwh * rate)) return '';
   const cents = kwh * rate;
   // Dollar rounding hides sub-cent costs. Show cents below $1 without claiming
   // tiny nonzero charges are zero, and keep the normal cost cards unchanged.
-  const amount = cents === 0 ? '0¢' : cents < 0.01 ? 'less than 0.01¢' : cents < 100 ? Number(cents.toFixed(2)) + '¢' : '$' + (cents / 100).toFixed(2);
+  const amount = cents === 0 ? '0¢' : cents < 0.01 ? 'less than 0.01¢' : cents < 100 ? Number(cents.toFixed(2)) + '¢' : formatEnergyCost(cents / 100);
   return 'Cost for this period: ' + amount + ' at ' + rate + '¢/kWh.';
 }
 
@@ -1595,10 +1705,13 @@ function analyzeEnergyInsights(rawIntervals, options = {}) {
   const intervals = clean(rawIntervals);
   let start = options.freeStart, end = options.freeEnd;
   if (![start, end].every(h => Number.isInteger(h) && h >= 0 && h < 24) || start === end) { start = 21; end = 9; }
-  const free = minute => start < end ? minute >= start * 60 && minute < end * 60 : minute >= start * 60 || minute < end * 60;
+  const freeEnabled = options.freeNights !== false;
+  const free = minute => isFreeHour(minute / 60, freeEnabled, start, end);
   const paid = minute => !free(minute);
   const period = (matches, direction = 'import') => insightPeriod(intervals, day, matches, direction);
   const total = period(() => true), paidTotal = period(paid), exported = period(() => true, 'export');
+  const limits = options.alertLimits === undefined ? {yellow:1, red:5} : options.alertLimits;
+  const assessment = assessEnergyCost(paidTotal, options.dayRate, limits);
   const imports = intervals.filter(r => r.hasImport !== false);
   const paidIntervals = imports.filter(r => paid(Number(r.time.slice(0, 2)) * 60 + Number(r.time.slice(3))));
   const peak = paidIntervals.reduce((best, r) => !best || r.kwh > best.kwh ? r : best, null);
@@ -1607,19 +1720,31 @@ function analyzeEnergyInsights(rawIntervals, options = {}) {
   const sustained = paidIntervals.some((r, i) => i && r.kwh >= ENERGY_INSIGHT_RULES.sustainedInterval && paidIntervals[i-1].kwh >= ENERGY_INSIGHT_RULES.sustainedInterval && minutes(r.time) - minutes(paidIntervals[i-1].time) === 15);
   const prior = [...new Map((Array.isArray(options.history) ? options.history : []).filter(item => item && validDateKey(item.day) && item.day < day && item.day >= calendarWindowStart(day, 29)).map(item => [item.day,item])).values()].sort((a,b) => a.day.localeCompare(b.day)).slice(-28);
   const baseline = prior.map(item => insightPeriod(clean(item.intervals), item.day, paid)).filter(p => p.complete && !p.estimated && p.kwh != null).map(p => p.kwh).sort((a,b) => a-b);
+  const historyByDay = new Map((Array.isArray(options.history) ? options.history : []).filter(item => item && validDateKey(item.day) && item.day < day).map(item => [item.day,item.intervals]));
+  historyByDay.set(day, intervals);
+  const weekDays = Array.from({length:7}, (_,i) => calendarWindowStart(day, 7-i));
+  const week = weekDays.map(date => ({day:date, period:insightPeriod(clean(historyByDay.get(date)), date, paid)}));
+  const weekComplete = week.filter(item => item.period.complete && !item.period.estimated);
+  const weekKnown = week.filter(item => energyCharge(item.period.kwh, options.dayRate) != null);
+  const weekCost = weekKnown.length ? weekKnown.reduce((sum,item) => sum + energyCharge(item.period.kwh, options.dayRate),0) : null;
+  const weekly = {completeDays:weekComplete.length, observedDays:weekKnown.length, cost:Number.isFinite(weekCost) ? weekCost : null,
+    reviewDays:validAlertLimits(limits) && energyCharge(0, options.dayRate) != null ? weekComplete.filter(item => assessEnergyCost(item.period, options.dayRate, limits).level === 'review' || assessEnergyCost(item.period, options.dayRate, limits).level === 'high').length : null};
   const median = baseline.length ? (baseline[Math.floor((baseline.length-1)/2)] + baseline[Math.floor(baseline.length/2)]) / 2 : null;
-  const elevated = baseline.length >= ENERGY_INSIGHT_RULES.baselineMinimum && paidTotal.kwh > Math.max(median * 2, median + ENERGY_INSIGHT_RULES.baselineExtra);
+  const elevated = paidTotal.complete && !paidTotal.estimated && baseline.length >= ENERGY_INSIGHT_RULES.baselineMinimum && paidTotal.kwh > Math.max(median * 2, median + ENERGY_INSIGHT_RULES.baselineExtra);
   const concerning = paidTotal.kwh > ENERGY_INSIGHT_RULES.paidDaily || (peak && peak.kwh >= ENERGY_INSIGHT_RULES.peakInterval) || sustained || elevated;
   const complete = total.complete && !total.estimated;
-  const status = !complete ? 'Incomplete data' : concerning ? 'Worth checking' : 'Looks normal';
-  const daytimePaid = end < start;
-  const paidRange = insightTime(end * 60) + '–' + insightTime(start * 60);
+  const status = !complete ? 'Incomplete data' : !assessment.level ? 'Settings required' : assessment.level === 'good' ? 'Looks normal' : 'Worth checking';
+  const daytimePaid = freeEnabled && end < start;
+  const paidRange = freeEnabled ? insightTime(end * 60) + '–' + insightTime(start * 60) : 'all 24 hours';
   const takeawayLabel = !complete ? 'Meter readings are incomplete' : 'Paid-hours grid use · ' + paidRange;
   let summary = !complete ? 'Some meter readings are missing or estimated. The totals below may not cover the full day.'
-    : concerning ? 'You used ' + paidTotal.kwh.toFixed(3) + ' kWh of grid electricity during paid hours. Check the highlighted period below.'
+    : concerning ? 'You used ' + paidTotal.kwh.toFixed(3) + ' kWh of grid electricity during paid hours. See the paid-hours details below.'
     : 'You used ' + (paidTotal.kwh <= ENERGY_INSIGHT_RULES.lowPaid ? 'only ' : '') + paidTotal.kwh.toFixed(3) + ' kWh of grid electricity during paid hours.';
 
   if (!imports.length) summary = unavailable.summary;
+  const clockCount = insightExpectedTimes(day).length;
+  if (clockCount === 100) summary += ' This is a 25-hour clock-change day. The repeated hour cannot be verified from these timestamps; affected totals are partial.';
+  else if (clockCount === 92) summary += ' This is a 23-hour clock-change day; 2am–3am did not occur.';
   // Normal schedules follow the configured boundaries. If the free period is
   // moved into daytime, keep chronological rows and label mixed periods honestly.
   const spans = daytimePaid ? [[0, end * 60, 'Morning', '☀'], [end * 60, start * 60, end ? 'Daytime' : 'Paid hours', '☼'], [start * 60, 1440, 'Night', '☾']]
@@ -1635,7 +1760,7 @@ function analyzeEnergyInsights(rawIntervals, options = {}) {
     const highest = hours.reduce((best, item) => !best || item.data.kwh > best.data.kwh ? item : best, null);
     const attention = !!concerning && paidInRow.kwh != null && paidInRow.kwh > 0 && ((peak && inside(minutes(peak.time))) || paidInRow.kwh > ENERGY_INSIGHT_RULES.paidDaily);
     let detail = '';
-    if (attention && peak && inside(minutes(peak.time))) detail = 'Most grid electricity used during paid hours: ' + peak.kwh.toFixed(3) + ' kWh from ' + insightTime(minutes(peak.time)) + '–' + insightTime(minutes(peak.time) + 15) + '.' + (elevated ? ' Daily paid-hours use is above your recent pattern.' : '');
+    if (attention && peak && inside(minutes(peak.time))) detail = 'Largest recorded 15-minute grid draw during paid hours: ' + peak.kwh.toFixed(3) + ' kWh from ' + insightTime(minutes(peak.time)) + '–' + insightTime(minutes(peak.time) + 15) + '.' + (elevated ? ' Daily paid-hours use is above your recent pattern.' : '');
     else if (highest && highest.data.kwh >= 0.1 && !allPaid) detail = (highest.data.complete ? 'Hour with the most grid use: ' : 'Highest hour with readings: ') + highest.data.kwh.toFixed(3) + ' kWh from ' + insightTime(highest.hour * 60) + '–' + insightTime((highest.hour + 1) * 60) + (allFree ? ', within your free window.' : '.');
     if (name === 'Daytime' && daytimePaid && end > 0 && paidTotal.complete && !paidTotal.estimated && paidTotal.kwh <= ENERGY_INSIGHT_RULES.lowPaid) {
       const before = period(minute => minute >= (end-1)*60 && minute < end*60);
@@ -1643,15 +1768,19 @@ function analyzeEnergyInsights(rawIntervals, options = {}) {
       if (before.complete && after.complete && !before.estimated && !after.estimated && before.kwh >= 0.25 && after.kwh <= 0.025 && after.kwh < before.kwh * 0.1) detail = 'Grid use dropped when paid hours began at ' + insightTime(end*60) + ' and stayed very low.';
     }
     const rate = allFree ? options.nightRate : allPaid ? options.dayRate : null;
-    const cost = !allFree && allPaid ? insightCost(measured.kwh, rate) : '';
+    const costText = !allFree && allPaid ? insightCost(measured.kwh, rate) : '';
+    const cost = !measured.complete || measured.estimated ? costText.replace('Cost for this period:', 'Cost based on available readings:') : costText;
     const explanation = measured.kwh == null ? 'No grid readings are available for these hours.' :
       (allFree ? options.nightRate === 0 ? 'Electricity was free during these hours.' : 'These hours are inside your configured free-night window.' : allPaid ? 'These are your paid electricity hours.' : 'These hours include both free and paid electricity periods.') + quality;
-    return { name, timeRange:insightTime(from) + '–' + insightTime(to), explanation, category: name.toLowerCase(), priority: attention ? 1 : 2, headline: name + ' · ' + insightTime(from) + '–' + insightTime(to), icon,
-      text, detail, cost, tone: attention ? 'attention' : allPaid && measured.complete && !measured.estimated && measured.kwh <= ENERGY_INSIGHT_RULES.lowPaid ? 'good' : 'neutral', measurements: { ...measured, paidKwh: paidInRow.kwh } };
+    const rowAssessment = assessEnergyCost(measured, rate, limits);
+    const level = (name === 'Daytime' || name === 'Paid hours') && allPaid ? rowAssessment.level : null;
+    const levelLabel = (name === 'Daytime' || name === 'Paid hours') && allPaid ? rowAssessment.label : '';
+    return { level, levelLabel, name, timeRange:insightTime(from) + '–' + insightTime(to), explanation, category: name.toLowerCase(), priority: attention ? 1 : 2, headline: name + ' · ' + insightTime(from) + '–' + insightTime(to), icon,
+      text, detail, cost, tone: level === 'review' || level === 'high' ? 'attention' : level === 'good' ? 'good' : 'neutral', measurements: { ...measured, paidKwh: paidInRow.kwh } };
   });
   // Keep the three periods in predictable chronological order. The takeaway and
   // explicit section label highlight paid-use concerns without moving sections.
-  return { day, status, takeawayLabel, summary, rows, exports: exported.kwh == null ? 'Electricity sent back to the grid: unavailable.' : 'Electricity sent back to the grid: ' + exported.kwh.toFixed(3) + ' kWh for the day.' + (!exported.complete ? ' Partial readings.' : '') + (exported.estimated ? ' Includes estimates.' : ''),
+  return { day, status, assessment, weekly, limits, elevated, takeawayLabel, summary, rows, exports: exported.kwh == null ? 'Electricity sent back to the grid: unavailable.' : 'Electricity sent back to the grid: ' + exported.kwh.toFixed(3) + ' kWh for the day.' + (!exported.complete ? ' Partial readings.' : '') + (exported.estimated ? ' Includes estimates.' : ''),
     measurements: { total, paid: paidTotal, exported, baselineDays: baseline.length, baselineMedian: median, peakImport: peakImport ? {time:peakImport.time, kwh:peakImport.kwh, averageKw:peakImport.kwh*4} : null, peakPaid: peak ? { time: peak.time, kwh: peak.kwh, averageKw: Number.isFinite(peak.kwh*4) ? peak.kwh*4 : null } : null } };
 }
 
@@ -1662,15 +1791,23 @@ function runDaytimeReview() {
   const weather = document.getElementById('insights-weather');
   weather.hidden = true;
   try {
-    const result = analyzeEnergyInsights(day ? readings.get(day) : [], { day, freeStart: freeStartHour, freeEnd: freeEndHour,
-      dayRate: readEnergyRate('day-rate'), nightRate: readEnergyRate('night-rate'), history: days.filter(date => date < day).map(date => ({day:date, intervals:readings.get(date)})) });
+    const result = analyzeEnergyInsights(day ? readings.get(day) : [], { day, freeNights: freeNightsEnabled, freeStart: freeStartHour, freeEnd: freeEndHour,
+      dayRate: readEnergyRate('day-rate'), nightRate: freeNightsEnabled ? readEnergyRate('night-rate') : 0, alertLimits: readAlertLimits(), history: days.filter(date => date < day).map(date => ({day:date, intervals:readings.get(date)})) });
     container.replaceChildren();
     const add = (parent, tag, text, className) => { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; parent.appendChild(node); return node; };
-    const takeaway = add(container, 'div', '', 'insight-takeaway' + (result.status !== 'Looks normal' ? ' attention' : ''));
+    const takeaway = add(container, 'div', '', 'insight-takeaway' + (result.assessment?.level ? ' level-' + result.assessment.level : ''));
     add(takeaway, 'strong', result.takeawayLabel, 'insight-takeaway-label');
+    if (result.assessment) add(takeaway, 'p', result.assessment.label + (result.assessment.cost == null ? '' : ' · ' + formatEnergyCost(result.assessment.cost)), 'insight-level');
     add(takeaway, 'p', result.summary, 'insight-summary');
+    if (result.weekly) {
+      const w = result.weekly;
+      add(takeaway, 'p', 'Last 7 calendar days: ' + (w.cost == null ? 'cost unavailable' : formatEnergyCost(w.cost) + ' paid-hours energy cost') + ' · ' + w.completeDays + '/7 days with complete actual paid-hours readings.' + (w.completeDays < w.observedDays ? ' Cost includes partial or estimated readings.' : ''), 'insight-detail');
+      if (w.reviewDays != null && w.completeDays && result.assessment.cost != null) add(takeaway, 'p', w.reviewDays + ' of ' + w.completeDays + ' complete days reached your $' + result.limits.yellow.toFixed(2) + ' review limit.', 'insight-detail');
+      if (result.elevated) add(takeaway, 'p', 'Paid-hours grid use is higher than your recent typical use.', 'insight-detail');
+      add(takeaway, 'p', 'Costs use your current rate and paid-hours settings, excluding delivery charges and export credits.', 'insight-detail');
+    }
     result.rows.forEach((row, index) => {
-      const section = add(container, 'section', '', 'insight-row ' + (row.tone === 'attention' ? 'attention' : ''));
+      const section = add(container, 'section', '', 'insight-row ' + (row.level ? 'level-' + row.level : row.tone === 'attention' ? 'attention' : ''));
       section.setAttribute('aria-labelledby', 'insight-period-' + index);
       const header = add(section, 'div', '', 'insight-row-header');
       const heading = add(header, 'h3', row.name, 'insight-heading');
@@ -1681,7 +1818,8 @@ function runDaytimeReview() {
       add(reading, 'span', row.measurements.kwh == null ? 'Unavailable' : row.measurements.kwh.toFixed(3) + ' kWh', 'insight-amount');
       add(reading, 'span', 'From the grid', 'insight-amount-label');
       const explanation = add(body, 'div', '', 'insight-row-content');
-      if (row.tone === 'attention') add(explanation, 'span', 'Check this period', 'insight-attention-label');
+      if (row.levelLabel) add(explanation, 'span', row.levelLabel, 'insight-level');
+      // The spending label is the sole severity signal; spikes remain observations.
       add(explanation, 'p', row.explanation, 'insight-explanation');
       if (row.detail) add(explanation, 'p', row.detail, 'insight-detail');
       if (row.cost) add(explanation, 'p', row.cost, 'insight-detail');
@@ -1732,7 +1870,8 @@ async function loadInsightWeather(day, version) {
   } catch { /* Weather is optional context, never a reason to block the report. */ }
 }
 
-function isCompleteDay(intervals) {
+function isCompleteDay(intervals, day = null) {
+  if (validDateKey(day)) return insightPeriod(intervals, day, () => true).complete;
   return Array.isArray(intervals) && intervals.filter(r => r.hasImport !== false).length >= 92;
 }
 
@@ -1860,8 +1999,8 @@ function renderDetailChart(days, idx) {
     const h = parseInt(r.time.split(':')[0]);
     const min = r.time.split(':')[1];
     let label = to12hr(r.time);
-    if (h === freeStartHour && min === '00') label = '🟢 ' + label;
-    if (h === freeEndHour && min === '00') label = '🔴 ' + label;
+    if (freeNightsEnabled && h === freeStartHour && min === '00') label = '🟢 ' + label;
+    if (freeNightsEnabled && h === freeEndHour && min === '00') label = '🔴 ' + label;
     if (evMeta.sessionStarts.has(idx2)) label = '⚡ ' + label;
     return label;
   });
@@ -2026,12 +2165,16 @@ function renderHourlyTable(days) {
   };
   document.getElementById('hourly-table-body').innerHTML = [...visibleDays].reverse().map(day => {
     const intervals = readings.get(day);
-    const total = gridTotals(intervals);
+    const total = gridTotals(intervals, day);
     let html = '<td><strong>' + fmtDate(day) + '</strong>' +
-      (isCompleteDay(intervals) ? '' : ' <span class="partial-day">(Partial import)</span>') +
+      (isCompleteDay(intervals, day) ? '' : ' <span class="partial-day">(Partial import)</span>') +
       (total.exported != null && !total.complete ? ' <span class="partial-day">(Partial export)</span>' : '') +
+      (insightExpectedTimes(day).length === 100 ? ' <span class="partial-day">(25-hour day; repeated hour unverified)</span>' : insightExpectedTimes(day).length === 92 ? ' <span class="partial-day">(23-hour day)</span>' : '') +
       '<span class="weather-line" id="weather-' + day + '">Weather loading…</span></td>';
     for (let hour = 0; hour < 24; hour++) {
+      if (!insightExpectedTimes(day).some(time => Number(time.slice(0,2)) === hour)) {
+        html += '<td title="This hour did not occur because the clocks moved forward">N/A</td>'; continue;
+      }
       const hourly = gridTotals(intervals.filter(r => Number(r.time.split(':')[0]) === hour));
       const key = { import: 'imported', export: 'exported', net: 'net' }[metric];
       const color = metric === 'net' ? netColor(hourly.net) : metric === 'export' ? '#d2a8ff' : isFreeHour(hour) ? '#58a6ff' : '#f0a500';

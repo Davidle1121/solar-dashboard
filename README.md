@@ -75,8 +75,40 @@ No changes to the SMT/Drive variables or files are required.
 
 ### Free nights and estimated energy charges
 
-- Free nights default to 9 PM–9 AM; paid hours are 9 AM–9 PM. Changing the selectors
-  immediately updates import colors, free/paid totals, and cost estimates.
+- Free nights are enabled by default (9 PM–9 AM). The checkbox, hours and rates
+  reset to their defaults on reload, independently of cached SMT readings.
+  Turning free nights off disables the time selectors and night rate; the day
+  field becomes Electricity rate and applies to all 24 hours. A valid rate remains
+  required. Turning the checkbox back on restores the current hours and night rate.
+  Every split uses `isFreeHour`, including insights, cost estimates, chart colors,
+  daily/monthly totals and hourly tables. Edits invalidate the old insights report.
+- Alert settings use daily dollar limits (yellow defaults to $1; red to $5).
+  Green is below yellow, yellow starts at yellow, and red starts at red. Limits
+  must be positive cent amounts with red higher than yellow. Comparison uses
+  displayed cent precision, using the same rounding for dollar labels and colors.
+  Historical-increase statements require complete actual current readings;
+  partial/estimated costs explicitly say they use available readings. Valid preferences are saved under energyAlertLimitsV1
+  in this browser only; corrupt/blocked storage falls back safely. Invalid current
+  entries suppress classification, rather than silently reusing saved values.
+- Costs use imports only and the current paid rate/schedule. The paid-hours
+  takeaway assesses the entire paid window (all 24 hours when free nights are off).
+  Daytime color assesses only its displayed, fully paid period; free/mixed rows
+  have no spending color. Missing rates, partial or estimated readings do not
+  receive a reassuring green. High spending is a review prompt, not a fault diagnosis.
+- Weekly context covers seven calendar days ending on the report date, including
+  that day. Frequency counts only complete actual paid periods; missing dates
+  are not replaced with older days. Available partial/estimated costs remain
+  labeled as such. Historical costs are recalculated with current settings, not
+  represented as actual past billed tariffs. Median comparisons use up to 28
+  prior complete actual paid periods, requiring seven; spikes/history are
+  informational and cannot override the spending color.
+- Costs, insights and hourly-table completeness share America/Chicago calendar
+  expectations. Spring days have 92 quarters and the nonexistent 2 AM table hour
+  says N/A. Fall days have 100 quarters: the parser keys by wall time and cannot
+  distinguish the repeated 1 AM hour from revisions. Never sum duplicates to
+  pretend this is fixed. Mark affected periods partial and explain the clock
+  change. Paid periods outside the repeated hour can still be complete. This
+  conservative limitation applies to November 1, 2026 and future fall changes.
 - Four latest-day cards show daytime import/cost and nighttime import/cost for the
   newest available SMT date, independently of the historical day selected below.
   Nighttime means midnight–9 AM plus 9 PM–midnight on that same calendar date;
