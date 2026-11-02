@@ -390,23 +390,54 @@
     margin-bottom: 16px;
     flex-wrap: wrap;
   }
+  /* This is the one button on the page that gets pressed daily: the SMT export
+     lands in Drive at an unpredictable hour, so refreshing is a routine manual
+     act, not a rare one. Every other control here is an outlined ghost button,
+     so a solid fill makes this the obvious thing to reach for.
+     Why --accent3 (blue) and not the other two accents: --accent (amber) and
+     --accent2 (green) are load-bearing elsewhere -- amber marks paid/stale and
+     green marks free/good. Painting an action button in either would read as a
+     status. Blue carries no meaning in this palette, so it signals "control"
+     without colliding with the free/paid language. */
   .drive-btn {
     display: flex;
     align-items: center;
-    gap: 7px;
-    background: var(--surface);
-    border: 1px solid var(--border);
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    background: var(--accent3);
+    border: 1px solid var(--accent3);
     border-radius: 8px;
-    color: var(--text);
+    /* Dark text on the light-blue fill; the body text colour would be unreadable. */
+    color: #0d1117;
     font-family: var(--font-mono);
-    font-size: 12px;
-    padding: 9px 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    padding: 11px 16px;
     cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
+    box-shadow: 0 1px 10px rgba(88,166,255,0.22);
+    transition: background 0.18s, box-shadow 0.18s, transform 0.08s, opacity 0.18s;
   }
-  .drive-btn:hover { border-color: var(--accent2); background: rgba(63,185,80,0.05); }
-  .drive-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .drive-btn .drive-icon { font-size: 15px; }
+  .drive-btn:hover:not(:disabled) {
+    background: #79b8ff;
+    border-color: #79b8ff;
+    box-shadow: 0 2px 16px rgba(88,166,255,0.38);
+  }
+  /* A press needs to feel like it landed, because the work it starts (a Drive
+     round-trip) can take a second before any status text changes. */
+  .drive-btn:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+  .drive-btn:focus-visible { outline: 2px solid #cfe5ff; outline-offset: 2px; }
+  /* Disabled means a sync is already running. Kept legible rather than faded
+     out of sight, so it still reads as "this button, busy" and not "gone". */
+  .drive-btn:disabled { background: #2b4a70; border-color: #2b4a70; color: #9fc4ef; box-shadow: none; cursor: not-allowed; }
+  /* A refresh arrow, not the old cloud glyph: the cloud rendered as a smudge at
+     this size and said "Drive" rather than "do the thing". aria-hidden in the
+     markup keeps screen readers on the text label alone. */
+  .drive-btn .drive-icon { font-size: 15px; line-height: 1; }
+  /* The rail is ~190px wide, so the label wraps to two lines there. Tight
+     leading keeps that wrap looking deliberate instead of loose. */
+  .drive-btn { line-height: 1.3; }
   .drive-status {
     font-size: 11px;
     color: var(--muted);
@@ -699,7 +730,7 @@
     </nav>
     <div class="rail-sync" id="rail-sync">
       <button class="drive-btn" id="drive-btn" onclick="syncFromDrive(true, 'manual')">
-        <span class="drive-icon">&#9729;</span> Refresh from Google Drive
+        <span class="drive-icon" aria-hidden="true">&#10227;</span> Refresh from Google Drive
       </button>
       <span class="drive-status" id="drive-status">Auto-sync checks on load, then manual refresh when you want it</span>
       <span class="drive-status" id="last-sync-label"></span>
@@ -957,7 +988,12 @@ let freeNightsEnabled = true;
 let freeStartHour = 21;
 let freeEndHour = 9;
 const AUTO_SYNC_MODE = 'smart';
-const AUTO_SYNC_INTERVAL_HOURS = 6;
+// A page refresh has to pick up a file uploaded minutes ago. This used to be a
+// six-hour gate, so after one successful sync the dashboard ignored Drive for
+// the rest of the morning and reloading changed nothing. Only a sync in the
+// last few minutes is skipped now, which still stops rapid reloads from
+// re-downloading the same files.
+const AUTO_SYNC_MIN_GAP_MS = 10 * 60 * 1000;
 const DASHBOARD_CACHE_KEY = 'energyDashboardCacheV3';
 const DRIVE_FETCH_TIMEOUT_MS = 30000;
 const DRIVE_FETCH_RETRIES = 2;
@@ -980,7 +1016,10 @@ function shouldAutoSync() {
   if (AUTO_SYNC_MODE === 'daily') return readSyncPreference('lastSyncDate') !== getTodayKey();
   const last = Number(readSyncPreference('lastSyncTime'));
   const elapsed = Date.now() - last;
-  return !last || !Number.isFinite(elapsed) || elapsed < 0 || elapsed > AUTO_SYNC_INTERVAL_HOURS * 60 * 60 * 1000;
+  // Anything unreadable, missing or in the future means sync: never skip a
+  // check because a stored timestamp looked odd.
+  if (!last || !Number.isFinite(elapsed) || elapsed < 0) return true;
+  return elapsed > AUTO_SYNC_MIN_GAP_MS;
 }
 
 function markSyncedNow() {
@@ -1233,7 +1272,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       status.className = 'drive-status ok';
       status.textContent = AUTO_SYNC_MODE === 'daily'
         ? 'Auto-sync skipped — using cached data from today'
-        : `Auto-sync skipped — using cached data (last sync was within ${AUTO_SYNC_INTERVAL_HOURS} hour${AUTO_SYNC_INTERVAL_HOURS !== 1 ? 's' : ''})`;
+        // Minutes, not hours: the gate is now short enough that saying "within
+        // N hours" would be wrong and would also read as "stop refreshing".
+        : `Auto-sync skipped — using cached data (synced less than ${Math.round(AUTO_SYNC_MIN_GAP_MS / 60000)} minutes ago)`;
     } else {
       status.className = 'drive-status syncing';
       status.textContent = 'No cached data available — syncing from Drive…';
@@ -2227,7 +2268,18 @@ function updateDataFreshness(days) {
   if (!badge || !days || days.length === 0) return;
   const latestDay = days[days.length - 1];
   badge.style.display = 'inline-block';
-  badge.textContent = `Latest SMT day: ${fmtDate(latestDay)} (typically 1-day delayed)`;
+  // SMT runs about a day behind, so yesterday is the newest day we expect to
+  // hold. Anything older means an export has not arrived or has not been
+  // uploaded yet, and the chip says so instead of stating a date flatly --
+  // without it there was no sign that a refresh had found nothing new.
+  const now = new Date();
+  const expected = toDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+  const behind = latestDay < expected;
+  badge.textContent = behind
+    ? `No SMT data since ${fmtDate(latestDay)} — expected ${fmtDate(expected)}`
+    : `Latest SMT day: ${fmtDate(latestDay)} (typically 1-day delayed)`;
+  const chip = document.getElementById('upload-chip');
+  if (chip && chip.classList) chip.classList.toggle('stale', behind);
 }
 
 function renderDailyChart(days) {
@@ -3080,7 +3132,10 @@ function applyViewVisibility() {
   // The legacy tab containers are now plain sections inside their views.
   for (const id of ['tab-daily', 'tab-hourly']) { const node = byId(id); if (node) node.style.display = 'block'; }
   const onDashboard = activeView === 'dashboard';
-  const sync = byId('rail-sync'); if (sync) sync.style.display = onDashboard ? 'flex' : 'none';
+  // The Drive button stays on every view. It was Dashboard-only, which meant
+  // going looking for it from the Hourly Table or Plan & Rates found nothing;
+  // the data it fetches feeds all three.
+  const sync = byId('rail-sync'); if (sync) sync.style.display = 'flex';
   const seg = byId('range-seg'); if (seg) seg.style.display = onDashboard ? 'inline-flex' : 'none';
   const asof = byId('range-asof'); if (asof) asof.style.display = onDashboard ? 'block' : 'none';
   const title = byId('app-title');
