@@ -183,3 +183,27 @@ test('costs read as dollars, keeping sub-cent detail without the cent sign', () 
   assert.match(c.insightCost(1.83, 25), /\$0\.4575 at 25¢\/kWh/);
   assert.match(c.insightCost(0, 25), /\$0\.00 at 25¢\/kWh/);
 });
+
+test('a page refresh re-checks Drive within minutes, not hours', () => {
+  const c = plan();
+  const prefs = { driveSyncVersion: 'smt-import-export-v2' };
+  c.localStorage = { getItem: k => (k in prefs ? prefs[k] : null), setItem(k, v) { prefs[k] = v; } };
+
+  prefs.lastSyncTime = String(Date.now() - 60 * 1000);
+  assert.equal(c.shouldAutoSync(), false, 'a sync a minute ago is not repeated on a rapid reload');
+  // The old six-hour gate meant a file uploaded at 10am was ignored until the
+  // afternoon, however many times the page was refreshed.
+  prefs.lastSyncTime = String(Date.now() - 20 * 60 * 1000);
+  assert.equal(c.shouldAutoSync(), true, 'twenty minutes later a refresh checks Drive');
+  prefs.lastSyncTime = String(Date.now() - 2 * 60 * 60 * 1000);
+  assert.equal(c.shouldAutoSync(), true, 'two hours later it certainly checks');
+
+  // Anything unreadable must fall back to syncing, never to skipping.
+  for (const odd of ['', 'bad', String(Date.now() + 86400000)]) {
+    prefs.lastSyncTime = odd;
+    assert.equal(c.shouldAutoSync(), true, 'odd timestamp ' + JSON.stringify(odd) + ' still syncs');
+  }
+  prefs.driveSyncVersion = 'older-version';
+  prefs.lastSyncTime = String(Date.now());
+  assert.equal(c.shouldAutoSync(), true, 'a changed sync version always resyncs');
+});

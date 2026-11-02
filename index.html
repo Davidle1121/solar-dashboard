@@ -957,7 +957,12 @@ let freeNightsEnabled = true;
 let freeStartHour = 21;
 let freeEndHour = 9;
 const AUTO_SYNC_MODE = 'smart';
-const AUTO_SYNC_INTERVAL_HOURS = 6;
+// A page refresh has to pick up a file uploaded minutes ago. This used to be a
+// six-hour gate, so after one successful sync the dashboard ignored Drive for
+// the rest of the morning and reloading changed nothing. Only a sync in the
+// last few minutes is skipped now, which still stops rapid reloads from
+// re-downloading the same files.
+const AUTO_SYNC_MIN_GAP_MS = 10 * 60 * 1000;
 const DASHBOARD_CACHE_KEY = 'energyDashboardCacheV3';
 const DRIVE_FETCH_TIMEOUT_MS = 30000;
 const DRIVE_FETCH_RETRIES = 2;
@@ -980,7 +985,10 @@ function shouldAutoSync() {
   if (AUTO_SYNC_MODE === 'daily') return readSyncPreference('lastSyncDate') !== getTodayKey();
   const last = Number(readSyncPreference('lastSyncTime'));
   const elapsed = Date.now() - last;
-  return !last || !Number.isFinite(elapsed) || elapsed < 0 || elapsed > AUTO_SYNC_INTERVAL_HOURS * 60 * 60 * 1000;
+  // Anything unreadable, missing or in the future means sync: never skip a
+  // check because a stored timestamp looked odd.
+  if (!last || !Number.isFinite(elapsed) || elapsed < 0) return true;
+  return elapsed > AUTO_SYNC_MIN_GAP_MS;
 }
 
 function markSyncedNow() {
@@ -1233,7 +1241,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       status.className = 'drive-status ok';
       status.textContent = AUTO_SYNC_MODE === 'daily'
         ? 'Auto-sync skipped — using cached data from today'
-        : `Auto-sync skipped — using cached data (last sync was within ${AUTO_SYNC_INTERVAL_HOURS} hour${AUTO_SYNC_INTERVAL_HOURS !== 1 ? 's' : ''})`;
+        // Minutes, not hours: the gate is now short enough that saying "within
+        // N hours" would be wrong and would also read as "stop refreshing".
+        : `Auto-sync skipped — using cached data (synced less than ${Math.round(AUTO_SYNC_MIN_GAP_MS / 60000)} minutes ago)`;
     } else {
       status.className = 'drive-status syncing';
       status.textContent = 'No cached data available — syncing from Drive…';
@@ -2227,7 +2237,18 @@ function updateDataFreshness(days) {
   if (!badge || !days || days.length === 0) return;
   const latestDay = days[days.length - 1];
   badge.style.display = 'inline-block';
-  badge.textContent = `Latest SMT day: ${fmtDate(latestDay)} (typically 1-day delayed)`;
+  // SMT runs about a day behind, so yesterday is the newest day we expect to
+  // hold. Anything older means an export has not arrived or has not been
+  // uploaded yet, and the chip says so instead of stating a date flatly --
+  // without it there was no sign that a refresh had found nothing new.
+  const now = new Date();
+  const expected = toDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+  const behind = latestDay < expected;
+  badge.textContent = behind
+    ? `No SMT data since ${fmtDate(latestDay)} — expected ${fmtDate(expected)}`
+    : `Latest SMT day: ${fmtDate(latestDay)} (typically 1-day delayed)`;
+  const chip = document.getElementById('upload-chip');
+  if (chip && chip.classList) chip.classList.toggle('stale', behind);
 }
 
 function renderDailyChart(days) {
@@ -3080,7 +3101,10 @@ function applyViewVisibility() {
   // The legacy tab containers are now plain sections inside their views.
   for (const id of ['tab-daily', 'tab-hourly']) { const node = byId(id); if (node) node.style.display = 'block'; }
   const onDashboard = activeView === 'dashboard';
-  const sync = byId('rail-sync'); if (sync) sync.style.display = onDashboard ? 'flex' : 'none';
+  // The Drive button stays on every view. It was Dashboard-only, which meant
+  // going looking for it from the Hourly Table or Plan & Rates found nothing;
+  // the data it fetches feeds all three.
+  const sync = byId('rail-sync'); if (sync) sync.style.display = 'flex';
   const seg = byId('range-seg'); if (seg) seg.style.display = onDashboard ? 'inline-flex' : 'none';
   const asof = byId('range-asof'); if (asof) asof.style.display = onDashboard ? 'block' : 'none';
   const title = byId('app-title');
